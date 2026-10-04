@@ -109,9 +109,9 @@ import com.maxrave.simpmusic.getPlatform
 import com.maxrave.simpmusic.ui.component.BlogPromoDialog
 import com.maxrave.simpmusic.ui.component.CenterLoadingBox
 import com.maxrave.simpmusic.ui.component.CenterLoadingPullToRefreshIndicator
-import com.maxrave.simpmusic.ui.component.Chip
 import com.maxrave.simpmusic.ui.component.DropdownButton
 import com.maxrave.simpmusic.ui.component.EndOfPage
+import com.maxrave.simpmusic.ui.component.ExpressiveHomeButtonGroup
 import com.maxrave.simpmusic.ui.component.FootgunsStarDialog
 import com.maxrave.simpmusic.ui.component.HomeItem
 import com.maxrave.simpmusic.ui.component.HomeItemContentPlaylist
@@ -146,16 +146,6 @@ import com.maxrave.simpmusic.ui.theme.desktopPanelDark
 import com.maxrave.simpmusic.ui.theme.typo
 import com.maxrave.simpmusic.viewModel.FOOTGUNS_STAR_KEY
 import com.maxrave.simpmusic.viewModel.HomeViewModel
-import com.maxrave.simpmusic.viewModel.HomeViewModel.Companion.HOME_PARAMS_COMMUTE
-import com.maxrave.simpmusic.viewModel.HomeViewModel.Companion.HOME_PARAMS_ENERGIZE
-import com.maxrave.simpmusic.viewModel.HomeViewModel.Companion.HOME_PARAMS_FEEL_GOOD
-import com.maxrave.simpmusic.viewModel.HomeViewModel.Companion.HOME_PARAMS_FOCUS
-import com.maxrave.simpmusic.viewModel.HomeViewModel.Companion.HOME_PARAMS_PARTY
-import com.maxrave.simpmusic.viewModel.HomeViewModel.Companion.HOME_PARAMS_RELAX
-import com.maxrave.simpmusic.viewModel.HomeViewModel.Companion.HOME_PARAMS_ROMANCE
-import com.maxrave.simpmusic.viewModel.HomeViewModel.Companion.HOME_PARAMS_SAD
-import com.maxrave.simpmusic.viewModel.HomeViewModel.Companion.HOME_PARAMS_SLEEP
-import com.maxrave.simpmusic.viewModel.HomeViewModel.Companion.HOME_PARAMS_WORKOUT
 import com.maxrave.simpmusic.viewModel.ListState
 import com.maxrave.simpmusic.viewModel.SharedViewModel
 
@@ -199,21 +189,6 @@ import simpmusic.composeapp.generated.resources.workout
 
 // DataStore key for blog-promo one-shot dialog. Bump the suffix (v2, v3, …) to re-promote.
 private const val BLOG_PROMO_KEY = "blog_promo_v1_seen"
-
-private val listOfHomeChip =
-    listOf(
-        Res.string.all,
-        Res.string.relax,
-        Res.string.sleep,
-        Res.string.energize,
-        Res.string.sad,
-        Res.string.romance,
-        Res.string.feel_good,
-        Res.string.workout,
-        Res.string.party,
-        Res.string.commute,
-        Res.string.focus,
-    )
 
 @OptIn(ExperimentalMaterial3Api::class)
 @ExperimentalFoundationApi
@@ -825,50 +800,15 @@ fun HomeScreen(
                                 ),
                     )
                 }
-                Row(
-                    modifier =
-                        Modifier
-                            .horizontalScroll(chipRowState)
-                            .padding(vertical = 8.dp, horizontal = 15.dp)
-                            .background(Color.Transparent),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    listOfHomeChip.forEach { id ->
-                        val isSelected =
-                            when (params) {
-                                HOME_PARAMS_RELAX -> id == Res.string.relax
-                                HOME_PARAMS_SLEEP -> id == Res.string.sleep
-                                HOME_PARAMS_ENERGIZE -> id == Res.string.energize
-                                HOME_PARAMS_SAD -> id == Res.string.sad
-                                HOME_PARAMS_ROMANCE -> id == Res.string.romance
-                                HOME_PARAMS_FEEL_GOOD -> id == Res.string.feel_good
-                                HOME_PARAMS_WORKOUT -> id == Res.string.workout
-                                HOME_PARAMS_PARTY -> id == Res.string.party
-                                HOME_PARAMS_COMMUTE -> id == Res.string.commute
-                                HOME_PARAMS_FOCUS -> id == Res.string.focus
-                                else -> id == Res.string.all
-                            }
-                        Chip(
-                            isAnimated = loading,
-                            isSelected = isSelected,
-                            text = stringResource(id),
-                        ) {
-                            when (id) {
-                                Res.string.all -> viewModel.setParams(null)
-                                Res.string.relax -> viewModel.setParams(HOME_PARAMS_RELAX)
-                                Res.string.sleep -> viewModel.setParams(HOME_PARAMS_SLEEP)
-                                Res.string.energize -> viewModel.setParams(HOME_PARAMS_ENERGIZE)
-                                Res.string.sad -> viewModel.setParams(HOME_PARAMS_SAD)
-                                Res.string.romance -> viewModel.setParams(HOME_PARAMS_ROMANCE)
-                                Res.string.feel_good -> viewModel.setParams(HOME_PARAMS_FEEL_GOOD)
-                                Res.string.workout -> viewModel.setParams(HOME_PARAMS_WORKOUT)
-                                Res.string.party -> viewModel.setParams(HOME_PARAMS_PARTY)
-                                Res.string.commute -> viewModel.setParams(HOME_PARAMS_COMMUTE)
-                                Res.string.focus -> viewModel.setParams(HOME_PARAMS_FOCUS)
-                            }
-                        }
-                    }
-                }
+                ExpressiveHomeButtonGroup(
+                    selectedParam = params,
+                    isLoading = loading,
+                    onSelectParam = { newParam ->
+                        viewModel.setParams(newParam)
+                    },
+                    scrollState = chipRowState,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
         }
     }
