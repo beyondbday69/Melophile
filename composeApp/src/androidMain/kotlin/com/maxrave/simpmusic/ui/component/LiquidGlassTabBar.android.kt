@@ -270,7 +270,10 @@ private fun LiquidGlassTab(
         verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        CompositionLocalProvider(LocalContentColor provides color) {
+        CompositionLocalProvider(
+            LocalContentColor provides color,
+            LocalNavigationTabSelected provides selected,
+        ) {
             screen.icon()
             Text(
                 text = stringResource(screen.title),

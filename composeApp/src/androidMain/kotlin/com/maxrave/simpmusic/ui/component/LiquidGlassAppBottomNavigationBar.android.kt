@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -291,7 +292,11 @@ actual fun LiquidGlassAppBottomNavigationBar(
                             ).clickable { selectTab(BottomNavScreen.Search.ordinal) },
                     contentAlignment = Alignment.Center,
                 ) {
-                    BottomNavScreen.Search.icon()
+                    CompositionLocalProvider(
+                        LocalNavigationTabSelected provides isInSearchDestination,
+                    ) {
+                        BottomNavScreen.Search.icon()
+                    }
                 }
             } else {
                 val selectedScreen =
@@ -310,7 +315,11 @@ actual fun LiquidGlassAppBottomNavigationBar(
                             ).clickable { isExpanded = true },
                     contentAlignment = Alignment.Center,
                 ) {
-                    selectedScreen.icon()
+                    CompositionLocalProvider(
+                        LocalNavigationTabSelected provides true,
+                    ) {
+                        selectedScreen.icon()
+                    }
                 }
             }
         }

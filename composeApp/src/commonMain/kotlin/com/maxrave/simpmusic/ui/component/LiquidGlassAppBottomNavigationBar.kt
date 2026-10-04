@@ -51,10 +51,7 @@ sealed class BottomNavScreen(
         destination = HomeDestination,
         title = Res.string.home,
         icon = {
-            Icon(
-                SimpIcons.Home,
-                contentDescription = null,
-            )
+            AnimatedHomeIcon()
         },
     )
 
@@ -63,10 +60,7 @@ sealed class BottomNavScreen(
         destination = SearchDestination,
         title = Res.string.search,
         icon = {
-            Icon(
-                SimpIcons.Search,
-                contentDescription = null,
-            )
+            AnimatedSearchIcon()
         },
     )
 
@@ -75,10 +69,7 @@ sealed class BottomNavScreen(
         destination = LibraryDestination,
         title = Res.string.library,
         icon = {
-            Icon(
-                imageVector = SimpIcons.LibraryMusic,
-                contentDescription = null,
-            )
+            AnimatedLibraryIcon()
         },
     )
 
@@ -88,10 +79,7 @@ sealed class BottomNavScreen(
         destination = AnalyticsDestination,
         title = Res.string.analytics,
         icon = {
-            Icon(
-                imageVector = SimpIcons.AutoGraph,
-                contentDescription = null,
-            )
+            AnimatedAnalyticsIcon()
         },
     )
 
@@ -103,10 +91,7 @@ sealed class BottomNavScreen(
         destination = MixForYouDestination,
         title = Res.string.mix,
         icon = {
-            Icon(
-                imageVector = SimpIcons.Sensors,
-                contentDescription = null,
-            )
+            AnimatedMixForYouIcon()
         },
     )
 }

@@ -170,7 +170,10 @@ fun AppBottomNavigationBar(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center,
                         ) {
-                            CompositionLocalProvider(LocalContentColor provides contentColor) {
+                            CompositionLocalProvider(
+                                LocalContentColor provides contentColor,
+                                LocalNavigationTabSelected provides selected,
+                            ) {
                                 screen.icon()
                             }
                             Text(
@@ -257,7 +260,13 @@ fun AppNavigationRail(
         Spacer(Modifier.height(20.dp))
         bottomNavScreens.forEach { screen ->
             NavigationRailItem(
-                icon = screen.icon,
+                icon = {
+                    CompositionLocalProvider(
+                        LocalNavigationTabSelected provides (selectedIndex == screen.ordinal),
+                    ) {
+                        screen.icon()
+                    }
+                },
                 label = {
                     Text(
                         stringResource(screen.title),

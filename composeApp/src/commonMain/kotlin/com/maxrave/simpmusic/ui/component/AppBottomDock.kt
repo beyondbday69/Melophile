@@ -391,7 +391,10 @@ private fun AppBottomDockItem(
             horizontalArrangement = Arrangement.Center,
             modifier = Modifier.fillMaxHeight().padding(horizontal = 8.dp),
         ) {
-            CompositionLocalProvider(LocalContentColor provides contentColor) {
+            CompositionLocalProvider(
+                LocalContentColor provides contentColor,
+                LocalNavigationTabSelected provides selected,
+            ) {
                 screen.icon()
             }
             AnimatedVisibility(
