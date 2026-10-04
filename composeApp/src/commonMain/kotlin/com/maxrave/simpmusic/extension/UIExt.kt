@@ -76,6 +76,7 @@ import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
+import kotlin.math.sqrt
 
 fun Modifier.shimmer(): Modifier =
     composed {
@@ -477,56 +478,245 @@ fun LazyGridState.isScrollingUp(): State<Boolean> {
     }
 }
 
-fun Palette?.getColorFromPalette(): Color {
-    val p = this ?: return Color.Black
-    val defaultColor = 0x000000
-    var startColor = p.getDarkVibrantColor(defaultColor)
-    if (startColor == defaultColor) {
-        startColor = p.getDarkMutedColor(defaultColor)
-        if (startColor == defaultColor) {
-            startColor = p.getVibrantColor(defaultColor)
-            if (startColor == defaultColor) {
-                startColor =
-                    p.getMutedColor(defaultColor)
-                if (startColor == defaultColor) {
-                    startColor =
-                        p.getLightVibrantColor(
-                            defaultColor,
-                        )
-                    if (startColor == defaultColor) {
-                        startColor =
-                            p.getLightMutedColor(
-                                defaultColor,
-                            )
-                    }
-                }
-            }
+/**
+ * Converts a [Color] to an HSL float array:
+ * - hsl[0]: Hue in degrees [0f .. 360f]
+ * - hsl[1]: Saturation [0f .. 1f]
+ * - hsl[2]: Lightness [0f .. 1f]
+ */
+fun Color.toHsl(): FloatArray {
+    val r = red.coerceIn(0f, 1f)
+    val g = green.coerceIn(0f, 1f)
+    val b = blue.coerceIn(0f, 1f)
+
+    val maxVal = maxOf(r, maxOf(g, b))
+    val minVal = minOf(r, minOf(g, b))
+    val l = (maxVal + minVal) / 2f
+    val d = maxVal - minVal
+
+    val s = if (d == 0f) {
+        0f
+    } else {
+        if (l > 0.5f) d / (2f - maxVal - minVal) else d / (maxVal + minVal)
+    }
+
+    val h = when {
+        d == 0f -> 0f
+        maxVal == r -> ((g - b) / d + (if (g < b) 6f else 0f)) * 60f
+        maxVal == g -> ((b - r) / d + 2f) * 60f
+        else -> ((r - g) / d + 4f) * 60f
+    }
+
+    return floatArrayOf(
+        h.coerceIn(0f, 360f),
+        s.coerceIn(0f, 1f),
+        l.coerceIn(0f, 1f),
+    )
+}
+
+/**
+ * Creates a Compose [Color] from HSL values:
+ * @param h Hue in degrees [0f .. 360f]
+ * @param s Saturation [0f .. 1f]
+ * @param l Lightness [0f .. 1f]
+ * @param alpha Alpha [0f .. 1f]
+ */
+fun hslToColor(h: Float, s: Float, l: Float, alpha: Float = 1.0f): Color {
+    val clampedH = (h % 360f + 360f) % 360f
+    val clampedS = s.coerceIn(0f, 1f)
+    val clampedL = l.coerceIn(0f, 1f)
+
+    val c = (1f - abs(2f * clampedL - 1f)) * clampedS
+    val x = c * (1f - abs((clampedH / 60f) % 2f - 1f))
+    val m = clampedL - c / 2f
+
+    val (rPrime, gPrime, bPrime) = when {
+        clampedH < 60f -> Triple(c, x, 0f)
+        clampedH < 120f -> Triple(x, c, 0f)
+        clampedH < 180f -> Triple(0f, c, x)
+        clampedH < 240f -> Triple(0f, x, c)
+        clampedH < 300f -> Triple(x, 0f, c)
+        else -> Triple(c, 0f, x)
+    }
+
+    return Color(
+        red = (rPrime + m).coerceIn(0f, 1f),
+        green = (gPrime + m).coerceIn(0f, 1f),
+        blue = (bPrime + m).coerceIn(0f, 1f),
+        alpha = alpha.coerceIn(0f, 1f),
+    )
+}
+
+/**
+ * Harmonizes the extracted raw color so it serves as an ideal seed for Material 3
+ * dynamic theming (MaterialKolor Vibrant) and now-playing backgrounds:
+ * - Lifts very dark hues (e.g. navy, deep forest, dark maroon) so their rich color is visible.
+ * - Deepens over-bright / washed-out pastels so icons and text maintain strong contrast.
+ * - Gently enhances moderate saturation so the color feels vibrant and alive rather than dull/muddy.
+ */
+fun Color.tuneForTheming(): Color {
+    val hsl = toHsl()
+    val h = hsl[0]
+    var s = hsl[1]
+    var l = hsl[2]
+
+    if (s > 0.10f) {
+        // Boost moderate saturation so the theme is rich and expressive
+        if (s in 0.15f..0.70f) {
+            s = (s * 1.25f).coerceAtMost(0.92f)
+        }
+        // Balance lightness into optimal M3 seed range (0.32 .. 0.70)
+        if (l < 0.32f) {
+            l = (0.32f + l * 0.25f).coerceIn(0.32f, 0.46f)
+        } else if (l > 0.75f) {
+            l = (0.62f + (l - 0.75f) * 0.35f).coerceIn(0.55f, 0.70f)
         }
     }
-    return Color(startColor)
+    return hslToColor(h, s, l, alpha = 1.0f)
+}
+
+/**
+ * Extracts the most representative, vibrant, and visually accurate signature color
+ * from a [Palette] for music artwork.
+ *
+ * Evaluates all candidate swatches across saturation, perceptual luminance,
+ * pixel population, and specialized profile targets (vibrant, dominant, etc.).
+ *
+ * Prevents letterbox borders (black/white bars) and dark muddy shadows from hijacking
+ * the song's theme, and guarantees the extracted tone matches what human eyes perceive
+ * on the album cover.
+ */
+fun Palette?.getColorFromPalette(): Color {
+    val p = this ?: return Color.Black
+
+    data class SwatchCandidate(
+        val color: Color,
+        val population: Int,
+        val profileBonus: Float,
+    )
+
+    val candidates = mutableListOf<SwatchCandidate>()
+
+    fun addCandidate(colorInt: Int, population: Int, bonus: Float) {
+        if (colorInt == 0) return
+        val c = Color(colorInt)
+        // Ensure not transparent
+        if (c.alpha < 0.5f) return
+        // Avoid duplicate colors (within minimal delta)
+        val existingIndex = candidates.indexOfFirst {
+            val dR = abs(it.color.red - c.red)
+            val dG = abs(it.color.green - c.green)
+            val dB = abs(it.color.blue - c.blue)
+            dR < 0.04f && dG < 0.04f && dB < 0.04f
+        }
+        if (existingIndex >= 0) {
+            val ex = candidates[existingIndex]
+            candidates[existingIndex] = ex.copy(
+                population = maxOf(ex.population, population),
+                profileBonus = maxOf(ex.profileBonus, bonus),
+            )
+        } else {
+            candidates.add(SwatchCandidate(c, population, bonus))
+        }
+    }
+
+    // 1. Collect profile swatches
+    p.vibrantSwatch?.let { addCandidate(it.rgb, it.population, bonus = 3.5f) }
+    p.dominantSwatch?.let { addCandidate(it.rgb, it.population, bonus = 2.2f) }
+    p.lightVibrantSwatch?.let { addCandidate(it.rgb, it.population, bonus = 1.8f) }
+    p.darkVibrantSwatch?.let { addCandidate(it.rgb, it.population, bonus = 1.2f) }
+    p.mutedSwatch?.let { addCandidate(it.rgb, it.population, bonus = 0.8f) }
+    p.lightMutedSwatch?.let { addCandidate(it.rgb, it.population, bonus = 0.6f) }
+    p.darkMutedSwatch?.let { addCandidate(it.rgb, it.population, bonus = 0.4f) }
+
+    // 2. Collect all raw quantized swatches
+    for (swatch in p.swatches) {
+        addCandidate(swatch.rgb, swatch.population, bonus = 0f)
+    }
+
+    // 3. Fallbacks if swatches were empty
+    if (candidates.isEmpty()) {
+        listOf(
+            p.getVibrantColor(0) to 3.0f,
+            p.getDominantColor(0) to 2.2f,
+            p.getLightVibrantColor(0) to 1.5f,
+            p.getDarkVibrantColor(0) to 1.0f,
+            p.getMutedColor(0) to 0.7f,
+        ).forEach { (colorInt, bonus) ->
+            if (colorInt != 0) addCandidate(colorInt, 100, bonus)
+        }
+    }
+
+    if (candidates.isEmpty()) return Color.Black
+
+    val maxPop = candidates.maxOfOrNull { it.population }?.coerceAtLeast(1) ?: 1
+
+    // Detect if the cover has any vibrant/colorful tones (S >= 0.16 and valid lightness)
+    val hasColor = candidates.any {
+        val hsl = it.color.toHsl()
+        hsl[1] >= 0.16f && hsl[2] in 0.10f..0.92f
+    }
+
+    // Scoring function
+    fun scoreCandidate(candidate: SwatchCandidate): Float {
+        val hsl = candidate.color.toHsl()
+        val s = hsl[1]
+        val l = hsl[2]
+
+        // Hard penalties for extreme black or extreme white letterbox borders
+        if (l < 0.08f) return -100f // Letterbox black / dark shadow
+        if (l > 0.94f && s < 0.12f) return -60f // Letterbox white
+
+        val popRatio = (candidate.population.toFloat() / maxPop).coerceIn(0f, 1f)
+        val popScore = sqrt(popRatio) * 2.2f
+
+        if (hasColor) {
+            // Heavily penalize desaturated muddy greys when colorful art is available
+            if (s < 0.14f) return -30f + (s * 40f)
+
+            // Saturation is the #1 identifier of album artwork color
+            val satScore = (s * s) * 6.0f
+
+            // Ideal lightness range is 0.32 .. 0.68
+            val lightnessDistance = abs(l - 0.50f)
+            val lightnessScore = (1.0f - lightnessDistance * 1.6f).coerceAtLeast(0f) * 3.0f
+
+            return satScore + lightnessScore + popScore + candidate.profileBonus
+        } else {
+            // Grayscale / monochrome album (e.g. black and white photography):
+            // Pick a clean, pleasant mid-tone
+            val lightnessScore = (1.0f - abs(l - 0.45f) * 1.8f).coerceAtLeast(0f) * 3.5f
+            return lightnessScore + popScore + candidate.profileBonus
+        }
+    }
+
+    val best = candidates.maxByOrNull { scoreCandidate(it) } ?: return Color.Black
+    val bestHsl = best.color.toHsl()
+
+    // If best color is practically black, return Color.Black to trigger fallbacks
+    if (bestHsl[2] < 0.06f) return Color.Black
+
+    return best.color.tuneForTheming()
 }
 
 /**
  * Apple-Music-style immersive page background derived from the artwork.
- * Uses the DOMINANT swatch (overall tone of the image, by pixel area) instead of a vivid Muted
- * swatch — so a light image yields a light-ish tone rather than a small saturated patch (e.g. a
- * bright portrait no longer turns brick-red from the hair/skin). Then darkens adaptively: the
- * lighter the source, the harder it is pulled toward black, so white text stays readable on any
- * artwork.
+ * Uses the intelligently extracted signature color, then darkens adaptively so white text
+ * and foreground elements always maintain pristine contrast.
  */
 fun Palette?.toImmersiveBackground(): Color {
     val p = this ?: return Color.Black
-    val rgb =
-        p.getDominantColor(0).takeIf { it != 0 }
-            ?: p.getMutedColor(0).takeIf { it != 0 }
-            ?: p.getVibrantColor(0).takeIf { it != 0 }
-            ?: return Color.Black
-    val base = Color(rgb)
-    // Perceived luminance (0 dark .. 1 light) of the source swatch.
-    val luminance = 0.299f * base.red + 0.587f * base.green + 0.114f * base.blue
-    // Darken more for lighter artwork so the page stays dark enough for white text.
-    val darkenFactor = 0.35f + 0.45f * luminance
-    return androidx.compose.ui.graphics.lerp(base, Color.Black, darkenFactor)
+    val signature = p.getColorFromPalette().takeIf { it != Color.Black }
+        ?: run {
+            val rgb = p.getDominantColor(0).takeIf { it != 0 }
+                ?: p.getMutedColor(0).takeIf { it != 0 }
+                ?: p.getVibrantColor(0).takeIf { it != 0 }
+                ?: return Color.Black
+            Color(rgb)
+        }
+    val luminance = 0.299f * signature.red + 0.587f * signature.green + 0.114f * signature.blue
+    val darkenFactor = 0.40f + 0.45f * luminance
+    return androidx.compose.ui.graphics.lerp(signature, Color.Black, darkenFactor)
 }
 
 /**
