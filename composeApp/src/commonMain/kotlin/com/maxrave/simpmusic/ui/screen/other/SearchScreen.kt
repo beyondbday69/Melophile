@@ -56,8 +56,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import com.maxrave.simpmusic.ui.component.ExpressiveSearchButtonGroup
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -1533,25 +1532,30 @@ fun SearchScreen(
                             shrinkVertically(animationSpec = motionScheme.defaultSpatialSpec()),
                     modifier = Modifier.align(Alignment.CenterHorizontally),
                 ) {
-                    SingleChoiceSegmentedButtonRow(
+                    ExpressiveSearchButtonGroup(
+                        selectedType = searchScreenState.searchType,
+                        onSelectType = { category ->
+                            searchViewModel.setSearchType(category)
+                            val query = searchText.trim()
+                            if (query.isNotEmpty()) {
+                                when (category) {
+                                    SearchType.ALL -> searchViewModel.searchAll(query)
+                                    SearchType.SONGS -> searchViewModel.searchSongs(query)
+                                    SearchType.VIDEOS -> searchViewModel.searchVideos(query)
+                                    SearchType.ALBUMS -> searchViewModel.searchAlbums(query)
+                                    SearchType.ARTISTS -> searchViewModel.searchArtists(query)
+                                    SearchType.PLAYLISTS -> searchViewModel.searchPlaylists(query)
+                                    SearchType.PODCASTS -> searchViewModel.searchPodcast(query)
+                                    else -> {}
+                                }
+                            }
+                        },
+                        scrollState = chipRowState,
                         modifier =
                             Modifier
                                 .widthIn(max = 720.dp)
-                                .horizontalScroll(chipRowState)
-                                .padding(top = 10.dp)
-                                .padding(horizontal = 12.dp),
-                    ) {
-                        SearchType.entries.forEachIndexed { index, id ->
-                            val isSelected = id == searchScreenState.searchType
-                            SegmentedButton(
-                                selected = isSelected,
-                                onClick = { searchViewModel.setSearchType(id) },
-                                shape = androidx.compose.material3.SegmentedButtonDefaults.itemShape(index = index, count = SearchType.entries.size)
-                            ) {
-                                Text(stringResource(id.toStringRes()))
-                            }
-                        }
-                    }
+                                .padding(top = 4.dp),
+                    )
                 }
             }
     }
