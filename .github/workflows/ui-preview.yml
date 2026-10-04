@@ -90,9 +90,7 @@ jobs:
           
           NAMED_APK="release_apk_named/SimpMusic-${APP_VERSION_NAME}-arm64-v8a.apk"
           cp "$SRC_APK" "$NAMED_APK"
-          cp "$SRC_APK" release_apk_named/androidApp-arm64-v8a-release.apk
           
-          echo "APK_FILES=release_apk_named/*.apk" >> $GITHUB_ENV
           echo "PRIMARY_APK=$NAMED_APK" >> $GITHUB_ENV
           echo "BUILD_FLAVOR=$BUILD_FLAVOR" >> $GITHUB_ENV
 
@@ -100,7 +98,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: SimpMusic-arm64-apk
-          path: ${{ env.APK_FILES }}
+          path: ${{ env.PRIMARY_APK }}
+          compression-level: 9
           if-no-files-found: error
 
       - name: Deploy Live In-Browser Preview (Appetize.io)
@@ -133,7 +132,7 @@ jobs:
           ### 📦 Download APK
           **SimpMusic ${APP_VERSION_NAME}** (Version Code: \`${APP_VERSION_CODE}\`)
           Features direct in-app updating from GitHub, Material 3 Expressive motion physics, dynamic colors, and Plus Jakarta Sans typography."
-          gh release create "$TAG" ${{ env.APK_FILES }} \
+          gh release create "$TAG" "${{ env.PRIMARY_APK }}" \
             --title "SimpMusic ${APP_VERSION_NAME}" \
             --notes "$RELEASE_NOTES" \
             --prerelease || true
