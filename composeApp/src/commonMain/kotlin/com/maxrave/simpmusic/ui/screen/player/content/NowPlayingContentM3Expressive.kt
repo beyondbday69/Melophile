@@ -108,6 +108,7 @@ import com.maxrave.simpmusic.ui.icon.Repeat
 import com.maxrave.simpmusic.ui.icon.RepeatOne
 import com.maxrave.simpmusic.ui.icon.Shuffle
 import com.maxrave.simpmusic.ui.icon.SimpIcons
+import com.maxrave.simpmusic.ui.screen.player.content.expressive.ExpressiveFunctionButtonGroup
 import com.maxrave.simpmusic.ui.screen.player.content.expressive.ExpressiveTransportRow
 import com.maxrave.simpmusic.ui.screen.player.content.expressive.WavySeekBar
 import com.maxrave.simpmusic.ui.theme.LocalForcedDarkColorScheme
@@ -518,7 +519,7 @@ private fun NowPlayingM3ExpressiveLayout(
                                     Spacer(Modifier.height(16.dp))
                                 }
                                 Spacer(Modifier.height(12.dp))
-                                ExpressiveConnectedGroup(state = state, actions = actions)
+                                ExpressiveFunctionButtonGroup(state = state, actions = actions)
                             }
                             // Canvas-unfocused overlay — Classic verbatim: covers the info
                             // area, a tap re-shows the controls, and the metadata row (plus
@@ -932,158 +933,13 @@ internal fun ColumnScope.ExpressivePlaybackControls(
 }
 
 /**
- * Connected button group: six 48dp slots with 3dp gaps and rounded end caps —
- * Info | Cast | Shuffle | Repeat | Add-to-playlist | Queue.
+ * Material 3 Expressive Standard Button Group:
+ * Six interactive slots with adjacent button reaction, spring overshoot, and animated icons.
  */
 @Composable
 private fun ExpressiveConnectedGroup(
     state: NowPlayingContentState,
     actions: NowPlayingContentActions,
 ) {
-    val colorScheme = MaterialTheme.colorScheme
-    val startCap = RoundedCornerShape(topStart = 24.dp, topEnd = 6.dp, bottomEnd = 6.dp, bottomStart = 24.dp)
-    val endCap = RoundedCornerShape(topStart = 6.dp, topEnd = 24.dp, bottomEnd = 24.dp, bottomStart = 6.dp)
-    val middle = RoundedCornerShape(6.dp)
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(3.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .height(48.dp),
-    ) {
-        ExpressiveConnectedSlot(
-            shape = startCap,
-            onClick = { actions.onShowInfo() },
-        ) {
-            Icon(
-                imageVector = SimpIcons.Info,
-                contentDescription = "",
-                tint = colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(22.dp),
-            )
-        }
-        // Cast — the slot owns the availability gate and stays non-clickable so the platform
-        // button (a real MediaRouteButton) still receives its own taps. Active session tints
-        // primary, like Classic's cyan.
-        CastSlot(
-            tint = if (state.castState.isRemote) colorScheme.primary else colorScheme.onSurfaceVariant,
-            shape = middle,
-            color = colorScheme.surfaceContainerHigh,
-            iconSize = 24.dp,
-            modifier = Modifier.weight(1f).fillMaxHeight(),
-        )
-        ExpressiveConnectedSlot(
-            shape = middle,
-            active = state.controllerState.isShuffle,
-            onClick = { actions.onUIEvent(UIEvent.Shuffle) },
-        ) {
-            Crossfade(targetState = state.controllerState.isShuffle, label = "expressiveShuffle") { isShuffle ->
-                Icon(
-                    imageVector = SimpIcons.Shuffle,
-                    contentDescription = "",
-                    tint = if (isShuffle) colorScheme.onPrimaryContainer else colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(22.dp),
-                )
-            }
-        }
-        ExpressiveConnectedSlot(
-            shape = middle,
-            active = state.controllerState.repeatState !is RepeatState.None,
-            onClick = { actions.onUIEvent(UIEvent.Repeat) },
-        ) {
-            Crossfade(targetState = state.controllerState.repeatState, label = "expressiveRepeat") { rs ->
-                when (rs) {
-                    is RepeatState.None -> {
-                        Icon(
-                            imageVector = SimpIcons.Repeat,
-                            contentDescription = "",
-                            tint = colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(22.dp),
-                        )
-                    }
-
-                    RepeatState.All -> {
-                        Icon(
-                            imageVector = SimpIcons.Repeat,
-                            contentDescription = "",
-                            tint = colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(22.dp),
-                        )
-                    }
-
-                    RepeatState.One -> {
-                        Icon(
-                            imageVector = SimpIcons.RepeatOne,
-                            contentDescription = "",
-                            tint = colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(22.dp),
-                        )
-                    }
-                }
-            }
-        }
-        ExpressiveConnectedSlot(
-            shape = middle,
-            onClick = { actions.onShowAddToPlaylist() },
-        ) {
-            Icon(
-                imageVector = SimpIcons.PlaylistAdd,
-                contentDescription = "Add to Playlist",
-                tint = colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(22.dp),
-            )
-        }
-        ExpressiveConnectedSlot(
-            shape = endCap,
-            onClick = { actions.onShowQueue() },
-        ) {
-            Icon(
-                imageVector = SimpIcons.QueueMusic,
-                contentDescription = "",
-                tint = colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(22.dp),
-            )
-        }
-    }
-}
-
-@Composable
-private fun RowScope.ExpressiveConnectedSlot(
-    shape: Shape,
-    onClick: (() -> Unit)?,
-    active: Boolean = false,
-    content: @Composable () -> Unit,
-) {
-    val colorScheme = MaterialTheme.colorScheme
-    val container = if (active) colorScheme.primaryContainer else colorScheme.surfaceContainerHigh
-    if (onClick != null) {
-        Surface(
-            onClick = onClick,
-            shape = shape,
-            color = container,
-            modifier =
-                Modifier
-                    .weight(1f)
-                    .fillMaxHeight(),
-        ) {
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                content()
-            }
-        }
-    } else {
-        Surface(
-            shape = shape,
-            color = container,
-            modifier =
-                Modifier
-                    .weight(1f)
-                    .fillMaxHeight(),
-        ) {
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                content()
-            }
-        }
-    }
+    ExpressiveFunctionButtonGroup(state = state, actions = actions)
 }
