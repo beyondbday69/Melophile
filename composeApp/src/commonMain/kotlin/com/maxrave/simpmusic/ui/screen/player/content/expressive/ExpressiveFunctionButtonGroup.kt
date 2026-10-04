@@ -1,6 +1,5 @@
 package com.maxrave.simpmusic.ui.screen.player.content.expressive
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -9,16 +8,10 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -27,7 +20,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -40,7 +32,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
@@ -322,38 +313,19 @@ private fun ExpressiveShuffleIcon(
         }
     }
 
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Icon(
-            imageVector = SimpIcons.Shuffle,
-            contentDescription = "Shuffle",
-            tint = color,
-            modifier =
-                Modifier
-                    .size(22.dp)
-                    .graphicsLayer {
-                        rotationZ = rotation.value
-                        scaleX = scale.value
-                        scaleY = scale.value
-                    },
-        )
-        AnimatedVisibility(
-            visible = active,
-            enter = fadeIn(tween(150)) + scaleIn(spring(dampingRatio = 0.6f)),
-            exit = fadeOut(tween(100)) + scaleOut(),
-        ) {
-            Box(
-                modifier =
-                    Modifier
-                        .padding(top = 2.dp)
-                        .size(4.dp)
-                        .clip(CircleShape)
-                        .background(color),
-            )
-        }
-    }
+    Icon(
+        imageVector = SimpIcons.Shuffle,
+        contentDescription = "Shuffle",
+        tint = color,
+        modifier =
+            Modifier
+                .size(22.dp)
+                .graphicsLayer {
+                    rotationZ = rotation.value
+                    scaleX = scale.value
+                    scaleY = scale.value
+                },
+    )
 }
 
 /**
@@ -368,8 +340,6 @@ private fun ExpressiveRepeatIcon(
     val rotation = remember { Animatable(0f) }
     val scale = remember { Animatable(1f) }
     var isFirstComposition by remember { mutableStateOf(true) }
-
-    val isActive = repeatState !is RepeatState.None
 
     LaunchedEffect(repeatState) {
         if (isFirstComposition) {
@@ -387,39 +357,20 @@ private fun ExpressiveRepeatIcon(
         }
     }
 
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        val icon = if (repeatState is RepeatState.One) SimpIcons.RepeatOne else SimpIcons.Repeat
-        Icon(
-            imageVector = icon,
-            contentDescription = "Repeat",
-            tint = color,
-            modifier =
-                Modifier
-                    .size(22.dp)
-                    .graphicsLayer {
-                        rotationZ = rotation.value
-                        scaleX = scale.value
-                        scaleY = scale.value
-                    },
-        )
-        AnimatedVisibility(
-            visible = isActive,
-            enter = fadeIn(tween(150)) + scaleIn(spring(dampingRatio = 0.6f)),
-            exit = fadeOut(tween(100)) + scaleOut(),
-        ) {
-            Box(
-                modifier =
-                    Modifier
-                        .padding(top = 2.dp)
-                        .size(4.dp)
-                        .clip(CircleShape)
-                        .background(color),
-            )
-        }
-    }
+    val icon = if (repeatState is RepeatState.One) SimpIcons.RepeatOne else SimpIcons.Repeat
+    Icon(
+        imageVector = icon,
+        contentDescription = "Repeat",
+        tint = color,
+        modifier =
+            Modifier
+                .size(22.dp)
+                .graphicsLayer {
+                    rotationZ = rotation.value
+                    scaleX = scale.value
+                    scaleY = scale.value
+                },
+    )
 }
 
 /**
