@@ -1,8 +1,17 @@
 package com.maxrave.simpmusic.ui.screen.player.content.expressive
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -26,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.maxrave.domain.mediaservice.handler.ControlState
@@ -57,18 +67,11 @@ private val TOGGLE_SEPARATION = 8.dp
 /**
  * M3-Expressive transport: three pill buttons in a 68dp row.
  *
- * - Play/pause corner radius morphs 22dp (playing) ↔ 34dp (paused) on
- *   [MaterialTheme.motionScheme]'s default spatial spring.
- * - The pressed button's weight grows ×1.15 on the fast spatial spring while the
- *   neighbours shrink proportionally (Row weight normalization).
- * - Icon swaps ride Crossfade with the fast effects spec.
- * - While [loading], a small CircularProgressIndicator replaces the play/pause icon and the
- *   press is a no-op — mirroring the spinner block in NowPlayingContentSpotify's toolbar.
- * - Prev/next respect [ControlState.isPreviousAvailable]/[ControlState.isNextAvailable] the
- *   way the Classic style does: icon at 0.4f alpha and a no-op click.
- *
- * Sends [UIEvent.PlayPause] / [UIEvent.Previous] / [UIEvent.Next] exactly like
- * [com.maxrave.simpmusic.ui.component.PlayerControlLayout].
+ * - Play/pause corner radius morphs 22dp (playing) ↔ 34dp (paused) with a bouncy overshoot spring.
+ * - Icon swaps animate with a snappy scale-in overshoot spring (0.45x -> 1.08x -> 1.0x).
+ * - Button presses squish and pop back on release with bouncy spring physics.
+ * - While [loading], a small CircularProgressIndicator replaces the play/pause icon.
+ * - Prev/next respect [ControlState.isPreviousAvailable]/[ControlState.isNextAvailable].
  */
 @Composable
 fun ExpressiveTransportRow(
@@ -92,23 +95,60 @@ fun ExpressiveTransportRow(
 
     val prevWeight by animateFloatAsState(
         targetValue = if (prevPressed) SIDE_WEIGHT * PRESS_GROWTH else SIDE_WEIGHT,
-        animationSpec = motionScheme.fastSpatialSpec(),
+        animationSpec = spring(
+            dampingRatio = 0.7f,
+            stiffness = Spring.StiffnessMedium,
+        ),
         label = "prevWeight",
     )
     val playWeight by animateFloatAsState(
         targetValue = if (playPressed) PLAY_WEIGHT * PRESS_GROWTH else PLAY_WEIGHT,
-        animationSpec = motionScheme.fastSpatialSpec(),
+        animationSpec = spring(
+            dampingRatio = 0.68f,
+            stiffness = Spring.StiffnessMedium,
+        ),
         label = "playWeight",
     )
     val nextWeight by animateFloatAsState(
         targetValue = if (nextPressed) SIDE_WEIGHT * PRESS_GROWTH else SIDE_WEIGHT,
-        animationSpec = motionScheme.fastSpatialSpec(),
+        animationSpec = spring(
+            dampingRatio = 0.7f,
+            stiffness = Spring.StiffnessMedium,
+        ),
         label = "nextWeight",
+    )
+
+    val playScale by animateFloatAsState(
+        targetValue = if (playPressed) 0.92f else 1f,
+        animationSpec = spring(
+            dampingRatio = 0.65f,
+            stiffness = Spring.StiffnessMedium,
+        ),
+        label = "playScale",
+    )
+    val prevScale by animateFloatAsState(
+        targetValue = if (prevPressed && controllerState.isPreviousAvailable) 0.92f else 1f,
+        animationSpec = spring(
+            dampingRatio = 0.65f,
+            stiffness = Spring.StiffnessMedium,
+        ),
+        label = "prevScale",
+    )
+    val nextScale by animateFloatAsState(
+        targetValue = if (nextPressed && controllerState.isNextAvailable) 0.92f else 1f,
+        animationSpec = spring(
+            dampingRatio = 0.65f,
+            stiffness = Spring.StiffnessMedium,
+        ),
+        label = "nextScale",
     )
 
     val playCorner by animateDpAsState(
         targetValue = if (controllerState.isPlaying) 22.dp else 34.dp,
-        animationSpec = motionScheme.defaultSpatialSpec(),
+        animationSpec = spring(
+            dampingRatio = 0.68f,
+            stiffness = Spring.StiffnessMediumLow,
+        ),
         label = "playCorner",
     )
 
@@ -141,7 +181,11 @@ fun ExpressiveTransportRow(
             modifier =
                 Modifier
                     .weight(prevWeight)
-                    .fillMaxHeight(),
+                    .fillMaxHeight()
+                    .graphicsLayer {
+                        scaleX = prevScale
+                        scaleY = prevScale
+                    },
         ) {
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                 Icon(
@@ -155,7 +199,7 @@ fun ExpressiveTransportRow(
                 )
             }
         }
-        // Play / Pause — primary container, corner radius morphs with playback state.
+        // Play / Pause — primary container, corner radius morphs with playback state and overshoot spring.
         Surface(
             onClick = {
                 if (!loading) {
@@ -168,7 +212,11 @@ fun ExpressiveTransportRow(
             modifier =
                 Modifier
                     .weight(playWeight)
-                    .fillMaxHeight(),
+                    .fillMaxHeight()
+                    .graphicsLayer {
+                        scaleX = playScale
+                        scaleY = playScale
+                    },
         ) {
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                 Crossfade(
@@ -189,9 +237,26 @@ fun ExpressiveTransportRow(
                             )
                         }
                     } else {
-                        Crossfade(
+                        AnimatedContent(
                             targetState = controllerState.isPlaying,
-                            animationSpec = motionScheme.fastEffectsSpec(),
+                            transitionSpec = {
+                                (scaleIn(
+                                    initialScale = 0.45f,
+                                    animationSpec = spring(
+                                        dampingRatio = 0.62f,
+                                        stiffness = Spring.StiffnessMediumLow,
+                                    ),
+                                ) + fadeIn(
+                                    animationSpec = tween(140),
+                                )).togetherWith(
+                                    scaleOut(
+                                        targetScale = 0.45f,
+                                        animationSpec = tween(90),
+                                    ) + fadeOut(
+                                        animationSpec = tween(90),
+                                    ),
+                                )
+                            },
                             label = "playPauseIcon",
                             modifier = Modifier.fillMaxSize(),
                         ) { isPlaying ->
@@ -221,7 +286,11 @@ fun ExpressiveTransportRow(
             modifier =
                 Modifier
                     .weight(nextWeight)
-                    .fillMaxHeight(),
+                    .fillMaxHeight()
+                    .graphicsLayer {
+                        scaleX = nextScale
+                        scaleY = nextScale
+                    },
         ) {
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                 Icon(
@@ -258,14 +327,29 @@ private fun RowScope.ExpressiveToggleButton(
     onClick: () -> Unit,
 ) {
     val colorScheme = MaterialTheme.colorScheme
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.90f else 1f,
+        animationSpec = spring(
+            dampingRatio = 0.65f,
+            stiffness = Spring.StiffnessMedium,
+        ),
+        label = "toggleScale",
+    )
     Surface(
         onClick = onClick,
+        interactionSource = interactionSource,
         shape = RoundedCornerShape(34.dp),
         color = if (active) colorScheme.primaryContainer else colorScheme.surfaceContainerHigh,
         modifier =
             Modifier
                 .weight(TOGGLE_WEIGHT)
-                .fillMaxHeight(),
+                .fillMaxHeight()
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                },
     ) {
         Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
             Icon(
