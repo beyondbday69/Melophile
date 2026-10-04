@@ -56,6 +56,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -75,6 +76,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -111,7 +113,9 @@ import com.maxrave.simpmusic.ui.icon.SimpIcons
 import com.maxrave.simpmusic.ui.screen.player.content.expressive.ExpressiveFunctionButtonGroup
 import com.maxrave.simpmusic.ui.screen.player.content.expressive.ExpressiveTransportRow
 import com.maxrave.simpmusic.ui.screen.player.content.expressive.WavySeekBar
+import com.maxrave.simpmusic.ui.theme.LocalAppFontFamily
 import com.maxrave.simpmusic.ui.theme.LocalForcedDarkColorScheme
+import com.maxrave.simpmusic.ui.theme.googleSansFlexFamily
 import com.maxrave.simpmusic.ui.theme.seed
 import com.maxrave.simpmusic.ui.theme.typo
 import com.maxrave.simpmusic.viewModel.UIEvent
@@ -191,8 +195,13 @@ internal fun NowPlayingExpressiveTheme(
             isAmoled = false,
             style = PaletteStyle.Vibrant,
         )
-    MaterialExpressiveTheme(colorScheme = derivedScheme) {
-        content()
+    val googleSans = googleSansFlexFamily()
+    CompositionLocalProvider(
+        LocalAppFontFamily provides googleSans,
+    ) {
+        MaterialExpressiveTheme(colorScheme = derivedScheme) {
+            content()
+        }
     }
 }
 
@@ -359,13 +368,22 @@ private fun NowPlayingM3ExpressiveLayout(
                     ) {
                         Text(
                             text = stringResource(Res.string.now_playing_upper),
-                            style = typo().bodyMedium,
-                            color = Color.White,
+                            style =
+                                typo().labelSmall.copy(
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.2.sp,
+                                    color = Color.White.copy(alpha = 0.7f),
+                                ),
                         )
                         Text(
                             text = state.screenData.playlistName,
-                            style = typo().labelMedium,
-                            color = Color.White,
+                            style =
+                                typo().labelMedium.copy(
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.White,
+                                ),
                             textAlign = TextAlign.Center,
                             maxLines = 1,
                             modifier =
@@ -710,7 +728,13 @@ internal fun ExpressiveTrackInfoRow(
         ) {
             Text(
                 text = state.screenData.nowPlayingTitle,
-                style = typo().titleMedium,
+                style =
+                    typo().titleLarge.copy(
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.3).sp,
+                        lineHeight = 28.sp,
+                    ),
                 color = Color.White,
                 maxLines = 1,
                 modifier =
@@ -722,7 +746,7 @@ internal fun ExpressiveTrackInfoRow(
                             animationMode = MarqueeAnimationMode.Immediately,
                         ).focusable(),
             )
-            Spacer(modifier = Modifier.height(3.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -737,7 +761,13 @@ internal fun ExpressiveTrackInfoRow(
                 }
                 Text(
                     text = state.screenData.artistName,
-                    style = typo().bodyMedium,
+                    style =
+                        typo().titleSmall.copy(
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium,
+                            letterSpacing = 0.1.sp,
+                            color = Color.White.copy(alpha = 0.8f),
+                        ),
                     maxLines = 1,
                     modifier =
                         Modifier
@@ -861,7 +891,12 @@ internal fun ColumnScope.ExpressivePlaybackControls(
     ) {
         Text(
             text = formatDuration((state.timelineState.total * (state.sliderValue / 100f)).roundToLong()),
-            style = typo().bodyMedium,
+            style =
+                typo().labelMedium.copy(
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                ),
             modifier = Modifier.weight(1f),
             textAlign = TextAlign.Left,
         )
@@ -912,7 +947,12 @@ internal fun ColumnScope.ExpressivePlaybackControls(
         }
         Text(
             text = formatDuration(state.timelineState.total),
-            style = typo().bodyMedium,
+            style =
+                typo().labelMedium.copy(
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
+                ),
             modifier = Modifier.weight(1f),
             textAlign = TextAlign.Right,
         )

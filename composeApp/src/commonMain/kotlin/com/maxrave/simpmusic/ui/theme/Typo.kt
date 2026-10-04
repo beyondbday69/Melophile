@@ -13,6 +13,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import org.jetbrains.compose.resources.Font
 import simpmusic.composeapp.generated.resources.Res
+import simpmusic.composeapp.generated.resources.google_sans_flex
 import simpmusic.composeapp.generated.resources.plus_jakarta_sans_bold
 import simpmusic.composeapp.generated.resources.plus_jakarta_sans_medium
 import simpmusic.composeapp.generated.resources.plus_jakarta_sans_regular
@@ -20,6 +21,20 @@ import simpmusic.composeapp.generated.resources.plus_jakarta_sans_semibold
 import simpmusic.composeapp.generated.resources.poppins_bold
 import simpmusic.composeapp.generated.resources.poppins_medium
 import simpmusic.composeapp.generated.resources.poppins_regular
+
+/**
+ * Google Sans Flex font family — Google's official Material 3 variable typeface.
+ * Offers exceptional expressiveness, organic curves, and responsive optical scaling.
+ */
+@Composable
+fun googleSansFlexFamily(): FontFamily =
+    FontFamily(
+        Font(Res.font.google_sans_flex, FontWeight.Normal, FontStyle.Normal),
+        Font(Res.font.google_sans_flex, FontWeight.Medium, FontStyle.Normal),
+        Font(Res.font.google_sans_flex, FontWeight.SemiBold, FontStyle.Normal),
+        Font(Res.font.google_sans_flex, FontWeight.Bold, FontStyle.Normal),
+        Font(Res.font.google_sans_flex, FontWeight.ExtraBold, FontStyle.Normal),
+    )
 
 /**
  * Plus Jakarta Sans font family — the premiere geometric typeface for Material 3.
@@ -46,10 +61,16 @@ fun poppinsFamily(): FontFamily =
     )
 
 /**
- * Active application font family. Uses Material 3 Plus Jakarta Sans with full optical weights.
+ * Composition local providing an override [FontFamily]. When null, falls back to [plusJakartaSansFamily].
+ * Used by expressive surfaces like the M3 Expressive Now Playing screen to inject Google Sans Flex.
+ */
+val LocalAppFontFamily = staticCompositionLocalOf<FontFamily?> { null }
+
+/**
+ * Active application font family. Respects [LocalAppFontFamily] if set, else uses Plus Jakarta Sans.
  */
 @Composable
-fun fontFamily(): FontFamily = plusJakartaSansFamily()
+fun fontFamily(): FontFamily = LocalAppFontFamily.current ?: plusJakartaSansFamily()
 
 /**
  * When true, [typo] keeps the original always-light text colors (pure white titles, #A8A8A8 body)
