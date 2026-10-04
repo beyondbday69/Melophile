@@ -79,6 +79,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import coil3.request.CachePolicy
@@ -372,7 +373,7 @@ private fun NowPlayingM3ExpressiveLayout(
                                 typo().labelSmall.copy(
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    letterSpacing = 1.2.sp,
+                                    letterSpacing = 1.2f.sp,
                                     color = Color.White.copy(alpha = 0.7f),
                                 ),
                         )
@@ -732,7 +733,7 @@ internal fun ExpressiveTrackInfoRow(
                     typo().titleLarge.copy(
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
-                        letterSpacing = (-0.3).sp,
+                        letterSpacing = (-0.3f).sp,
                         lineHeight = 28.sp,
                     ),
                 color = Color.White,
@@ -765,7 +766,7 @@ internal fun ExpressiveTrackInfoRow(
                         typo().titleSmall.copy(
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Medium,
-                            letterSpacing = 0.1.sp,
+                            letterSpacing = 0.1f.sp,
                             color = Color.White.copy(alpha = 0.8f),
                         ),
                     maxLines = 1,
