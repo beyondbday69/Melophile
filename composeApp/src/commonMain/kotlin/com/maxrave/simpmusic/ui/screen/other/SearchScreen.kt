@@ -132,6 +132,7 @@ import com.maxrave.simpmusic.extension.toAppDeepLinkOrNull
 import com.maxrave.simpmusic.ui.component.ArtistFullWidthItems
 import com.maxrave.simpmusic.ui.component.Chip
 import com.maxrave.simpmusic.ui.component.EndOfPage
+import com.maxrave.simpmusic.ui.component.MoodCategoryCardShimmer
 import com.maxrave.simpmusic.ui.component.NowPlayingBottomSheet
 import com.maxrave.simpmusic.ui.component.PlaylistFullWidthItems
 import com.maxrave.simpmusic.ui.component.ShimmerSearchItem
@@ -767,9 +768,28 @@ fun SearchScreen(
                 SearchUIType.EMPTY -> {
                     val mood = moodAndGenres
                     if (mood == null) {
-                        // First run only: the repository serves its cached copy before hitting the
-                        // network, so this spinner is never seen again after the first fetch.
-                        CenterLoadingBox(Modifier.fillMaxSize())
+                        // Material 3 Expressive Mood & Genres Skeleton Grid
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.TopCenter,
+                        ) {
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(moodGridColumns),
+                                modifier =
+                                    Modifier
+                                        .fillMaxHeight()
+                                        .widthIn(max = 1100.dp)
+                                        .padding(horizontal = 16.dp),
+                                contentPadding = PaddingValues(top = searchBarHeight + 36.dp, bottom = 120.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                                userScrollEnabled = false,
+                            ) {
+                                items(12) {
+                                    MoodCategoryCardShimmer()
+                                }
+                            }
+                        }
                     } else {
                         // Capped and centred: on a wide desktop window the grid would otherwise
                         // span the whole width, stretching four tiles into long bars. 1100.dp
@@ -913,14 +933,14 @@ fun SearchScreen(
                                         LazyColumn(
                                             contentPadding =
                                                 PaddingValues(
-                                                    start = 8.dp,
-                                                    end = 8.dp,
+                                                    start = 12.dp,
+                                                    end = 12.dp,
                                                     top = searchBarHeight + 8.dp,
                                                     bottom = 120.dp,
                                                 ),
                                             verticalArrangement = Arrangement.spacedBy(8.dp),
                                         ) {
-                                            items(10) {
+                                            items(10) { index ->
                                                 Box(
                                                     modifier =
                                                         Modifier.animateItem(
@@ -929,7 +949,7 @@ fun SearchScreen(
                                                             placementSpec = motionScheme.defaultSpatialSpec(),
                                                         ),
                                                 ) {
-                                                    ShimmerSearchItem()
+                                                    ShimmerSearchItem(index = index)
                                                 }
                                             }
                                         }
