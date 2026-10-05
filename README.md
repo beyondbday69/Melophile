@@ -134,7 +134,7 @@ We do not host, upload, distribute, or store any audio, video, or copyrighted me
 <a href="https://discord.gg/Rq5tWVM9Hg"><img alt="Discord Server" height="50" src="https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/social/discord-plural_vector.svg"></a>
 </div>
 
-## Special Thanks & Acknowledgements 💖
+## Special Thanks & Acknowledgements
 
 A very special, heartfelt thank you to **[maxrave-dev](https://github.com/maxrave-dev)** (Tuan Minh Nguyen Duc), the original creator and architect of SimpMusic. His vision, dedication, and open-source contributions laid the foundation upon which Melophile continues to build and evolve. We are profoundly grateful for his pioneering work.
 

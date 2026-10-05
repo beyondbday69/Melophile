@@ -70,6 +70,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.maxrave.simpmusic.model.AppUpdateInfo
+import com.maxrave.simpmusic.ui.icon.ArrowForwardIos
+import com.maxrave.simpmusic.ui.icon.CalendarToday
 import com.maxrave.simpmusic.ui.icon.CheckCircle
 import com.maxrave.simpmusic.ui.icon.Close
 import com.maxrave.simpmusic.ui.icon.Download
@@ -302,10 +304,11 @@ private fun UpdateHeaderBar(
                         )
                     }
 
-                    Text(
-                        text = "➜",
-                        style = typo().labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
+                    Icon(
+                        imageVector = SimpIcons.ArrowForwardIos,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier.size(9.dp),
                     )
 
                     // Target version
@@ -396,33 +399,56 @@ private fun UpdateIdleContent(
         ) {
             if (releaseDateText != null) {
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.65f),
+                    border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
                 ) {
-                    Text(
-                        text = "📅 $releaseDateText",
-                        style = typo().labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Icon(
+                            imageVector = SimpIcons.CalendarToday,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(13.dp),
+                        )
+                        Text(
+                            text = releaseDateText,
+                            style = typo().labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
 
             if (apkSizeMb != null) {
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f),
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.65f),
+                    border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
                 ) {
-                    Text(
-                        text = "📦 $apkSizeMb",
-                        style =
-                            typo().labelMedium.copy(
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            ),
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Icon(
+                            imageVector = SimpIcons.Download,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(13.dp),
+                        )
+                        Text(
+                            text = apkSizeMb,
+                            style =
+                                typo().labelMedium.copy(
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                ),
+                        )
+                    }
                 }
             }
         }
@@ -708,38 +734,17 @@ private fun FluidWaveProgressHero(
                         endY = height,
                     ),
             )
-
-            // Ambient rising bubbles on canvas
-            val bubble1X = (width * 0.28f + (wavePhase * 15f)) % width
-            val bubble1Y = baseWaterY + ((height - baseWaterY) * 0.5f) + waveBob * 2
-            if (bubble1Y < height && bubble1Y > baseWaterY) {
-                drawCircle(
-                    color = Color.White.copy(alpha = 0.35f),
-                    radius = 3.5.dp.toPx(),
-                    center = Offset(bubble1X, bubble1Y),
-                )
-            }
-
-            val bubble2X = (width * 0.72f - (wavePhase * 10f) + width) % width
-            val bubble2Y = baseWaterY + ((height - baseWaterY) * 0.3f) - waveBob * 2
-            if (bubble2Y < height && bubble2Y > baseWaterY) {
-                drawCircle(
-                    color = Color.White.copy(alpha = 0.40f),
-                    radius = 4.5.dp.toPx(),
-                    center = Offset(bubble2X, bubble2Y),
-                )
-            }
         }
 
         // Center Content Overlay Pill
         Surface(
-            shape = RoundedCornerShape(18.dp),
-            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.78f),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f)),
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
         ) {
             Column(
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+                modifier = Modifier.padding(horizontal = 22.dp, vertical = 10.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
@@ -759,7 +764,7 @@ private fun FluidWaveProgressHero(
                         style =
                             typo().headlineMedium.copy(
                                 fontFamily = googleSansFlexFamily(),
-                                fontWeight = FontWeight.ExtraBold,
+                                fontWeight = FontWeight.Bold,
                             ),
                         color = MaterialTheme.colorScheme.onSurface,
                     )
@@ -817,17 +822,17 @@ private fun UpdateCompletedContent(
         }
 
         Text(
-            text = "Ready to Install!",
+            text = "Update ready to install",
             style =
                 typo().headlineSmall.copy(
                     fontFamily = googleSansFlexFamily(),
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.SemiBold,
                 ),
             color = MaterialTheme.colorScheme.onSurface,
         )
 
         Text(
-            text = "Melophile ${response.tagName} has been downloaded.\nTap Install below to complete the update.",
+            text = "Version ${response.tagName.removePrefix("v")} has been downloaded and is ready to install.",
             style = typo().bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -864,11 +869,11 @@ private fun UpdateErrorContent(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    text = "Download Failed",
+                    text = "Unable to download update",
                     style =
                         typo().titleMedium.copy(
                             fontFamily = googleSansFlexFamily(),
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.SemiBold,
                         ),
                     color = MaterialTheme.colorScheme.onErrorContainer,
                 )
