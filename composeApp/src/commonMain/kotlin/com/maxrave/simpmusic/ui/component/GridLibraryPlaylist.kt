@@ -182,7 +182,7 @@ internal inline fun <reified T> GridLibraryPlaylist(
                                         Modifier
                                             .fillMaxWidth()
                                             .aspectRatio(1f)
-                                            .clip(RoundedCornerShape(10.dp))
+                                            .clip(RoundedCornerShape(topStart = 26.dp, topEnd = 14.dp, bottomEnd = 26.dp, bottomStart = 14.dp))
                                             .angledGradientBackground(
                                                 colors =
                                                     listOf(
@@ -194,7 +194,7 @@ internal inline fun <reified T> GridLibraryPlaylist(
                                         Alignment.Center,
                                     ) {
                                         Icon(
-                                            modifier = Modifier.size(84.dp),
+                                            modifier = Modifier.size(64.dp),
                                             imageVector = SimpIcons.Add,
                                             tint = Color.White,
                                             contentDescription = null,
@@ -326,18 +326,10 @@ internal inline fun <reified T> GridLibraryPlaylist(
                     Modifier.fillMaxSize(),
                 )
             } else {
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = stringResource(emptyText),
-                        style = typo().bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                ExpressiveLibraryEmptyState(
+                    title = stringResource(emptyText),
+                    modifier = Modifier.padding(top = contentPadding.calculateTopPadding()),
+                )
             }
         }
     }

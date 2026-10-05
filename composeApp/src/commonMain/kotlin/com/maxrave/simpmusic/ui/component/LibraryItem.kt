@@ -19,10 +19,12 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -121,18 +123,19 @@ fun LibraryItem(
         }
         Column {
             Row(
-                modifier = Modifier.padding(top = 15.dp, start = 10.dp, end = 10.dp),
+                modifier = Modifier.padding(top = 18.dp, start = 14.dp, end = 14.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     text = title,
-                    style = typo().headlineMedium,
+                    style = typo().titleLarge.copy(
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold,
+                        letterSpacing = (-0.3).sp,
+                    ),
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     modifier =
                         Modifier
-                            .fillMaxWidth()
-                            .height(35.dp)
                             .wrapContentHeight(align = Alignment.CenterVertically)
                             .weight(1f)
                             .basicMarquee(
@@ -140,6 +143,17 @@ fun LibraryItem(
                                 animationMode = MarqueeAnimationMode.Immediately,
                             ).focusable(),
                 )
+                if (state.type is LibraryItemType.RecentlyAdded) {
+                    ExpressiveLiveEqualizerBars(
+                        barColor = MaterialTheme.colorScheme.primary,
+                        height = 14.dp,
+                    )
+                } else if (state.type is LibraryItemType.CanvasSong) {
+                    ExpressiveVinylIcon(
+                        size = 20.dp,
+                        labelColor = MaterialTheme.colorScheme.primary,
+                    )
+                }
             }
             Crossfade(targetState = state.isLoading, label = "Loading") { isLoading ->
                 if (!isLoading) {
@@ -243,13 +257,19 @@ fun LibraryItem(
                                 top = 10.dp,
                             ),
                         ) {
-                            items(state.data) { item ->
-                                val song = item as? SongEntity ?: return@items
+                            itemsIndexed(state.data) { index, item ->
+                                val song = item as? SongEntity ?: return@itemsIndexed
+                                val organicCorner = when (index % 3) {
+                                    0 -> RoundedCornerShape(topStart = 24.dp, topEnd = 14.dp, bottomEnd = 24.dp, bottomStart = 14.dp)
+                                    1 -> RoundedCornerShape(topStart = 14.dp, topEnd = 24.dp, bottomEnd = 14.dp, bottomStart = 24.dp)
+                                    else -> RoundedCornerShape(20.dp)
+                                }
                                 Box(
                                     Modifier
-                                        .padding(horizontal = 10.dp)
+                                        .padding(horizontal = 8.dp)
                                         .height(300.dp)
                                         .width(170.dp)
+                                        .clip(organicCorner)
                                         .clickable {
                                             val firstQueue: Track = song.toTrack()
                                             viewModel.setQueueData(
@@ -284,9 +304,7 @@ fun LibraryItem(
                                         modifier =
                                             Modifier
                                                 .fillMaxSize()
-                                                .clip(
-                                                    RoundedCornerShape(8.dp),
-                                                ),
+                                                .clip(organicCorner),
                                     )
                                     Column(
                                         Modifier
@@ -396,15 +414,9 @@ fun LibraryItem(
                                 }
                             }
                         } else {
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .height(130.dp),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Text(noPlaylistTitle, style = typo().bodyMedium)
-                            }
+                            ExpressiveLibraryEmptyState(
+                                title = noPlaylistTitle,
+                            )
                         }
                     }
                 } else {

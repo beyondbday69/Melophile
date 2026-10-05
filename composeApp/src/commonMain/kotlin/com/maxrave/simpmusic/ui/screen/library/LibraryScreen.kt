@@ -26,6 +26,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,6 +39,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,7 +55,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
@@ -67,8 +71,9 @@ import com.maxrave.logger.Logger
 import com.maxrave.simpmusic.extension.copy
 import com.maxrave.simpmusic.extension.isScrollingUp
 import com.maxrave.simpmusic.ui.component.AddToPlaylistModalBottomSheet
-import com.maxrave.simpmusic.ui.component.Chip
 import com.maxrave.simpmusic.ui.component.EndOfPage
+import com.maxrave.simpmusic.ui.component.ExpressiveLibraryButtonGroup
+import com.maxrave.simpmusic.ui.component.ExpressiveLibraryHeroHeader
 import com.maxrave.simpmusic.ui.component.GridLibraryPlaylist
 import com.maxrave.simpmusic.ui.component.LibraryItem
 import com.maxrave.simpmusic.ui.component.LibraryItemState
@@ -83,6 +88,8 @@ import com.maxrave.simpmusic.ui.icon.Groups
 import com.maxrave.simpmusic.ui.icon.PeopleAlt
 import com.maxrave.simpmusic.ui.icon.SimpIcons
 import com.maxrave.simpmusic.ui.navigation.destination.home.ListenTogetherDestination
+import com.maxrave.simpmusic.ui.theme.LocalAppFontFamily
+import com.maxrave.simpmusic.ui.theme.googleSansFlexFamily
 import com.maxrave.simpmusic.ui.theme.typo
 import com.maxrave.simpmusic.viewModel.LibraryViewModel
 import com.maxrave.simpmusic.viewModel.SongSelectionViewModel
@@ -122,7 +129,11 @@ fun LibraryScreen(
     navController: NavController,
     onScrolling: (onTop: Boolean) -> Unit = {},
 ) {
-    val density = LocalDensity.current
+    val googleSans = googleSansFlexFamily()
+    CompositionLocalProvider(
+        LocalAppFontFamily provides googleSans,
+    ) {
+        val density = LocalDensity.current
 
     val loggedIn by viewModel.youtubeLoggedIn.collectAsStateWithLifecycle(initialValue = false)
     // Wrapped and its recaps are built entirely from playback_event, so the chip follows the same
@@ -230,6 +241,10 @@ fun LibraryScreen(
                         ),
                     state = state,
                 ) {
+                    item {
+                        ExpressiveLibraryHeroHeader()
+                    }
+
                     item {
                         LibraryTilingBox(navController)
                     }
@@ -387,38 +402,47 @@ fun LibraryScreen(
                     Modifier
                         .fillMaxWidth()
                         .wrapContentHeight(),
-                shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp),
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
                 colors = CardDefaults.cardColors().copy(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
                 ) {
-                    Spacer(modifier = Modifier.height(5.dp))
                     Card(
                         modifier =
                             Modifier
-                                .width(60.dp)
+                                .width(40.dp)
                                 .height(4.dp),
                         colors =
                             CardDefaults.cardColors().copy(
-                                containerColor = MaterialTheme.colorScheme.outline,
+                                containerColor = MaterialTheme.colorScheme.outlineVariant,
                             ),
                         shape = RoundedCornerShape(50),
                     ) {}
-                    Spacer(modifier = Modifier.height(5.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = stringResource(Res.string.create),
+                        style = typo().titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = (-0.2).sp,
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
                     OutlinedTextField(
                         value = newTitle,
                         onValueChange = { s -> newTitle = s },
                         label = {
                             Text(text = stringResource(Res.string.playlist_name))
                         },
+                        shape = RoundedCornerShape(16.dp),
                         modifier =
                             Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 8.dp),
+                                .fillMaxWidth(),
                     )
-                    Spacer(modifier = Modifier.height(5.dp))
-                    TextButton(
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
                         onClick = {
                             if (newTitle.isBlank()) {
                                 viewModel.makeToast(runBlocking { getString(Res.string.playlist_name_cannot_be_empty) })
@@ -427,13 +451,18 @@ fun LibraryScreen(
                                 hideEditTitleBottomSheet()
                             }
                         },
+                        shape = RoundedCornerShape(24.dp),
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .align(Alignment.CenterHorizontally),
+                                .height(48.dp),
                     ) {
-                        Text(text = stringResource(Res.string.create))
+                        Text(
+                            text = stringResource(Res.string.create),
+                            style = typo().labelLarge.copy(fontWeight = FontWeight.Bold),
+                        )
                     }
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
             }
         }
@@ -449,7 +478,10 @@ fun LibraryScreen(
             title = {
                 Text(
                     text = stringResource(Res.string.library),
-                    style = typo().titleMedium,
+                    style = typo().headlineSmall.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = (-0.4).sp,
+                    ),
                     color = MaterialTheme.colorScheme.onBackground,
                 )
             },
@@ -508,48 +540,13 @@ fun LibraryScreen(
                 contentColor = MaterialTheme.colorScheme.onBackground,
             )
         }
-        Row(
-            modifier =
-                Modifier
-                    .horizontalScroll(chipRowState)
-                    .padding(horizontal = 15.dp)
-                    .padding(bottom = 8.dp)
-                    .background(Color.Transparent),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            LibraryChipType.entries.forEach { type ->
-                // Mix for you left this row for a tab of its own.
-                if (type == LibraryChipType.YOUTUBE_MIX_FOR_YOU) {
-                    return@forEach
-                }
-                if (type == LibraryChipType.YOUTUBE_MUSIC_PLAYLIST && !loggedIn) {
-                    return@forEach
-                }
-                // Nothing to recap without the plays — gated exactly as the YouTube chip above
-                // is gated on being logged in.
-                if (type == LibraryChipType.WRAPPED && !localTrackingEnabled) {
-                    return@forEach
-                }
-                Chip(
-                    isAnimated = false,
-                    isSelected = type == currentFilter,
-                    text =
-                        when (type) {
-                            LibraryChipType.YOUR_LIBRARY -> stringResource(Res.string.your_library)
-                            LibraryChipType.YOUTUBE_MUSIC_PLAYLIST -> stringResource(Res.string.your_youtube_playlists)
-                            LibraryChipType.YOUTUBE_MIX_FOR_YOU -> stringResource(Res.string.mix_for_you)
-                            LibraryChipType.LOCAL_PLAYLIST -> stringResource(Res.string.your_playlists)
-                            LibraryChipType.FAVORITE_PLAYLIST -> stringResource(Res.string.favorite_playlists)
-                            LibraryChipType.DOWNLOADED_PLAYLIST -> stringResource(Res.string.downloaded_playlists)
-                            LibraryChipType.FAVORITE_PODCAST -> stringResource(Res.string.favorite_podcasts)
-                            LibraryChipType.CHART -> stringResource(Res.string.simpmusic_charts)
-                            LibraryChipType.WRAPPED -> stringResource(Res.string.wrapped)
-                        },
-                ) {
-                    viewModel.setCurrentScreen(type)
-                }
-            }
-        }
+        ExpressiveLibraryButtonGroup(
+            currentFilter = currentFilter,
+            onFilterSelected = { type -> viewModel.setCurrentScreen(type) },
+            loggedIn = loggedIn,
+            localTrackingEnabled = localTrackingEnabled,
+            scrollState = chipRowState,
+        )
         if (showSelectionSheet) {
             val selectedIds = selectionState.selected.toList()
             SelectedSongsBottomSheet(
@@ -590,4 +587,5 @@ fun LibraryScreen(
             )
         }
     }
+}
 }
