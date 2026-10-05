@@ -71,8 +71,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
@@ -855,18 +853,12 @@ fun HomeTopAppBar(navController: NavController) {
                 style =
                     TextStyle(
                         fontFamily = googleSans,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 30.sp,
-                        letterSpacing = (-0.6).sp,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 26.sp,
+                        letterSpacing = (-0.4).sp,
                         color = MaterialTheme.colorScheme.onBackground,
                     ),
-                modifier =
-                    Modifier
-                        .graphicsLayer {
-                            scaleY = 1.28f
-                            transformOrigin = TransformOrigin(0f, 0f)
-                        }
-                        .padding(bottom = 6.dp),
+                modifier = Modifier.padding(bottom = 2.dp),
             )
             Text(
                 text =
