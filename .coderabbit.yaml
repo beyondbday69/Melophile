@@ -1,0 +1,60 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: "en-US"
+tone_instructions: "Be constructive, direct, and concise. Focus on real bugs, security, coroutine leaks, and Compose best practices. Keep explanations actionable."
+
+reviews:
+  profile: "chill"
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - "main"
+      - "dev"
+  path_filters:
+    - "!**/build/**"
+    - "!**/.gradle/**"
+    - "!**/composeApp/build/**"
+    - "!**/generated/**"
+    - "!**/*.png"
+    - "!**/*.jpg"
+    - "!**/*.jpeg"
+    - "!**/*.webp"
+    - "!**/*.svg"
+    - "!**/*.ico"
+    - "!**/*.ttf"
+    - "!**/*.otf"
+    - "!**/*.woff"
+    - "!**/*.woff2"
+    - "!**/*.jar"
+    - "!**/*.lock"
+    - "!**/*.bin"
+    - "!**/*.keystore"
+    - "!**/*.jks"
+    - "!**/gradle/wrapper/**"
+    - "!gradlew"
+    - "!gradlew.bat"
+  path_instructions:
+    - path: "composeApp/**"
+      instructions: |
+        - Follow Compose Multiplatform & Jetpack Compose best practices.
+        - Ensure Composable functions avoid unnecessary recompositions; use stable parameters and immutable types where possible.
+        - Proper keying for remember, rememberSaveable, and derivedStateOf.
+        - Verify coroutine cancellation and safe lifecycle handling using collectAsStateWithLifecycle() for StateFlows.
+        - Maintain Material 3 Expressive UI consistency (typography via googleSansFlexFamily() / typo(), dynamic color tokens, corner radii).
+    - path: "{core,domain,data}/**"
+      instructions: |
+        - Follow Clean Architecture: domain models and repository interfaces in domain, database Room DAOs/entities and network implementations in data.
+        - Ensure Room migrations preserve existing user playlists and settings without destructive drops.
+        - Protect audio streaming, notification services, and Media3 player handler against thread blocking and unhandled exceptions.
+    - path: "**/*.gradle.kts"
+      instructions: |
+        - Ensure dependency versioning is managed cleanly via gradle/libs.versions.toml.
+        - Avoid version conflicts or redundant dependencies across Multiplatform targets.
+
+chat:
+  auto_reply: true

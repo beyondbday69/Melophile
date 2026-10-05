@@ -4,7 +4,7 @@
 A FOSS YouTube Music client for Android and Desktop with many features from<br>Spotify, SponsorBlock, ReturnYouTubeDislike using Compose Multiplatform to develop.
 <br> 
 <br>
-<a href="https://github.com/beyondbday69/SimpMusic/releases"><img src="https://img.shields.io/github/v/release/beyondbday69/SimpMusic"></a> <a href="https://github.com/beyondbday69/SimpMusic/releases"><img src="https://img.shields.io/github/downloads/beyondbday69/SimpMusic/total"></a>
+<a href="https://github.com/beyondbday69/SimpMusic/releases"><img src="https://img.shields.io/github/v/release/beyondbday69/SimpMusic"></a> <a href="https://github.com/beyondbday69/SimpMusic/releases"><img src="https://img.shields.io/github/downloads/beyondbday69/SimpMusic/total"></a> <a href="https://coderabbit.ai"><img src="https://img.shields.io/coderabbit/prs/github/beyondbday69/SimpMusic" alt="CodeRabbit Pull Request Reviews"></a>
 <br>
 <br>
 <h4>Download</h4>  
