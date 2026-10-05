@@ -71,12 +71,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import coil3.compose.AsyncImage
@@ -143,6 +148,7 @@ import com.maxrave.simpmusic.ui.navigation.destination.list.PlaylistDestination
 import com.maxrave.simpmusic.ui.navigation.destination.login.LoginDestination
 import com.maxrave.simpmusic.ui.screen.library.LibraryDynamicPlaylistType
 import com.maxrave.simpmusic.ui.theme.desktopPanelDark
+import com.maxrave.simpmusic.ui.theme.googleSansFlexFamily
 import com.maxrave.simpmusic.ui.theme.typo
 import com.maxrave.simpmusic.viewModel.FOOTGUNS_STAR_KEY
 import com.maxrave.simpmusic.viewModel.HomeViewModel
@@ -822,43 +828,77 @@ fun HomeTopAppBar(navController: NavController) {
             val date = now().time
             date.hour
         }
-    TopAppBar(
-        windowInsets =
-            TopAppBarDefaults.windowInsets.exclude(
-                TopAppBarDefaults.windowInsets.only(WindowInsetsSides.Start),
-            ),
-        title = {
-            Column {
-                Text(
-                    text = stringResource(Res.string.app_name),
-                    style = typo().titleMedium,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.padding(bottom = 4.dp),
+    val googleSans = googleSansFlexFamily()
+
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .windowInsetsPadding(
+                    TopAppBarDefaults.windowInsets.exclude(
+                        TopAppBarDefaults.windowInsets.only(WindowInsetsSides.Start),
+                    ),
                 )
-                Text(
-                    text =
-                        when (hour) {
-                            in 6..12 -> {
-                                stringResource(Res.string.good_morning)
-                            }
+                .padding(start = 16.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .padding(vertical = 2.dp),
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text(
+                text = stringResource(Res.string.app_name),
+                style =
+                    TextStyle(
+                        fontFamily = googleSans,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 30.sp,
+                        letterSpacing = (-0.6).sp,
+                        color = MaterialTheme.colorScheme.onBackground,
+                    ),
+                modifier =
+                    Modifier
+                        .graphicsLayer {
+                            scaleY = 1.28f
+                            transformOrigin = TransformOrigin(0f, 0f)
+                        }
+                        .padding(bottom = 6.dp),
+            )
+            Text(
+                text =
+                    when (hour) {
+                        in 6..12 -> {
+                            stringResource(Res.string.good_morning)
+                        }
 
-                            in 13..17 -> {
-                                stringResource(Res.string.good_afternoon)
-                            }
+                        in 13..17 -> {
+                            stringResource(Res.string.good_afternoon)
+                        }
 
-                            in 18..23 -> {
-                                stringResource(Res.string.good_evening)
-                            }
+                        in 18..23 -> {
+                            stringResource(Res.string.good_evening)
+                        }
 
-                            else -> {
-                                stringResource(Res.string.good_night)
-                            }
-                        },
-                    style = typo().bodySmall,
-                )
-            }
-        },
-        actions = {
+                        else -> {
+                            stringResource(Res.string.good_night)
+                        }
+                    },
+                style =
+                    typo().bodySmall.copy(
+                        fontFamily = googleSans,
+                        fontWeight = FontWeight.Medium,
+                        letterSpacing = 0.2.sp,
+                    ),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             RippleIconButton(imageVector = SimpIcons.Notifications, tint = MaterialTheme.colorScheme.onBackground) {
                 navController.navigate(NotificationDestination)
             }
@@ -870,12 +910,8 @@ fun HomeTopAppBar(navController: NavController) {
             RippleIconButton(imageVector = SimpIcons.Settings, tint = MaterialTheme.colorScheme.onBackground) {
                 navController.navigate(SettingsDestination)
             }
-        },
-        colors =
-            TopAppBarDefaults.topAppBarColors(
-                containerColor = Color.Transparent,
-            ),
-    )
+        }
+    }
 }
 
 @Composable
