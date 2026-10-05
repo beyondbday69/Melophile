@@ -2772,7 +2772,7 @@ fun SettingScreen(
                         if (updateChannel == DataStoreManager.FDROID) {
                             "F-Droid"
                         } else {
-                            "SimpMusic GitHub Release"
+                            "Melophile GitHub Release"
                         },
                     onClick = {
                         viewModel.setAlertData(
@@ -2783,7 +2783,7 @@ fun SettingScreen(
                                         listSelect =
                                             listOf(
                                                 (updateChannel == DataStoreManager.FDROID) to "F-Droid",
-                                                (updateChannel == DataStoreManager.GITHUB) to "SimpMusic GitHub Release",
+                                                (updateChannel == DataStoreManager.GITHUB) to "Melophile GitHub Release",
                                             ),
                                     ),
                                 confirm =
@@ -2791,7 +2791,7 @@ fun SettingScreen(
                                         viewModel.setUpdateChannel(
                                             when (state.selectOne?.getSelected()) {
                                                 "F-Droid" -> DataStoreManager.FDROID
-                                                "SimpMusic GitHub Release" -> DataStoreManager.GITHUB
+                                                "Melophile GitHub Release", "SimpMusic GitHub Release" -> DataStoreManager.GITHUB
                                                 else -> DataStoreManager.GITHUB
                                             },
                                         )

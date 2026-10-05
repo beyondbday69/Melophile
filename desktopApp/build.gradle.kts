@@ -129,7 +129,7 @@ tasks.named<hydraulic.conveyor.gradle.WriteConveyorConfigTask>("writeConveyorCon
         destination.get().asFile.appendText(
             """
             |app.fsname = simpmusic
-            |app.display-name = Mp3ify
+            |app.display-name = Melophile
             |app.rdns-name = com.maxrave.simpmusic
             |
             |// Override the Gradle-detected classpath with the ProGuard'd
@@ -167,7 +167,7 @@ compose.desktop {
             }
             targetFormats(*listTarget.toTypedArray())
             modules("jdk.unsupported")
-            packageName = "Mp3ify"
+            packageName = "Melophile"
             macOS {
                 val formatedDate =
                     Instant.now().let {
@@ -332,7 +332,7 @@ tasks.register("packageConveyorAppImage") {
     )
 
     doLast {
-        val appName = "Mp3ify"
+        val appName = "Melophile"
         val conveyorOutput = rootDir.resolve("output")
         if (!conveyorOutput.exists()) {
             throw GradleException(
@@ -396,13 +396,13 @@ tasks.register("packageConveyorAppImage") {
             """[Desktop Entry]
             |Type=Application
             |Version=1.0
-            |Name=Mp3ify
-            |Comment=Mp3ify v$versionName - FOSS YouTube Music Client
+            |Name=Melophile
+            |Comment=Melophile v$versionName - FOSS YouTube Music Client
             |Exec=bin/simpmusic %u
             |Icon=simpmusic
             |Terminal=false
             |Categories=Audio;AudioVideo;
-            |StartupWMClass=Mp3ify
+            |StartupWMClass=Melophile
             |MimeType=x-scheme-handler/simpmusic;x-scheme-handler/wordbyword;
             |
             """.trimMargin(),

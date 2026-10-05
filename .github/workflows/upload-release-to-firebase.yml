@@ -73,7 +73,7 @@ jobs:
       - name: Upload APK to Firebase App Distribution
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          RELEASE_NOTES: ${{ inputs.release_notes || github.event.release.body || 'SimpMusic / Mp3ify Release' }}
+          RELEASE_NOTES: ${{ inputs.release_notes || github.event.release.body || 'Melophile Release' }}
           GROUPS: ${{ inputs.groups || '' }}
         run: |
           python scripts/upload_to_firebase.py \
