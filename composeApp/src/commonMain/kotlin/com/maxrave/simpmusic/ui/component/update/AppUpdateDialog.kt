@@ -16,6 +16,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -246,22 +247,15 @@ private fun UpdateHeaderBar(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.weight(1f),
         ) {
-            // App Icon with tonal container
-            Box(
+            // Melophile App Logo (large, full-size without background tint container)
+            Image(
+                painter = painterResource(Res.drawable.circle_app_icon),
+                contentDescription = "Melophile Logo",
                 modifier =
                     Modifier
-                        .size(54.dp)
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    painter = painterResource(Res.drawable.circle_app_icon),
-                    contentDescription = "Melophile Logo",
-                    tint = Color.Unspecified,
-                    modifier = Modifier.size(38.dp),
-                )
-            }
+                        .size(60.dp)
+                        .clip(CircleShape),
+            )
 
             Spacer(modifier = Modifier.width(14.dp))
 
