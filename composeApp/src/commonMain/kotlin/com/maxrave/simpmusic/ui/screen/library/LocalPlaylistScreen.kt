@@ -338,10 +338,7 @@ fun LocalPlaylistScreen(
     }
 
     LaunchedEffect(key1 = shouldShowSuggestions) {
-        // Only fetch the suggestions panel when it is actually expanded/visible — the key is
-        // false on first composition, and firing a network call for a collapsed, invisible
-        // panel would be pure on-screen-loading waste.
-        if (shouldShowSuggestions && suggestedTracks.isEmpty() && uiState.syncState != LocalPlaylistEntity.YouTubeSyncState.NotSynced) {
+        if (suggestedTracks.isEmpty() && uiState.syncState != LocalPlaylistEntity.YouTubeSyncState.NotSynced) {
             viewModel.getSuggestions(uiState.id)
         }
     }
@@ -1333,14 +1330,10 @@ fun LocalPlaylistScreen(
                 }
             }
         }
-        items(
-            count = trackPagingItems.itemCount,
-            // Stable key: the DB row id survives reorders/insertions/deletions, so topping the
-            // list no longer re-keys every row below. Loading-slot placeholders fall back to the
-            // index because Paging has no entity for them yet.
-            key = { index -> trackPagingItems[index]?.second?.id ?: "placeholder_$index" },
-            contentType = { "song_row" },
-        ) { index ->
+        items(count = trackPagingItems.itemCount, key = { index ->
+            val item = trackPagingItems[index]
+            (item?.first?.videoId ?: "") + "item_$index" + item?.second?.inPlaylist + item?.second?.position
+        }) { index ->
             val item = trackPagingItems[index]?.first
             if (item != null) {
                 val content = @Composable { mod: Modifier ->
@@ -1415,7 +1408,7 @@ fun LocalPlaylistScreen(
             }
         }
         trackPagingItems.apply {
-            item(contentType = "loading") {
+            item {
                 AnimatedVisibility(loadState.refresh is LoadState.Loading || loadState.append is LoadState.Loading) {
                     Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                         Spacer(modifier = Modifier.height(15.dp))
@@ -1425,7 +1418,7 @@ fun LocalPlaylistScreen(
                 }
             }
         }
-        item(contentType = "end_of_page") {
+        item {
             EndOfPage()
         }
     }
@@ -1680,10 +1673,7 @@ fun LocalPlaylistScreen(
             LazyColumn(modifier = Modifier.weight(1f)) {
                 items(
                     searchResults,
-                    // Stable key: the pair row's DB id, unique even when the same song appears
-                    // twice in the playlist, and order-independent across filtering.
-                    key = { (_, pair) -> pair.id },
-                    contentType = { "song_row" },
+                    key = { (song, pair) -> song.videoId + "_" + pair.position },
                 ) { (song, _) ->
                     SongFullWidthItems(
                         forceDark = true,

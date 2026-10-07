@@ -843,13 +843,10 @@ fun AlbumScreen(
                             }
                         }
                     }
-                    items(
-                        count = uiState.trackCount,
-                        // Stable entity key (videoId) — no index suffix, so an insertion/removal
-                        // near the top does not re-key (and re-compose) every row below it.
-                        key = { index -> uiState.listTrack.getOrNull(index)?.videoId },
-                        contentType = { "song_row" },
-                    ) { index ->
+                    items(count = uiState.trackCount, key = { index ->
+                        val item = uiState.listTrack.getOrNull(index)
+                        item?.videoId + "item_$index"
+                    }) { index ->
                         val item = uiState.listTrack.getOrNull(index)
                         if (item != null) {
                             Column(modifier = Modifier.animateItem()) {
@@ -903,11 +900,7 @@ fun AlbumScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.padding(horizontal = 12.dp),
                                 ) {
-                                    items(
-                                        uiState.otherVersion,
-                                        key = { album -> album.browseId },
-                                        contentType = { "other_version_card" },
-                                    ) { album ->
+                                    items(uiState.otherVersion) { album ->
                                         HomeItemContentPlaylist(
                                             forceDark = true,
                                             onClick = {
@@ -925,7 +918,7 @@ fun AlbumScreen(
                             }
                         }
                     }
-                    item(contentType = "end_of_page") {
+                    item {
                         EndOfPage()
                     }
                 }
