@@ -485,7 +485,7 @@ fun App(
         }
     }
 
-    LaunchedEffect(updateData) {
+    LaunchedEffect(updateData, viewModel.showedUpdateDialog) {
         val response = updateData ?: return@LaunchedEffect
         val currentVersion = VersionManager.getVersionName().trim()
         val latestVersion = response.tagName.removePrefix("v").trim()
@@ -536,11 +536,16 @@ fun App(
         }
     }
 
+    val isLandscapeOrientation = currentOrientation() == Orientation.LANDSCAPE
     val isTablet =
         !isDesktopShell &&
-            windowSize.isWidthAtLeastBreakpoint(WIDTH_DP_MEDIUM_LOWER_BOUND) &&
-            windowSize.isHeightAtLeastBreakpoint(HEIGHT_DP_MEDIUM_LOWER_BOUND)
-    val isTabletLandscape = (isTablet || isDesktopShell) && currentOrientation() == Orientation.LANDSCAPE
+            if (isLandscapeOrientation) {
+                windowSize.isWidthAtLeastBreakpoint(WIDTH_DP_MEDIUM_LOWER_BOUND) &&
+                    windowSize.isHeightAtLeastBreakpoint(WIDTH_DP_MEDIUM_LOWER_BOUND)
+            } else {
+                windowSize.isWidthAtLeastBreakpoint(WIDTH_DP_MEDIUM_LOWER_BOUND)
+            }
+    val isTabletLandscape = isDesktopShell && isLandscapeOrientation
 
     val morphProgress by animateFloatAsState(
         targetValue = if (isShowNowPlaylistScreen && !isTabletLandscape) 1f else 0f,
@@ -593,30 +598,49 @@ fun App(
             BoxWithConstraints(Modifier.fillMaxSize()) {
                 val density = LocalDensity.current
                 val screenWidthPx = with(density) { maxWidth.toPx() }
+                val screenHeightPx = with(density) { maxHeight.toPx() }
+                val isLandscape = currentOrientation() == Orientation.LANDSCAPE
                 val horizontalPaddingPx = with(density) { 20.dp.toPx() }
-                val artworkSizePx = (screenWidthPx - 2 * horizontalPaddingPx).coerceAtLeast(0f)
-                val fallbackTargetArtwork = remember(screenWidthPx) {
-                    val topPx = with(density) { 100.dp.toPx() }
+                val artworkSizePx =
+                    if (isLandscape) {
+                        (screenHeightPx * 0.58f).coerceAtLeast(0f)
+                    } else {
+                        (screenWidthPx - 2 * horizontalPaddingPx).coerceAtLeast(0f)
+                    }
+                val fallbackTargetArtwork = remember(screenWidthPx, screenHeightPx, isLandscape) {
+                    val topPx = if (isLandscape) with(density) { 36.dp.toPx() } else with(density) { 100.dp.toPx() }
+                    val leftPx = if (isLandscape) (screenWidthPx / 2f - artworkSizePx / 2f) else horizontalPaddingPx
                     Rect(
-                        left = horizontalPaddingPx,
+                        left = leftPx,
                         top = topPx,
-                        right = horizontalPaddingPx + artworkSizePx,
+                        right = leftPx + artworkSizePx,
                         bottom = topPx + artworkSizePx,
                     )
                 }
-                val fallbackTargetText = remember(screenWidthPx) {
-                    val topPx = with(density) { 100.dp.toPx() } + artworkSizePx + with(density) { 28.dp.toPx() }
+                val fallbackTargetText = remember(screenWidthPx, screenHeightPx, isLandscape) {
+                    val topPx =
+                        if (isLandscape) {
+                            with(density) { 36.dp.toPx() } + artworkSizePx + with(density) { 12.dp.toPx() }
+                        } else {
+                            with(density) { 100.dp.toPx() } + artworkSizePx + with(density) { 28.dp.toPx() }
+                        }
                     val bottomPx = topPx + with(density) { 48.dp.toPx() }
+                    val leftPx = if (isLandscape) (screenWidthPx * 0.15f) else horizontalPaddingPx
+                    val rightPx = if (isLandscape) (screenWidthPx * 0.85f) else (screenWidthPx - horizontalPaddingPx)
                     Rect(
-                        left = horizontalPaddingPx,
+                        left = leftPx,
                         top = topPx,
-                        right = screenWidthPx - horizontalPaddingPx,
+                        right = rightPx,
                         bottom = bottomPx,
                     )
                 }
 
                 var lastKnownArtworkTargetBounds by remember { mutableStateOf<Rect?>(null) }
                 var lastKnownTextTargetBounds by remember { mutableStateOf<Rect?>(null) }
+                LaunchedEffect(isLandscape) {
+                    lastKnownArtworkTargetBounds = null
+                    lastKnownTextTargetBounds = null
+                }
                 nowPlayingArtworkBoundsState.value?.let {
                     if (it.width > 0f && it.height > 0f) {
                         lastKnownArtworkTargetBounds = it
@@ -949,10 +973,16 @@ fun App(
                             val isLandscapeOrientation = currentOrientation() == Orientation.LANDSCAPE
                             val cornerRadius = lerp(28f, 0f, morphProgress).dp
                             val containerScale = lerp(0.92f, 1f, morphProgress)
-                            val containerTranslationY = (1f - morphProgress) * with(density) { 64.dp.toPx() }
+                            val containerTranslationY =
+                                (1f - morphProgress) * with(density) { if (isLandscapeOrientation) 20.dp.toPx() else 64.dp.toPx() }
                             val transformOrigin =
-                                if (isLandscapeOrientation) {
-                                    TransformOrigin(0.72f, 0.95f)
+                                if (isLandscapeOrientation && sourceArtworkBounds != null && screenWidthPx > 0f && screenHeightPx > 0f) {
+                                    TransformOrigin(
+                                        (sourceArtworkBounds.center.x / screenWidthPx).coerceIn(0.1f, 0.95f),
+                                        (sourceArtworkBounds.center.y / screenHeightPx).coerceIn(0.1f, 0.95f),
+                                    )
+                                } else if (isLandscapeOrientation) {
+                                    TransformOrigin(0.80f, 0.95f)
                                 } else {
                                     TransformOrigin(0.5f, 0.95f)
                                 }

@@ -1094,6 +1094,9 @@ class SharedViewModel(
                 "CheckForUpdateAt",
                 System.currentTimeMillis().toString(),
             )
+            if (fromUserClick) {
+                dataStoreManager.putString("DismissedUpdateVersion", "")
+            }
             if (updateChannel == DataStoreManager.FDROID) {
                 updateRepository.checkForFdroidUpdate().collectLatest { response ->
                     val data = response.data
@@ -1108,6 +1111,7 @@ class SharedViewModel(
                             } else {
                                 val dismissedVersion = dataStoreManager.getString("DismissedUpdateVersion").firstOrNull()
                                 if (fromUserClick || dismissedVersion != data.tagName) {
+                                    _updateResponse.value = null
                                     _updateResponse.value =
                                         AppUpdateInfo(
                                             tagName = data.tagName,
@@ -1143,6 +1147,7 @@ class SharedViewModel(
                         } else {
                             val dismissedVersion = dataStoreManager.getString("DismissedUpdateVersion").firstOrNull()
                             if (fromUserClick || dismissedVersion != info.tagName) {
+                                _updateResponse.value = null
                                 _updateResponse.value = info
                                 showedUpdateDialog = true
                             }
@@ -2041,8 +2046,8 @@ class SharedViewModel(
             val lastCheckedStr = dataStoreManager.getString("CheckForUpdateAt").firstOrNull()
             val lastChecked = lastCheckedStr?.toLongOrNull() ?: 0L
             val now = System.currentTimeMillis()
-            // Throttle automatic update checks on launch to at most once every 12 hours
-            now - lastChecked > 43_200_000L
+            // Throttle automatic update checks on launch to at most once every 10 minutes
+            now - lastChecked > 600_000L
         }
 
     private var _downloadFileProgress = MutableStateFlow<DownloadProgress>(DownloadProgress.INIT)

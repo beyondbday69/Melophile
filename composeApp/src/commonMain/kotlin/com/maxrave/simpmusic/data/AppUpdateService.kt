@@ -23,7 +23,9 @@ class AppUpdateService(
     suspend fun getLatestRelease(): Result<AppUpdateInfo> =
         runCatching {
             fetchFromRepo("beyondbday69/SimpMusic").getOrElse {
-                fetchFromRepo("maxrave-dev/SimpMusic").getOrThrow()
+                fetchFromRepo("maxrave-dev/SimpMusic").getOrElse {
+                    fetchFromAtomFeed("beyondbday69/SimpMusic").getOrThrow()
+                }
             }
         }
 
@@ -83,6 +85,34 @@ class AppUpdateService(
                 downloadUrl = downloadUrl,
                 fileName = fileName,
                 apkSize = apkSize,
+            )
+        }
+
+    private suspend fun fetchFromAtomFeed(repo: String): Result<AppUpdateInfo> =
+        runCatching {
+            val response =
+                client.get("https://github.com/$repo/releases.atom") {
+                    header("User-Agent", "Mozilla/5.0")
+                }
+            if (!response.status.isSuccess()) {
+                throw IllegalStateException("GitHub atom feed returned status ${response.status}")
+            }
+            val text = response.bodyAsText()
+            val tagMatch =
+                Regex("""/releases/tag/([^"<\s]+)""").find(text)
+                    ?: throw IllegalStateException("No release tags found in atom feed for $repo")
+            val tagName = tagMatch.groupValues[1]
+            val cleanVersion = tagName.removePrefix("v")
+            val downloadUrl = "https://github.com/$repo/releases/download/$tagName/SimpMusic-$cleanVersion-arm64-v8a.apk"
+            val fileName = "SimpMusic-$cleanVersion-arm64-v8a.apk"
+
+            AppUpdateInfo(
+                tagName = tagName,
+                releaseTime = null,
+                body = "SimpMusic $tagName",
+                downloadUrl = downloadUrl,
+                fileName = fileName,
+                apkSize = null,
             )
         }
 }
