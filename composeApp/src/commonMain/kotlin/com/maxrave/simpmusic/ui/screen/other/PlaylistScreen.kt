@@ -1032,7 +1032,7 @@ fun PlaylistScreen(
                             }
                         }
                     } else {
-                        item {
+                        item(contentType = "spacer") {
                             val density = LocalDensity.current
                             Spacer(
                                 Modifier.height(
@@ -1041,10 +1041,13 @@ fun PlaylistScreen(
                             )
                         }
                     }
-                    items(count = filteredTrack.size, key = { index ->
-                        val item = filteredTrack.getOrNull(index)
-                        (item?.videoId ?: "") + "item_$index"
-                    }) { index ->
+                    items(
+                            count = filteredTrack.size,
+                            // Stable entity key (videoId) — no index suffix, so insertions/removals
+                            // near the top do not re-key every row below them.
+                            key = { index -> filteredTrack.getOrNull(index)?.videoId },
+                            contentType = { "song_row" },
+                        ) { index ->
                         val item = filteredTrack.getOrNull(index)
                         if (item != null) {
                             Column(modifier = Modifier.animateItem()) {
@@ -1103,13 +1106,13 @@ fun PlaylistScreen(
                     when (tracksListState) {
                         ListState.IDLE -> {
                             // DO NOTHING
-                            item {
+                            item(contentType = "end_of_page") {
                                 EndOfPage()
                             }
                         }
 
                         ListState.LOADING, ListState.PAGINATING -> {
-                            item {
+                            item(contentType = "loading") {
                                 Box(
                                     modifier =
                                         Modifier
@@ -1121,13 +1124,13 @@ fun PlaylistScreen(
                                     )
                                 }
                             }
-                            item {
+                            item(contentType = "end_of_page") {
                                 EndOfPage()
                             }
                         }
 
                         ListState.ERROR -> {
-                            item {
+                            item(contentType = "error") {
                                 Box(
                                     modifier =
                                         Modifier
@@ -1141,13 +1144,13 @@ fun PlaylistScreen(
                                     )
                                 }
                             }
-                            item {
+                            item(contentType = "end_of_page") {
                                 EndOfPage()
                             }
                         }
 
                         ListState.PAGINATION_EXHAUST -> {
-                            item {
+                            item(contentType = "end_of_page") {
                                 EndOfPage()
                             }
                         }

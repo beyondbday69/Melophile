@@ -427,7 +427,7 @@ fun SearchScreen(
                     ) {
                         // 1. Songs & Playable Tracks FIRST
                         if (suggestSongs.isNotEmpty()) {
-                            item(key = "header_songs") {
+                            item(key = "header_songs", contentType = "header") {
                                 Text(
                                     text = stringResource(Res.string.song),
                                     style = typo().titleSmall,
@@ -446,15 +446,16 @@ fun SearchScreen(
                             }
                             itemsIndexed(
                                 items = suggestSongs,
-                                key = { index, item ->
-                                    val baseKey =
-                                        when (item) {
-                                            is SongsResult -> "song_${item.videoId}"
-                                            is VideosResult -> "video_${item.videoId}"
-                                            else -> item.hashCode().toString()
-                                        }
-                                    "${baseKey}_$index"
+                                // Stable entity key (type prefix + id) — no index suffix, so
+                                // removals at the top don't re-key every row below them.
+                                key = { _, item ->
+                                    when (item) {
+                                        is SongsResult -> "song_${item.videoId}"
+                                        is VideosResult -> "video_${item.videoId}"
+                                        else -> "suggest_${item.hashCode()}"
+                                    }
                                 },
+                                contentType = { "suggest_entity_row" },
                             ) { _, item ->
                                 SuggestItemRow(
                                     searchResult = item,
@@ -508,7 +509,7 @@ fun SearchScreen(
 
                         // 2. Suggestions Keywords SECOND
                         if (searchScreenState.suggestQueries.isNotEmpty()) {
-                            item(key = "header_suggestions") {
+                            item(key = "header_suggestions", contentType = "header") {
                                 Text(
                                     text = stringResource(Res.string.suggest),
                                     style = typo().titleSmall,
@@ -532,7 +533,11 @@ fun SearchScreen(
                             }
                             itemsIndexed(
                                 items = searchScreenState.suggestQueries,
-                                key = { index, query -> "query_${query}_$index" },
+                                // Suggest queries are server-ordered and replaced wholesale on
+                                // each keystroke; key on the query itself (unique: the history
+                                // table uses it as PK) rather than index.
+                                key = { _, query -> "query_$query" },
+                                contentType = { "suggest_query_row" },
                             ) { _, suggestion ->
                                 SuggestQueryRow(
                                     suggestion = suggestion,
@@ -568,7 +573,7 @@ fun SearchScreen(
 
                         // 3. Other Entities (Artists, Albums, Playlists) THIRD
                         if (suggestOtherEntities.isNotEmpty()) {
-                            item(key = "header_other_entities") {
+                            item(key = "header_other_entities", contentType = "header") {
                                 Text(
                                     text = stringResource(Res.string.popular),
                                     style = typo().titleSmall,
@@ -592,16 +597,15 @@ fun SearchScreen(
                             }
                             itemsIndexed(
                                 items = suggestOtherEntities,
-                                key = { index, item ->
-                                    val baseKey =
-                                        when (item) {
-                                            is ArtistsResult -> "artist_${item.browseId}"
-                                            is AlbumsResult -> "album_${item.browseId}"
-                                            is PlaylistsResult -> "playlist_${item.browseId}"
-                                            else -> item.hashCode().toString()
-                                        }
-                                    "${baseKey}_$index"
+                                key = { _, item ->
+                                    when (item) {
+                                        is ArtistsResult -> "artist_${item.browseId}"
+                                        is AlbumsResult -> "album_${item.browseId}"
+                                        is PlaylistsResult -> "playlist_${item.browseId}"
+                                        else -> "other_${item.hashCode()}"
+                                    }
                                 },
+                                contentType = { "suggest_entity_row" },
                             ) { _, item ->
                                 SuggestItemRow(
                                     searchResult = item,
@@ -653,7 +657,7 @@ fun SearchScreen(
                             }
                         }
 
-                        item(key = "end_of_page") {
+                        item(key = "end_of_page", contentType = "end_of_page") {
                             Box(
                                 modifier =
                                     Modifier.animateItem(
@@ -707,7 +711,10 @@ fun SearchScreen(
                             }
                             itemsIndexed(
                                 items = searchHistory,
-                                key = { index, historyItem -> "hist_${historyItem}_$index" },
+                                // History entries are unique (PK on query), so the query itself
+                                // is the stable key — no index suffix to cascade on insert.
+                                key = { _, historyItem -> "hist_$historyItem" },
+                                contentType = { "history_row" },
                             ) { _, historyItem ->
                                 Row(
                                     modifier =
@@ -756,7 +763,7 @@ fun SearchScreen(
                                     }
                                 }
                             }
-                            item {
+                            item(contentType = "end_of_page") {
                                 EndOfPage(
                                     withoutCredit = true,
                                 )
@@ -785,7 +792,7 @@ fun SearchScreen(
                                 verticalArrangement = Arrangement.spacedBy(12.dp),
                                 userScrollEnabled = false,
                             ) {
-                                items(12) {
+                                items(12, contentType = { "shimmer" }) {
                                     MoodCategoryCardShimmer()
                                 }
                             }
@@ -810,7 +817,7 @@ fun SearchScreen(
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            item(span = { GridItemSpan(maxLineSpan) }) {
+                            item(span = { GridItemSpan(maxLineSpan) }, contentType = "header") {
                                 Column(
                                     modifier =
                                         Modifier
@@ -845,7 +852,7 @@ fun SearchScreen(
                                 // First section runs straight on from the header block above it,
                                 // so its own heading would just be a second title in a row.
                                 if (index > 0) {
-                                    item(span = { GridItemSpan(maxLineSpan) }) {
+                                    item(span = { GridItemSpan(maxLineSpan) }, contentType = "section") {
                                         Text(
                                             // Section titles come from YouTube already localised,
                                             // so there is no string resource to pick here.
@@ -860,7 +867,7 @@ fun SearchScreen(
                                 // Key must include the section: every section lives in this ONE
                                 // grid, and "For you" repeats categories that also appear under
                                 // Moods or Genres, so params alone collides.
-                                items(section.items, key = { "${section.title}/${it.params}" }) { item ->
+                                items(section.items, key = { "${section.title}/${it.params}" }, contentType = { "mood_card" }) { item ->
                                     // LazyVerticalGrid only composes tiles inside the viewport, so
                                     // putting the request here IS the laziness — a category the
                                     // user never scrolls to never costs a browse.
@@ -875,7 +882,7 @@ fun SearchScreen(
                                     }
                                 }
                             }
-                            item(span = { GridItemSpan(maxLineSpan) }) {
+                            item(span = { GridItemSpan(maxLineSpan) }, contentType = "end_of_page") {
                                 EndOfPage()
                             }
                         }
