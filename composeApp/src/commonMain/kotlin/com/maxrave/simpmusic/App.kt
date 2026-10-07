@@ -88,6 +88,7 @@ import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.window.core.layout.WindowSizeClass.Companion.HEIGHT_DP_MEDIUM_LOWER_BOUND
 import androidx.window.core.layout.WindowSizeClass.Companion.WIDTH_DP_MEDIUM_LOWER_BOUND
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
@@ -535,8 +536,11 @@ fun App(
         }
     }
 
-    val isTablet = windowSize.isWidthAtLeastBreakpoint(WIDTH_DP_MEDIUM_LOWER_BOUND)
-    val isTabletLandscape = isTablet && currentOrientation() == Orientation.LANDSCAPE
+    val isTablet =
+        !isDesktopShell &&
+            windowSize.isWidthAtLeastBreakpoint(WIDTH_DP_MEDIUM_LOWER_BOUND) &&
+            windowSize.isHeightAtLeastBreakpoint(HEIGHT_DP_MEDIUM_LOWER_BOUND)
+    val isTabletLandscape = (isTablet || isDesktopShell) && currentOrientation() == Orientation.LANDSCAPE
 
     val morphProgress by animateFloatAsState(
         targetValue = if (isShowNowPlaylistScreen && !isTabletLandscape) 1f else 0f,
@@ -692,7 +696,7 @@ fun App(
                                         onItemClick = { isShowNowPlaylistScreen = false },
                                     )
                                     AppMiniPlayer(
-                                        isShowMiniPlayer = isShowMiniPlayer && !isShowNowPlaylistScreen,
+                                        isShowMiniPlayer = isShowMiniPlayer,
                                         isTablet = isTablet,
                                         isLandscape = true,
                                         backdrop = backdrop,
@@ -714,7 +718,7 @@ fun App(
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                 ) {
                                     AppMiniPlayer(
-                                        isShowMiniPlayer = isShowMiniPlayer && !isShowNowPlaylistScreen,
+                                        isShowMiniPlayer = isShowMiniPlayer,
                                         isTablet = isTablet,
                                         isLandscape = false,
                                         backdrop = backdrop,
