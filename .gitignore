@@ -41,6 +41,7 @@ sentry.properties
 # whatever directory they happen to be working in, which is how 21 of these ended
 # up committed under composeApp/src/.
 .omc/
+.aider*
 /desktopApp/build/
 # Conveyor auto-generated config (run `./gradlew :desktopApp:writeConveyorConfig`)
 /desktopApp/generated.conveyor.conf
