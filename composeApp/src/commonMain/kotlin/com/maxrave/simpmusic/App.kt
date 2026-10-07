@@ -667,6 +667,7 @@ fun App(
                                         animationSpec = tween(280, easing = FastOutSlowInEasing),
                                         targetOffsetY = { it },
                                     ),
+                        ) {
                             val reloadDestination = remember(viewModel) {
                                 { klass: KClass<*> -> viewModel.reloadDestination(klass) }
                             }
@@ -732,8 +733,8 @@ fun App(
                                     )
                                 }
                             }
-                }
-            },
+                        }
+                    },
             content = { innerPadding ->
                 Box(
                     Modifier
