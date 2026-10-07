@@ -176,6 +176,7 @@ fun MiniPlayer(
     backdrop: PlatformBackdrop,
     sharedViewModel: SharedViewModel = koinInject(),
     isTablet: Boolean = false,
+    isLandscape: Boolean = false,
     onClose: () -> Unit,
     onClick: () -> Unit,
     onOpenFullscreenLyrics: () -> Unit = {},
@@ -290,10 +291,15 @@ fun MiniPlayer(
         val motionScheme = MaterialTheme.motionScheme
 
         BoxWithConstraints(
-            modifier = modifier.fillMaxWidth(),
+            modifier = if (isLandscape) modifier.wrapContentSize() else modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center,
         ) {
-            val fullWidth = (maxWidth * (if (isTablet) 0.65f else 0.94f)).coerceAtMost(560.dp)
+            val fullWidth =
+                if (isLandscape) {
+                    310.dp
+                } else {
+                    (maxWidth * (if (isTablet) 0.65f else 0.94f)).coerceAtMost(560.dp)
+                }
 
             // Dynamic states for compact slice (Play/Pause button pill)
             val sliceInteractionSource = remember { MutableInteractionSource() }

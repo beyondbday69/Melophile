@@ -6,8 +6,10 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
@@ -69,6 +71,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
@@ -166,6 +169,7 @@ import kotlin.reflect.KClass
 fun AppMiniPlayer(
     isShowMiniPlayer: Boolean,
     isTablet: Boolean,
+    isLandscape: Boolean = false,
     backdrop: PlatformBackdrop,
     onClick: () -> Unit,
     onClose: () -> Unit,
@@ -174,12 +178,39 @@ fun AppMiniPlayer(
 ) {
     AnimatedVisibility(
         visible = isShowMiniPlayer,
-        enter = fadeIn(animationSpec = tween(240)),
-        exit = fadeOut(animationSpec = tween(180)),
+        enter =
+            if (isLandscape) {
+                fadeIn(animationSpec = tween(240)) +
+                    expandHorizontally(
+                        animationSpec =
+                            spring(
+                                dampingRatio = Spring.DampingRatioLowBouncy,
+                                stiffness = Spring.StiffnessMediumLow,
+                            ),
+                        expandFrom = Alignment.Start,
+                    )
+            } else {
+                fadeIn(animationSpec = tween(240))
+            },
+        exit =
+            if (isLandscape) {
+                fadeOut(animationSpec = tween(180)) +
+                    shrinkHorizontally(
+                        animationSpec =
+                            spring(
+                                dampingRatio = Spring.DampingRatioNoBouncy,
+                                stiffness = Spring.StiffnessMediumLow,
+                            ),
+                        shrinkTowards = Alignment.Start,
+                    )
+            } else {
+                fadeOut(animationSpec = tween(180))
+            },
     ) {
         MiniPlayer(
-            modifier = Modifier.padding(bottom = 6.dp),
+            modifier = if (isLandscape) Modifier.padding(start = 8.dp) else Modifier.padding(bottom = 6.dp),
             isTablet = isTablet,
+            isLandscape = isLandscape,
             backdrop = backdrop,
             onClick = onClick,
             onClose = onClose,
@@ -508,9 +539,9 @@ fun App(
     val morphProgress by animateFloatAsState(
         targetValue = if (isShowNowPlaylistScreen && !isTabletLandscape) 1f else 0f,
         animationSpec =
-            tween(
-                durationMillis = if (isShowNowPlaylistScreen) 340 else 280,
-                easing = FastOutSlowInEasing,
+            spring(
+                dampingRatio = 0.88f,
+                stiffness = Spring.StiffnessMediumLow,
             ),
         label = "nowPlayingMorphProgress",
     )
@@ -636,37 +667,71 @@ fun App(
                                         animationSpec = tween(280, easing = FastOutSlowInEasing),
                                         targetOffsetY = { it },
                                     ),
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 12.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                            ) {
-                                AppMiniPlayer(
-                                    isShowMiniPlayer = isShowMiniPlayer && !isShowNowPlaylistScreen,
-                                    isTablet = isTablet,
-                                    backdrop = backdrop,
-                                    onClick = { isShowNowPlaylistScreen = true },
-                                    onClose = {
-                                        viewModel.stopPlayer()
-                                        viewModel.isServiceRunning = false
-                                    },
-                                    onArtworkPositioned = { miniPlayerArtworkBoundsState.value = it },
-                                    onTextPositioned = { miniPlayerTextBoundsState.value = it },
-                                )
-                        // Sleek modern floating dock with solid color rendering
-                        val reloadDestination = remember(viewModel) {
-                            { klass: KClass<*> -> viewModel.reloadDestination(klass) }
-                        }
-                        AppBottomDock(
-                            navController = navController,
-                            showAnalyticsTab = showAnalyticsTab,
-                            showMixForYouTab = showMixForYouTab,
-                            reloadDestinationIfNeeded = reloadDestination,
-                            onItemClick = { isShowNowPlaylistScreen = false },
-                        )
-                    }
+                            val reloadDestination = remember(viewModel) {
+                                { klass: KClass<*> -> viewModel.reloadDestination(klass) }
+                            }
+                            val isLandscape = currentOrientation() == Orientation.LANDSCAPE
+
+                            if (isLandscape) {
+                                Row(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(bottom = 10.dp, start = 12.dp, end = 12.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    AppBottomDock(
+                                        navController = navController,
+                                        showAnalyticsTab = showAnalyticsTab,
+                                        showMixForYouTab = showMixForYouTab,
+                                        reloadDestinationIfNeeded = reloadDestination,
+                                        onItemClick = { isShowNowPlaylistScreen = false },
+                                    )
+                                    AppMiniPlayer(
+                                        isShowMiniPlayer = isShowMiniPlayer && !isShowNowPlaylistScreen,
+                                        isTablet = isTablet,
+                                        isLandscape = true,
+                                        backdrop = backdrop,
+                                        onClick = { isShowNowPlaylistScreen = true },
+                                        onClose = {
+                                            viewModel.stopPlayer()
+                                            viewModel.isServiceRunning = false
+                                        },
+                                        onArtworkPositioned = { miniPlayerArtworkBoundsState.value = it },
+                                        onTextPositioned = { miniPlayerTextBoundsState.value = it },
+                                    )
+                                }
+                            } else {
+                                Column(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(bottom = 12.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                ) {
+                                    AppMiniPlayer(
+                                        isShowMiniPlayer = isShowMiniPlayer && !isShowNowPlaylistScreen,
+                                        isTablet = isTablet,
+                                        isLandscape = false,
+                                        backdrop = backdrop,
+                                        onClick = { isShowNowPlaylistScreen = true },
+                                        onClose = {
+                                            viewModel.stopPlayer()
+                                            viewModel.isServiceRunning = false
+                                        },
+                                        onArtworkPositioned = { miniPlayerArtworkBoundsState.value = it },
+                                        onTextPositioned = { miniPlayerTextBoundsState.value = it },
+                                    )
+                                    AppBottomDock(
+                                        navController = navController,
+                                        showAnalyticsTab = showAnalyticsTab,
+                                        showMixForYouTab = showMixForYouTab,
+                                        reloadDestinationIfNeeded = reloadDestination,
+                                        onItemClick = { isShowNowPlaylistScreen = false },
+                                    )
+                                }
+                            }
                 }
             },
             content = { innerPadding ->
@@ -833,7 +898,8 @@ fun App(
                     BackHandler(enabled = isShowNowPlaylistScreen) {
                         isShowNowPlaylistScreen = false
                     }
-                    val contentAlpha = ((morphProgress - 0.06f) / 0.94f).coerceIn(0f, 1f)
+                    val contentAlpha = ((morphProgress - 0.05f) / 0.95f).coerceIn(0f, 1f)
+                    val density = LocalDensity.current
                     ForceDarkContent {
                         if (isTablet) {
                             Box(
@@ -852,7 +918,13 @@ fun App(
                                     Modifier
                                         .fillMaxHeight()
                                         .widthIn(max = 600.dp)
-                                        .clip(RoundedCornerShape(16.dp))
+                                        .graphicsLayer {
+                                            scaleX = lerp(0.92f, 1f, morphProgress)
+                                            scaleY = lerp(0.92f, 1f, morphProgress)
+                                            translationY = (1f - morphProgress) * with(density) { 64.dp.toPx() }
+                                            transformOrigin = TransformOrigin(0.5f, 0.95f)
+                                        }
+                                        .clip(RoundedCornerShape(lerp(28f, 16f, morphProgress).dp))
                                         .clickable(
                                             interactionSource = remember { MutableInteractionSource() },
                                             indication = null,
@@ -867,10 +939,28 @@ fun App(
                                 }
                             }
                         } else {
+                            val isLandscapeOrientation = currentOrientation() == Orientation.LANDSCAPE
+                            val cornerRadius = lerp(28f, 0f, morphProgress).dp
+                            val containerScale = lerp(0.92f, 1f, morphProgress)
+                            val containerTranslationY = (1f - morphProgress) * with(density) { 64.dp.toPx() }
+                            val transformOrigin =
+                                if (isLandscapeOrientation) {
+                                    TransformOrigin(0.72f, 0.95f)
+                                } else {
+                                    TransformOrigin(0.5f, 0.95f)
+                                }
+
                             Box(
                                 Modifier
                                     .fillMaxSize()
-                                    .graphicsLayer { alpha = contentAlpha },
+                                    .graphicsLayer {
+                                        this.alpha = contentAlpha
+                                        this.scaleX = containerScale
+                                        this.scaleY = containerScale
+                                        this.translationY = containerTranslationY
+                                        this.transformOrigin = transformOrigin
+                                    }
+                                    .clip(RoundedCornerShape(cornerRadius)),
                             ) {
                                 NowPlayingScreen(
                                     navController = navController,
