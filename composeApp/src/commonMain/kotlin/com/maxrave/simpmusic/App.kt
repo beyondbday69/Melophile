@@ -486,8 +486,10 @@ fun App(
 
     LaunchedEffect(updateData) {
         val response = updateData ?: return@LaunchedEffect
+        val currentVersion = VersionManager.getVersionName().trim()
+        val latestVersion = response.tagName.removePrefix("v").trim()
         if (viewModel.showedUpdateDialog &&
-            response.tagName.removePrefix("v").trim() != VersionManager.getVersionName().trim()
+            VersionManager.isNewerVersion(latestVersion, currentVersion)
         ) {
             shouldShowUpdateDialog = true
         }

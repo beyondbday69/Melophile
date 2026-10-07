@@ -12,6 +12,7 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.longOrNull
 
 class AppUpdateService(
@@ -50,6 +51,9 @@ class AppUpdateService(
 
             for (item in array) {
                 val rel = item.jsonObject
+                val isDraft = rel["draft"]?.jsonPrimitive?.booleanOrNull == true
+                if (isDraft) continue
+
                 val apk =
                     rel["assets"]?.jsonArray?.firstOrNull {
                         it.jsonObject["name"]?.jsonPrimitive?.contentOrNull?.endsWith(".apk", ignoreCase = true) == true

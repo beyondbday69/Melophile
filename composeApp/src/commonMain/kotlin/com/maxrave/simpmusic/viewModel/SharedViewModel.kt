@@ -1101,21 +1101,24 @@ class SharedViewModel(
                         is Resource.Success if (data != null) -> {
                             val currentVersion = VersionManager.getVersionName().trim()
                             val latestVersion = data.tagName.removePrefix("v").trim()
-                            if (latestVersion == currentVersion) {
+                            if (!VersionManager.isNewerVersion(latestVersion, currentVersion)) {
                                 if (fromUserClick) {
                                     makeToast(getString(Res.string.no_update))
                                 }
                             } else {
-                                _updateResponse.value =
-                                    AppUpdateInfo(
-                                        tagName = data.tagName,
-                                        releaseTime = data.releaseTime,
-                                        body = data.body,
-                                        downloadUrl = "https://f-droid.org/packages/com.maxrave.simpmusic/",
-                                        fileName = null,
-                                        apkSize = null,
-                                    )
-                                showedUpdateDialog = true
+                                val dismissedVersion = dataStoreManager.getString("DismissedUpdateVersion").firstOrNull()
+                                if (fromUserClick || dismissedVersion != data.tagName) {
+                                    _updateResponse.value =
+                                        AppUpdateInfo(
+                                            tagName = data.tagName,
+                                            releaseTime = data.releaseTime,
+                                            body = data.body,
+                                            downloadUrl = "https://f-droid.org/packages/com.maxrave/simpmusic/",
+                                            fileName = null,
+                                            apkSize = null,
+                                        )
+                                    showedUpdateDialog = true
+                                }
                             }
                         }
 
@@ -1133,13 +1136,16 @@ class SharedViewModel(
                     onSuccess = { info ->
                         val currentVersion = VersionManager.getVersionName().trim()
                         val latestVersion = info.tagName.removePrefix("v").trim()
-                        if (latestVersion == currentVersion) {
+                        if (!VersionManager.isNewerVersion(latestVersion, currentVersion)) {
                             if (fromUserClick) {
                                 makeToast(getString(Res.string.no_update))
                             }
                         } else {
-                            _updateResponse.value = info
-                            showedUpdateDialog = true
+                            val dismissedVersion = dataStoreManager.getString("DismissedUpdateVersion").firstOrNull()
+                            if (fromUserClick || dismissedVersion != info.tagName) {
+                                _updateResponse.value = info
+                                showedUpdateDialog = true
+                            }
                         }
                         _isCheckingUpdate.value = false
                     },
@@ -1193,6 +1199,12 @@ class SharedViewModel(
     }
 
     fun dismissUpdateDialog() {
+        val currentTag = _updateResponse.value?.tagName
+        if (currentTag != null) {
+            viewModelScope.launch {
+                dataStoreManager.putString("DismissedUpdateVersion", currentTag)
+            }
+        }
         cancelDownloadUpdate()
         _updateResponse.value = null
         showedUpdateDialog = false
@@ -2023,7 +2035,15 @@ class SharedViewModel(
         _reloadDestination.value = null
     }
 
-    fun shouldCheckForUpdate(): Boolean = runBlocking { dataStoreManager.autoCheckForUpdates.first() == TRUE }
+    fun shouldCheckForUpdate(): Boolean =
+        runBlocking {
+            if (dataStoreManager.autoCheckForUpdates.first() != TRUE) return@runBlocking false
+            val lastCheckedStr = dataStoreManager.getString("CheckForUpdateAt").firstOrNull()
+            val lastChecked = lastCheckedStr?.toLongOrNull() ?: 0L
+            val now = System.currentTimeMillis()
+            // Throttle automatic update checks on launch to at most once every 12 hours
+            now - lastChecked > 43_200_000L
+        }
 
     private var _downloadFileProgress = MutableStateFlow<DownloadProgress>(DownloadProgress.INIT)
     val downloadFileProgress: StateFlow<DownloadProgress> get() = _downloadFileProgress
