@@ -85,6 +85,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -105,6 +106,8 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import com.maxrave.simpmusic.ui.screen.player.content.LocalNowPlayingMorphProgress
+import com.maxrave.simpmusic.ui.screen.player.content.LocalMiniPlayerTitleColor
+import com.maxrave.simpmusic.ui.screen.player.content.LocalMiniPlayerArtistColor
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -243,9 +246,10 @@ fun MiniPlayer(
     // (dark on a light pill) to the force-dark Now Playing surface.
     val titleColorHolder = LocalMiniPlayerTitleColor.current
     val artistColorHolder = LocalMiniPlayerArtistColor.current
+    val artistColor = MaterialTheme.colorScheme.onSurfaceVariant
     SideEffect {
         titleColorHolder.value = textColor
-        artistColorHolder.value = MaterialTheme.colorScheme.onSurfaceVariant
+        artistColorHolder.value = artistColor
     }
 
     var loading by rememberSaveable {
