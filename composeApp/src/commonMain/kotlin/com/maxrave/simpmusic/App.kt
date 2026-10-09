@@ -539,13 +539,9 @@ fun App(
     val isLandscapeOrientation = currentOrientation() == Orientation.LANDSCAPE
     val isTablet =
         !isDesktopShell &&
-            if (isLandscapeOrientation) {
-                windowSize.isWidthAtLeastBreakpoint(WIDTH_DP_MEDIUM_LOWER_BOUND) &&
-                    windowSize.isHeightAtLeastBreakpoint(WIDTH_DP_MEDIUM_LOWER_BOUND)
-            } else {
-                windowSize.isWidthAtLeastBreakpoint(WIDTH_DP_MEDIUM_LOWER_BOUND)
-            }
-    val isTabletLandscape = isDesktopShell && isLandscapeOrientation
+            windowSize.isWidthAtLeastBreakpoint(WIDTH_DP_MEDIUM_LOWER_BOUND) &&
+            windowSize.isHeightAtLeastBreakpoint(HEIGHT_DP_MEDIUM_LOWER_BOUND)
+    val isTabletLandscape = (isTablet || isDesktopShell) && isLandscapeOrientation
 
     val morphProgress by animateFloatAsState(
         targetValue = if (isShowNowPlaylistScreen && !isTabletLandscape) 1f else 0f,
@@ -777,7 +773,7 @@ fun App(
                             },
                         ),
                 ) {
-                    Row(
+                    Box(
                         Modifier.fillMaxSize(),
                     ) {
                         // Desktop only: the content sits in its own rounded panel floating on a
@@ -787,7 +783,6 @@ fun App(
                         Box(
                             Modifier
                                 .fillMaxSize()
-                                .weight(1f)
                                 .then(
                                     if (isDesktopShell) {
                                         Modifier
@@ -836,86 +831,84 @@ fun App(
                                 )
                             }
                         }
-                        if (isTablet && isTabletLandscape && !isInFullscreen) {
+                        if (isTabletLandscape && !isInFullscreen) {
                             BackHandler(enabled = isShowNowPlaylistScreen) {
                                 isShowNowPlaylistScreen = false
                             }
+
+                            if (isShowNowPlaylistScreen) {
+                                Box(
+                                    Modifier
+                                        .fillMaxSize()
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = null,
+                                            onClick = { isShowNowPlaylistScreen = false },
+                                        ),
+                                )
+                            }
+
                             AnimatedVisibility(
-                                isShowNowPlaylistScreen,
+                                visible = isShowNowPlaylistScreen,
+                                modifier = Modifier.align(Alignment.CenterEnd),
                                 enter =
                                     slideInHorizontally(
                                         animationSpec = spring(
-                                            dampingRatio = Spring.DampingRatioLowBouncy,
+                                            dampingRatio = 0.86f,
                                             stiffness = Spring.StiffnessMediumLow,
                                         ),
                                         initialOffsetX = { it },
                                     ) + fadeIn(
                                         animationSpec = tween(
-                                            durationMillis = 250,
+                                            durationMillis = 220,
                                             easing = FastOutSlowInEasing,
                                         ),
                                     ),
                                 exit =
                                     slideOutHorizontally(
-                                        animationSpec = tween(
-                                            durationMillis = 280,
-                                            easing = FastOutSlowInEasing,
+                                        animationSpec = spring(
+                                            dampingRatio = 0.90f,
+                                            stiffness = Spring.StiffnessMediumLow,
                                         ),
                                         targetOffsetX = { it },
                                     ) + fadeOut(
                                         animationSpec = tween(
-                                            durationMillis = 200,
+                                            durationMillis = 180,
                                             easing = FastOutSlowInEasing,
                                         ),
                                     ),
                             ) {
-                                Row(
+                                Box(
                                     Modifier
                                         .fillMaxHeight()
-                                        .widthIn(min = 360.dp, max = 460.dp)
+                                        .widthIn(min = 380.dp, max = 460.dp)
                                         .fillMaxWidth(0.38f)
-                                        .graphicsLayer { clip = true },
+                                        .padding(
+                                            top = if (isDesktopShell) 8.dp else 12.dp,
+                                            bottom = if (isDesktopShell) 8.dp else 12.dp,
+                                            end = if (isDesktopShell) 8.dp else 12.dp,
+                                        )
+                                        .clip(RoundedCornerShape(if (isDesktopShell) 16.dp else 24.dp))
+                                        .background(
+                                            if (isDesktopShell) desktopPanel else MaterialTheme.colorScheme.surfaceContainer
+                                        )
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = null,
+                                            onClick = {},
+                                        ),
                                 ) {
-                                    Spacer(Modifier.width(8.dp))
-                                    Box(
-                                        Modifier
-                                            .padding(
-                                                innerPadding.copy(
-                                                    start = 0.dp,
-                                                    top = 0.dp,
-                                                    bottom = 0.dp,
-                                                ),
-                                            ).then(
-                                                // Matches the inset of the content panel so the two
-                                                // read as a pair of floating cards, not one panel
-                                                // with a seam down the middle.
-                                                if (isDesktopShell) {
-                                                    Modifier.padding(top = 8.dp, end = 8.dp, bottom = 8.dp)
-                                                } else {
-                                                    Modifier
-                                                },
-                                            ).clip(
-                                                RoundedCornerShape(16.dp),
-                                            ).then(
-                                                if (isDesktopShell) {
-                                                    Modifier.background(desktopPanel)
-                                                } else {
-                                                    Modifier.background(MaterialTheme.colorScheme.surfaceContainer)
-                                                },
-                                            ),
+                                    CompositionLocalProvider(
+                                        LocalNowPlayingMorphProgress provides 1f,
                                     ) {
-                                        CompositionLocalProvider(
-                                            LocalNowPlayingMorphProgress provides 1f,
-                                        ) {
-                                            ForceDarkContent {
-                                                NowPlayingScreenContent(
-                                                    navController = navController,
-                                                    sharedViewModel = viewModel,
-                                                    isExpanded = true,
-                                                    dismissIcon = SimpIcons.ArrowForwardIos,
-                                                ) {
-                                                    isShowNowPlaylistScreen = false
-                                                }
+                                        ForceDarkContent {
+                                            NowPlayingScreenContent(
+                                                navController = navController,
+                                                sharedViewModel = viewModel,
+                                                isExpanded = true,
+                                                dismissIcon = SimpIcons.ArrowForwardIos,
+                                            ) {
+                                                isShowNowPlaylistScreen = false
                                             }
                                         }
                                     }
@@ -929,7 +922,8 @@ fun App(
                     BackHandler(enabled = isShowNowPlaylistScreen) {
                         isShowNowPlaylistScreen = false
                     }
-                    val contentAlpha = ((morphProgress - 0.05f) / 0.95f).coerceIn(0f, 1f)
+                    val safeMorphProgress = morphProgress.coerceIn(0f, 1f)
+                    val contentAlpha = ((safeMorphProgress - 0.05f) / 0.95f).coerceIn(0f, 1f)
                     val density = LocalDensity.current
                     ForceDarkContent {
                         if (isTablet) {
@@ -950,12 +944,12 @@ fun App(
                                         .fillMaxHeight()
                                         .widthIn(max = 600.dp)
                                         .graphicsLayer {
-                                            scaleX = lerp(0.92f, 1f, morphProgress)
-                                            scaleY = lerp(0.92f, 1f, morphProgress)
-                                            translationY = (1f - morphProgress) * with(density) { 64.dp.toPx() }
+                                            scaleX = lerp(0.92f, 1f, safeMorphProgress)
+                                            scaleY = lerp(0.92f, 1f, safeMorphProgress)
+                                            translationY = (1f - safeMorphProgress) * with(density) { 64.dp.toPx() }
                                             transformOrigin = TransformOrigin(0.5f, 0.95f)
                                         }
-                                        .clip(RoundedCornerShape(lerp(28f, 16f, morphProgress).dp))
+                                        .clip(RoundedCornerShape(lerp(28f, 16f, safeMorphProgress).coerceAtLeast(0f).dp))
                                         .clickable(
                                             interactionSource = remember { MutableInteractionSource() },
                                             indication = null,
@@ -971,10 +965,10 @@ fun App(
                             }
                         } else {
                             val isLandscapeOrientation = currentOrientation() == Orientation.LANDSCAPE
-                            val cornerRadius = lerp(28f, 0f, morphProgress).dp
-                            val containerScale = lerp(0.92f, 1f, morphProgress)
+                            val cornerRadius = lerp(28f, 0f, safeMorphProgress).coerceAtLeast(0f).dp
+                            val containerScale = lerp(0.92f, 1f, safeMorphProgress)
                             val containerTranslationY =
-                                (1f - morphProgress) * with(density) { if (isLandscapeOrientation) 20.dp.toPx() else 64.dp.toPx() }
+                                (1f - safeMorphProgress) * with(density) { if (isLandscapeOrientation) 20.dp.toPx() else 64.dp.toPx() }
                             val transformOrigin =
                                 if (isLandscapeOrientation && sourceArtworkBounds != null && screenWidthPx > 0f && screenHeightPx > 0f) {
                                     TransformOrigin(
@@ -1204,16 +1198,17 @@ private fun MorphingArtworkOverlay(
         return
     }
 
+    val safeProgress = progress.coerceIn(0f, 1f)
     val density = LocalDensity.current
-    val currentLeft = lerp(fromBounds.left, toBounds.left, progress)
-    val currentTop = lerp(fromBounds.top, toBounds.top, progress)
-    val currentWidth = lerp(fromBounds.width, toBounds.width, progress)
-    val currentHeight = lerp(fromBounds.height, toBounds.height, progress)
+    val currentLeft = lerp(fromBounds.left, toBounds.left, safeProgress)
+    val currentTop = lerp(fromBounds.top, toBounds.top, safeProgress)
+    val currentWidth = lerp(fromBounds.width, toBounds.width, safeProgress)
+    val currentHeight = lerp(fromBounds.height, toBounds.height, safeProgress)
 
     // Corner radius: smoothly scales from MiniPlayer circle to NowPlaying card corner
     val startRadius = fromBounds.width / 2f
     val targetRadius = with(density) { 28.dp.toPx() }
-    val currentRadius = lerp(startRadius, targetRadius, progress)
+    val currentRadius = lerp(startRadius, targetRadius, safeProgress).coerceAtLeast(0f)
     val shape = RoundedCornerShape(with(density) { currentRadius.toDp() })
 
     // Continuous symmetric cross-fade:
@@ -1267,18 +1262,19 @@ private fun MorphingTextOverlay(
         return
     }
 
+    val safeProgress = progress.coerceIn(0f, 1f)
     val density = LocalDensity.current
-    val currentLeft = lerp(fromBounds.left, toBounds.left, progress)
-    val currentTop = lerp(fromBounds.top, toBounds.top, progress)
-    val currentWidth = lerp(fromBounds.width, toBounds.width, progress)
+    val currentLeft = lerp(fromBounds.left, toBounds.left, safeProgress)
+    val currentTop = lerp(fromBounds.top, toBounds.top, safeProgress)
+    val currentWidth = lerp(fromBounds.width, toBounds.width, safeProgress)
 
     // Dynamic typography scaling between MiniPlayer and NowPlaying
     // MiniPlayer title is ~13.sp (titleSmall), NowPlaying title is 18.sp (titleMedium)
-    val currentTitleSize = lerp(13f, 18f, progress).sp
+    val currentTitleSize = lerp(13f, 18f, safeProgress).coerceAtLeast(1f).sp
     // MiniPlayer artist is ~10.5sp (bodySmall), NowPlaying artist is 13.5sp (bodyMedium)
-    val currentArtistSize = lerp(10.5f, 13.5f, progress).sp
+    val currentArtistSize = lerp(10.5f, 13.5f, safeProgress).coerceAtLeast(1f).sp
     // Dynamic vertical spacing between title and artist row
-    val currentSpacing = lerp(0f, 3.5f, progress).dp
+    val currentSpacing = lerp(0f, 3.5f, safeProgress).coerceAtLeast(0f).dp
 
     // Continuous symmetric cross-fade matching artwork overlay
     val alpha =
