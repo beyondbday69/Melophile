@@ -3,6 +3,7 @@ package com.maxrave.simpmusic
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -63,6 +64,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import com.kmpalette.rememberPaletteState
 import com.maxrave.simpmusic.extension.getColorFromPalette
@@ -554,6 +556,25 @@ fun App(
     )
     val isMorphActive = isShowNowPlaylistScreen || morphProgress > 0.001f
 
+    val bgBlurRadius by animateDpAsState(
+        targetValue = if (isTabletLandscape && isShowNowPlaylistScreen && !isInFullscreen) 20.dp else 0.dp,
+        animationSpec =
+            tween(
+                durationMillis = 240,
+                easing = FastOutSlowInEasing,
+            ),
+        label = "landscapeNowPlayingBgBlur",
+    )
+    val bgDimAlpha by animateFloatAsState(
+        targetValue = if (isTabletLandscape && isShowNowPlaylistScreen && !isInFullscreen) 0.55f else 0.0f,
+        animationSpec =
+            tween(
+                durationMillis = 240,
+                easing = FastOutSlowInEasing,
+            ),
+        label = "landscapeNowPlayingBgDim",
+    )
+
     val activeDynamicSeed =
         if (isMaterialDynamicColorEnabled &&
             nowPlayingStyle == DataStoreManager.NOW_PLAYING_STYLE_M3_EXPRESSIVE &&
@@ -791,6 +812,13 @@ fun App(
                                     } else {
                                         Modifier
                                     },
+                                )
+                                .then(
+                                    if (bgBlurRadius > 0.dp) {
+                                        Modifier.blur(bgBlurRadius)
+                                    } else {
+                                        Modifier
+                                    },
                                 ),
                         ) {
                             Box(
@@ -835,10 +863,11 @@ fun App(
                                 isShowNowPlaylistScreen = false
                             }
 
-                            if (isShowNowPlaylistScreen) {
+                            if (bgDimAlpha > 0.001f) {
                                 Box(
                                     Modifier
                                         .fillMaxSize()
+                                        .background(Color.Black.copy(alpha = bgDimAlpha))
                                         .clickable(
                                             interactionSource = remember { MutableInteractionSource() },
                                             indication = null,
