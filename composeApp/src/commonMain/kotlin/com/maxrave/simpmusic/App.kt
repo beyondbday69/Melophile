@@ -557,7 +557,7 @@ fun App(
     val isMorphActive = isShowNowPlaylistScreen || morphProgress > 0.001f
 
     val bgBlurRadius by animateDpAsState(
-        targetValue = if (isTabletLandscape && isShowNowPlaylistScreen && !isInFullscreen) 8.dp else 0.dp,
+        targetValue = if (isTabletLandscape && isShowNowPlaylistScreen && !isInFullscreen) 4.94.dp else 0.dp,
         animationSpec =
             tween(
                 durationMillis = 240,
