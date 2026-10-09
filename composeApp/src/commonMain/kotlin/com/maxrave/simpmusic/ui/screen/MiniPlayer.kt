@@ -233,6 +233,21 @@ fun MiniPlayer(
     val offsetY = remember { Animatable(0f) }
     val morphProgress = LocalNowPlayingMorphProgress.current
 
+    // While Now Playing is open the pill is invisible (its Row fades with morphProgress) but still
+    // laid out, so it stays the morph's source rect. Two consequences: its bounds must be frozen
+    // where the user last saw them, and its own collapse timer must not fire and shrink it behind
+    // the open screen — both are keyed off this.
+    val isMorphing = morphProgress > 0.001f
+
+    // Report the pill's text colours to the morph overlay so it can bridge from the themed source
+    // (dark on a light pill) to the force-dark Now Playing surface.
+    val titleColorHolder = LocalMiniPlayerTitleColor.current
+    val artistColorHolder = LocalMiniPlayerArtistColor.current
+    SideEffect {
+        titleColorHolder.value = textColor
+        artistColorHolder.value = MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
     var loading by rememberSaveable {
         mutableStateOf(true)
     }
@@ -280,8 +295,11 @@ fun MiniPlayer(
         isCollapsed = false
     }
 
-    LaunchedEffect(songEntity?.videoId, isCollapsed, userInteractionCount) {
-        if (!isCollapsed) {
+    LaunchedEffect(songEntity?.videoId, isCollapsed, userInteractionCount, isMorphing) {
+        // Suppress the auto-collapse while the Now Playing morph is using this pill as its source:
+        // a shrinking pill mid-morph drags the flying artwork's start point with it, and a pill
+        // that already collapsed behind the open screen would greet the user collapsed on dismiss.
+        if (!isCollapsed && !isMorphing) {
             delay(5000)
             isCollapsed = true
         }
@@ -441,6 +459,11 @@ fun MiniPlayer(
                                 .clickable(
                                     interactionSource = mainPillInteractionSource,
                                     indication = null,
+                                    // The pill hides itself with a draw-phase alpha while Now
+                                    // Playing opens, which does not detach it from pointer input —
+                                    // disable it explicitly so the invisible 310x58dp pill cannot
+                                    // swallow taps meant for the player underneath.
+                                    enabled = !isMorphing,
                                     onClick = {
                                         if (isCollapsed) {
                                             isCollapsed = false
@@ -475,7 +498,9 @@ fun MiniPlayer(
                                         },
                                         onDragEnd = {
                                             coroutineScope.launch {
-                                                if (offsetY.value > 70f) {
+                                                // A swipe down on the invisible pill mid-morph
+                                                // would otherwise stop playback outright.
+                                                if (!isMorphing && offsetY.value > 70f) {
                                                     onClose()
                                                 }
                                                 offsetY.animateTo(
@@ -560,7 +585,14 @@ fun MiniPlayer(
                                             .size(28.dp)
                                             .clip(CircleShape)
                                             .onGloballyPositioned { coordinates ->
-                                                onArtworkPositioned?.invoke(coordinates.boundsInRoot())
+                                                // Freeze this rect once the morph is underway so
+                                                // the pill's own collapse/exit animations cannot
+                                                // drag the flying artwork's origin with them —
+                                                // the morph always starts from where the user
+                                                // last saw the artwork.
+                                                if (!isMorphing) {
+                                                    onArtworkPositioned?.invoke(coordinates.boundsInRoot())
+                                                }
                                             },
                                 )
                             }
@@ -659,7 +691,12 @@ fun MiniPlayer(
                                                             .wrapContentHeight()
                                                             .align(Alignment.CenterVertically)
                                                             .onGloballyPositioned { coordinates ->
-                                                                onTextPositioned?.invoke(coordinates.boundsInRoot())
+                                                                // Same freeze as the artwork: keep the
+                                                                // morph's source where the user last
+                                                                // saw the text.
+                                                                if (!isMorphing) {
+                                                                    onTextPositioned?.invoke(coordinates.boundsInRoot())
+                                                                }
                                                             },
                                                 ) {
                                                     Text(

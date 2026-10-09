@@ -10,7 +10,10 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.maxrave.domain.data.model.browse.album.Track
 import com.maxrave.domain.data.model.streams.TimeLine
 import com.maxrave.domain.data.player.GenericCastState
@@ -24,6 +27,23 @@ import kotlinx.coroutines.flow.StateFlow
 val LocalNowPlayingArtworkBounds = compositionLocalOf<MutableState<Rect?>?> { null }
 val LocalNowPlayingTextBounds = compositionLocalOf<MutableState<Rect?>?> { null }
 val LocalNowPlayingMorphProgress = compositionLocalOf { 1f }
+
+/**
+ * The corner radius the resting Now Playing artwork is actually clipped with, so the flying
+ * overlay can lerp the mini player's circle into the real shape of the destination card instead
+ * of a hardcoded guess. 28.dp is the value the overlay used to assume unconditionally, so a style
+ * that does not report its own radius keeps behaving exactly as before.
+ */
+val LocalNowPlayingArtworkCornerRadius = compositionLocalOf<MutableState<Dp>> { mutableStateOf(28.dp) }
+
+/**
+ * The mini player's current title/artist text colours. The morph's text overlay bridges the mini
+ * player (themed, so dark text in light mode) to the Now Playing surface (always force-dark, so
+ * white text); without these the overlay would start white regardless of theme and flash over a
+ * light pill for the first 15% of the morph.
+ */
+val LocalMiniPlayerTitleColor = compositionLocalOf<MutableState<Color>> { mutableStateOf(Color.White) }
+val LocalMiniPlayerArtistColor = compositionLocalOf<MutableState<Color>> { mutableStateOf(Color.White.copy(alpha = 0.7f)) }
 
 /**
  * Whether the lyrics currently on screen can be rated.

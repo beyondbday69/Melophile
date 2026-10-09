@@ -49,6 +49,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -791,11 +792,17 @@ private fun AppleMusicArtworkPage(
             var artworkUrl by remember(state.screenData.thumbnailURL) { mutableStateOf(state.screenData.thumbnailURL) }
             val morphProgress = LocalNowPlayingMorphProgress.current
             val artworkBoundsHolder = LocalNowPlayingArtworkBounds.current
+            val artworkCornerRadiusHolder = LocalNowPlayingArtworkCornerRadius.current
             val restingArtworkAlpha =
                 if (pageShowsCanvasOrVideo) 0f
                 else if (morphProgress < 0.85f) 0f
                 else if (morphProgress < 1f) ((morphProgress - 0.85f) / 0.15f).coerceIn(0f, 1f)
                 else 1f
+            SideEffect {
+                // This style's artwork is full-bleed with feathered edges and no corner clip, so
+                // the flying overlay should square its corners off as it arrives.
+                artworkCornerRadiusHolder.value = 0.dp
+            }
             Box(
                 modifier =
                     Modifier

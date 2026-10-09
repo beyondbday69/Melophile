@@ -71,6 +71,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
@@ -128,8 +129,11 @@ import com.maxrave.simpmusic.ui.screen.other.UnofficialBuildScreen
 import com.maxrave.simpmusic.ui.screen.player.NowPlayingScreen
 import com.maxrave.simpmusic.ui.screen.player.NowPlayingScreenContent
 import com.maxrave.simpmusic.ui.screen.player.content.LocalNowPlayingArtworkBounds
+import com.maxrave.simpmusic.ui.screen.player.content.LocalNowPlayingArtworkCornerRadius
 import com.maxrave.simpmusic.ui.screen.player.content.LocalNowPlayingMorphProgress
 import com.maxrave.simpmusic.ui.screen.player.content.LocalNowPlayingTextBounds
+import com.maxrave.simpmusic.ui.screen.player.content.LocalMiniPlayerArtistColor
+import com.maxrave.simpmusic.ui.screen.player.content.LocalMiniPlayerTitleColor
 import com.maxrave.simpmusic.ui.component.ExplicitBadge
 import androidx.compose.ui.text.style.TextOverflow
 import com.maxrave.domain.utils.connectArtists
@@ -303,6 +307,12 @@ fun App(
     val nowPlayingArtworkBoundsState = remember { mutableStateOf<Rect?>(null) }
     val miniPlayerTextBoundsState = remember { mutableStateOf<Rect?>(null) }
     val nowPlayingTextBoundsState = remember { mutableStateOf<Rect?>(null) }
+
+    // The mini player's text colours, so the morph's text overlay can start from the colour the
+    // pill is actually drawing with (themed — dark on a light pill) instead of assuming white.
+    val miniPlayerTitleColorState = remember { mutableStateOf(Color.White) }
+    val miniPlayerArtistColorState = remember { mutableStateOf(Color.White.copy(alpha = 0.7f)) }
+    val nowPlayingArtworkCornerRadiusState = remember { mutableStateOf(28.dp) }
 
     // Fullscreen
     var isInFullscreen by rememberSaveable {
@@ -593,7 +603,10 @@ fun App(
         CompositionLocalProvider(
             LocalNowPlayingMorphProgress provides effectiveMorphProgress,
             LocalNowPlayingArtworkBounds provides nowPlayingArtworkBoundsState,
+            LocalNowPlayingArtworkCornerRadius provides nowPlayingArtworkCornerRadiusState,
             LocalNowPlayingTextBounds provides nowPlayingTextBoundsState,
+            LocalMiniPlayerTitleColor provides miniPlayerTitleColorState,
+            LocalMiniPlayerArtistColor provides miniPlayerArtistColorState,
         ) {
             BoxWithConstraints(Modifier.fillMaxSize()) {
                 val density = LocalDensity.current
@@ -637,9 +650,16 @@ fun App(
 
                 var lastKnownArtworkTargetBounds by remember { mutableStateOf<Rect?>(null) }
                 var lastKnownTextTargetBounds by remember { mutableStateOf<Rect?>(null) }
+                var lastKnownMiniPlayerArtworkBounds by remember { mutableStateOf<Rect?>(null) }
+                var lastKnownMiniPlayerTextBounds by remember { mutableStateOf<Rect?>(null) }
                 LaunchedEffect(isLandscape) {
                     lastKnownArtworkTargetBounds = null
                     lastKnownTextTargetBounds = null
+                    // The mini player's bounds are measured in the old orientation's coordinate
+                    // space too — clear them so a morph in the new orientation does not lerp from
+                    // a rect on the wrong edge of the screen.
+                    lastKnownMiniPlayerArtworkBounds = null
+                    lastKnownMiniPlayerTextBounds = null
                 }
                 nowPlayingArtworkBoundsState.value?.let {
                     if (it.width > 0f && it.height > 0f) {
@@ -660,8 +680,6 @@ fun App(
                         ?: lastKnownTextTargetBounds
                         ?: fallbackTargetText
 
-                var lastKnownMiniPlayerArtworkBounds by remember { mutableStateOf<Rect?>(null) }
-                var lastKnownMiniPlayerTextBounds by remember { mutableStateOf<Rect?>(null) }
                 miniPlayerArtworkBoundsState.value?.let {
                     if (it.width > 0f && it.height > 0f) {
                         lastKnownMiniPlayerArtworkBounds = it
@@ -836,7 +854,13 @@ fun App(
                                 )
                             }
                         }
-                        if (isTablet && isTabletLandscape && !isInFullscreen) {
+                        // isTablet requires !isDesktopShell and isTabletLandscape requires
+                        // isDesktopShell, so their conjunction is false on every platform and the
+                        // `isTablet &&` half made this whole panel dead code — on Desktop tapping
+                        // the mini player set the flag, rendered nothing, and blanked the capsule's
+                        // artwork/text. isTabletLandscape is Desktop-only, so this restores the
+                        // panel there without touching the phone/tablet morph paths.
+                        if (isTabletLandscape && !isInFullscreen) {
                             BackHandler(enabled = isShowNowPlaylistScreen) {
                                 isShowNowPlaylistScreen = false
                             }
@@ -1210,9 +1234,11 @@ private fun MorphingArtworkOverlay(
     val currentWidth = lerp(fromBounds.width, toBounds.width, progress)
     val currentHeight = lerp(fromBounds.height, toBounds.height, progress)
 
-    // Corner radius: smoothly scales from MiniPlayer circle to NowPlaying card corner
+    // Corner radius: smoothly scales from MiniPlayer circle to the resting card's real corner.
+    // Each Now Playing style reports the radius it actually clips with (default 28.dp = the value
+    // this overlay used to hardcode, so unreported styles keep their current behaviour).
     val startRadius = fromBounds.width / 2f
-    val targetRadius = with(density) { 28.dp.toPx() }
+    val targetRadius = with(density) { LocalNowPlayingArtworkCornerRadius.current.value.toPx() }
     val currentRadius = lerp(startRadius, targetRadius, progress)
     val shape = RoundedCornerShape(with(density) { currentRadius.toDp() })
 
@@ -1273,12 +1299,20 @@ private fun MorphingTextOverlay(
     val currentWidth = lerp(fromBounds.width, toBounds.width, progress)
 
     // Dynamic typography scaling between MiniPlayer and NowPlaying
-    // MiniPlayer title is ~13.sp (titleSmall), NowPlaying title is 18.sp (titleMedium)
+    // MiniPlayer title is titleSmall (13.sp), NowPlaying title is titleMedium (18.sp).
     val currentTitleSize = lerp(13f, 18f, progress).sp
-    // MiniPlayer artist is ~10.5sp (bodySmall), NowPlaying artist is 13.5sp (bodyMedium)
-    val currentArtistSize = lerp(10.5f, 13.5f, progress).sp
+    // MiniPlayer artist is bodySmall.copy(fontSize = 10.sp), NowPlaying artist is bodyMedium
+    // (13.sp). The 10.5/13.5 this used to assume made the line jump half a step at both ends.
+    val currentArtistSize = lerp(10f, 13f, progress).sp
     // Dynamic vertical spacing between title and artist row
     val currentSpacing = lerp(0f, 3.5f, progress).dp
+
+    // The mini player's text is themed (dark on a light pill) while the Now Playing surface is
+    // always force-dark with white text — bridge between the two instead of assuming white, which
+    // flashed over a light pill for the first 15% of the morph.
+    val sourceTitleColor = LocalMiniPlayerTitleColor.current.value
+    val sourceArtistColor = LocalMiniPlayerArtistColor.current.value
+    val restingArtistColor = Color.White.copy(alpha = 0.85f)
 
     // Continuous symmetric cross-fade matching artwork overlay
     val alpha =
@@ -1298,7 +1332,7 @@ private fun MorphingTextOverlay(
         Text(
             text = title,
             style = typo().titleMedium.copy(fontSize = currentTitleSize),
-            color = Color.White,
+            color = lerp(sourceTitleColor, Color.White, progress),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -1315,7 +1349,7 @@ private fun MorphingTextOverlay(
             Text(
                 text = artist ?: "",
                 style = typo().bodyMedium.copy(fontSize = currentArtistSize),
-                color = Color.White.copy(alpha = lerp(0.7f, 0.85f, progress)),
+                color = lerp(sourceArtistColor, restingArtistColor, progress),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )

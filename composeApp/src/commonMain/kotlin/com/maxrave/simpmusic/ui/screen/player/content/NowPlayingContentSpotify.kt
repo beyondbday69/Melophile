@@ -78,6 +78,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -195,6 +196,21 @@ fun NowPlayingContentSpotify(
     actions: NowPlayingContentActions,
 ) {
     val screenInfo = getScreenSizeInfo()
+
+    // Landscape: the artwork is a width-driven square (fillMaxWidth + aspectRatio(1f)), which on a
+    // wide-short window is taller than the screen. That pushes the track info roughly a full extra
+    // screen below the fold, so a landscape morph flies the title and artist off the bottom of the
+    // viewport and never lands anywhere visible. Cap the artwork at the short dimension — the same
+    // 0.58 factor App.kt's landscape fallback geometry uses — and centre it, so the artwork and its
+    // title/artist both sit on the first screen. Portrait is untouched: fillMaxWidth there yields
+    // screenWidth - 40dp, which already fits.
+    val isLandscapeScreen = screenInfo.wDP > screenInfo.hDP
+    val landscapeArtworkWidth =
+        if (isLandscapeScreen) {
+            minOf((screenInfo.wDP - 40).toFloat(), screenInfo.hDP * 0.58f).coerceAtLeast(0f).dp
+        } else {
+            0.dp
+        }
 
     val localDensity = LocalDensity.current
     val uriHandler = LocalUriHandler.current
@@ -508,16 +524,31 @@ fun NowPlayingContentSpotify(
                             )
                             val morphProgress = LocalNowPlayingMorphProgress.current
                             val artworkBoundsHolder = LocalNowPlayingArtworkBounds.current
+                            val artworkCornerRadiusHolder = LocalNowPlayingArtworkCornerRadius.current
                             val restingArtworkAlpha =
                                 if (pageHasCanvas) 0f
                                 else if (morphProgress < 0.85f) 0f
                                 else if (morphProgress < 1f) ((morphProgress - 0.85f) / 0.15f).coerceIn(0f, 1f)
                                 else 1f
+                            SideEffect {
+                                // The resting card is clipped with 8.dp corners; tell the morph
+                                // overlay so it lerps to the real shape instead of the default.
+                                artworkCornerRadiusHolder.value = 8.dp
+                            }
                             Box(
                                 modifier =
                                     Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 20.dp)
+                                        .then(
+                                            if (isLandscapeScreen) {
+                                                Modifier
+                                                    .width(landscapeArtworkWidth)
+                                                    .align(Alignment.CenterHorizontally)
+                                            } else {
+                                                Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 20.dp)
+                                            },
+                                        )
                                         .alpha(restingArtworkAlpha)
                                         .aspectRatio(1f)
                                         .onGloballyPositioned { coordinates ->
@@ -888,12 +919,23 @@ fun NowPlayingContentSpotify(
                             // Artwork is rendered by the unified ArtworkPager above (which lives in the
                             // outer Box). Reserve the same vertical space here so the Info Layout below
                             // stays at its original Y position. Spacer has no pointer input so it does
-                            // not block the pager swipe gesture beneath it.
+                            // not block the pager swipe gesture beneath it. In landscape this must
+                            // mirror the artwork's capped width, otherwise the reserved space and the
+                            // reported artwork bounds disagree and the track info drifts off-screen.
                             Spacer(
                                 modifier =
                                     Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 20.dp)
+                                        .then(
+                                            if (isLandscapeScreen) {
+                                                Modifier
+                                                    .width(landscapeArtworkWidth)
+                                                    .align(Alignment.CenterHorizontally)
+                                            } else {
+                                                Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 20.dp)
+                                            },
+                                        )
                                         .onGloballyPositioned { coords ->
                                             middleLayoutHeightDp =
                                                 with(localDensity) {
