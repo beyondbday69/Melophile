@@ -181,7 +181,7 @@ fun AppMiniPlayer(
         visible = isShowMiniPlayer,
         enter =
             if (isLandscape) {
-                fadeIn(animationSpec = tween(240)) +
+                fadeIn(animationSpec = tween(240, easing = FastOutSlowInEasing)) +
                     expandHorizontally(
                         animationSpec =
                             spring(
@@ -191,11 +191,11 @@ fun AppMiniPlayer(
                         expandFrom = Alignment.Start,
                     )
             } else {
-                fadeIn(animationSpec = tween(240))
+                fadeIn(animationSpec = tween(240, easing = FastOutSlowInEasing))
             },
         exit =
             if (isLandscape) {
-                fadeOut(animationSpec = tween(180)) +
+                fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
                     shrinkHorizontally(
                         animationSpec =
                             spring(
@@ -205,7 +205,7 @@ fun AppMiniPlayer(
                         shrinkTowards = Alignment.Start,
                     )
             } else {
-                fadeOut(animationSpec = tween(180))
+                fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing))
             },
     ) {
         MiniPlayer(
@@ -584,10 +584,9 @@ fun App(
         val desktopWindow = if (isLightScheme) desktopWindowLight else desktopWindowDark
         val desktopPanel =
             if (isLightScheme) MaterialTheme.colorScheme.surfaceContainer else desktopPanelDark
-        val effectiveMorphProgress =
-            if (isTabletLandscape && isShowNowPlaylistScreen) 1f else morphProgress
+        val safeMorphProgress = morphProgress.coerceIn(0f, 1f)
         CompositionLocalProvider(
-            LocalNowPlayingMorphProgress provides effectiveMorphProgress,
+            LocalNowPlayingMorphProgress provides safeMorphProgress,
             LocalNowPlayingArtworkBounds provides nowPlayingArtworkBoundsState,
             LocalNowPlayingTextBounds provides nowPlayingTextBoundsState,
         ) {
@@ -716,7 +715,7 @@ fun App(
                                         onItemClick = { isShowNowPlaylistScreen = false },
                                     )
                                     AppMiniPlayer(
-                                        isShowMiniPlayer = isShowMiniPlayer,
+                                        isShowMiniPlayer = isShowMiniPlayer && !isShowNowPlaylistScreen,
                                         isTablet = isTablet,
                                         isLandscape = true,
                                         backdrop = backdrop,

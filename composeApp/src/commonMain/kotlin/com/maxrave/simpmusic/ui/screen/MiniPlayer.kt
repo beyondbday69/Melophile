@@ -407,8 +407,9 @@ fun MiniPlayer(
                         .height(58.dp)
                         .offset { IntOffset(0, offsetY.value.roundToInt()) }
                         .graphicsLayer {
-                            // Smooth continuous fade-out: 1.0 at rest, 0.0 at 0.15 progress
-                            alpha = if (morphProgress <= 0.001f) 1f else (1f - (morphProgress / 0.15f)).coerceIn(0f, 1f)
+                            // Smooth continuous fade-out in portrait: 1.0 at rest, 0.0 at 0.15 progress.
+                            // In landscape, visibility and motion are handled by AppMiniPlayer's AnimatedVisibility.
+                            alpha = if (isLandscape || morphProgress <= 0.001f) 1f else (1f - (morphProgress / 0.15f)).coerceIn(0f, 1f)
                         },
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(animatedSpacing),
@@ -982,7 +983,7 @@ fun MiniPlayer(
                                         onArtworkPositioned?.invoke(coordinates.boundsInRoot())
                                     }
                                     .graphicsLayer {
-                                        alpha = if (morphProgress <= 0.001f) 1f else (1f - (morphProgress / 0.15f)).coerceIn(0f, 1f)
+                                        alpha = if (isLandscape || morphProgress <= 0.001f) 1f else (1f - (morphProgress / 0.15f)).coerceIn(0f, 1f)
                                     },
                             contentAlignment = Alignment.Center,
                         ) {
@@ -1043,8 +1044,8 @@ fun MiniPlayer(
                                     onTextPositioned?.invoke(coordinates.boundsInRoot())
                                 }
                                 .graphicsLayer {
-                                    // Fade out resting text smoothly as the morph takes flight
-                                    alpha = if (morphProgress <= 0.001f) 1f else (1f - (morphProgress / 0.15f)).coerceIn(0f, 1f)
+                                    // Fade out resting text smoothly as the morph takes flight in portrait
+                                    alpha = if (isLandscape || morphProgress <= 0.001f) 1f else (1f - (morphProgress / 0.15f)).coerceIn(0f, 1f)
                                 },
                         ) {
                             Text(
