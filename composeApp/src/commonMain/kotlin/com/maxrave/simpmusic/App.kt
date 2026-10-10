@@ -24,7 +24,17 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import coil3.compose.AsyncImage
 import com.maxrave.simpmusic.expect.BackHandler
+import com.maxrave.simpmusic.ui.component.NowPlayingState
+import com.maxrave.simpmusic.ui.component.rememberNowPlayingState
+import com.maxrave.simpmusic.ui.component.MiniToNowPlaying
+import com.maxrave.simpmusic.ui.component.stage
+import com.maxrave.simpmusic.ui.component.lerpF
+import com.maxrave.simpmusic.viewModel.UIEvent
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -555,23 +565,27 @@ fun App(
             windowSize.isHeightAtLeastBreakpoint(HEIGHT_DP_MEDIUM_LOWER_BOUND)
     val isTabletLandscape = (isTablet || isDesktopShell) && isLandscapeOrientation
 
-    val morphProgress by animateFloatAsState(
-        targetValue = if (isShowNowPlaylistScreen && !isTabletLandscape) 1f else 0f,
-        animationSpec =
-            if (isShowNowPlaylistScreen) {
-                tween(
-                    durationMillis = 320,
-                    easing = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1.0f),
-                )
-            } else {
-                tween(
-                    durationMillis = 260,
-                    easing = CubicBezierEasing(0.3f, 0.0f, 0.8f, 0.15f),
-                )
-            },
-        label = "nowPlayingMorphProgress",
-    )
-    val isMorphActive = isShowNowPlaylistScreen || morphProgress > 0.001f
+    val coroutineScope = rememberCoroutineScope()
+    val nowPlayingMorphState = rememberNowPlayingState()
+
+    LaunchedEffect(isShowNowPlaylistScreen) {
+        if (isShowNowPlaylistScreen && !nowPlayingMorphState.isExpanded) {
+            nowPlayingMorphState.expand()
+        } else if (!isShowNowPlaylistScreen && nowPlayingMorphState.isExpanded) {
+            nowPlayingMorphState.collapse()
+        }
+    }
+
+    LaunchedEffect(nowPlayingMorphState.progress) {
+        if (nowPlayingMorphState.progress == 0f && isShowNowPlaylistScreen) {
+            isShowNowPlaylistScreen = false
+        } else if (nowPlayingMorphState.progress > 0.05f && !isShowNowPlaylistScreen) {
+            isShowNowPlaylistScreen = true
+        }
+    }
+
+    val safeMorphProgress = nowPlayingMorphState.progress.coerceIn(0f, 1f)
+    val isMorphActive = isShowNowPlaylistScreen || safeMorphProgress > 0.001f
 
     val bgDimAlpha by animateFloatAsState(
         targetValue = if (isLandscapeOrientation && isShowNowPlaylistScreen && !isInFullscreen) 0.55f else 0.0f,
@@ -613,7 +627,6 @@ fun App(
         val desktopWindow = if (isLightScheme) desktopWindowLight else desktopWindowDark
         val desktopPanel =
             if (isLightScheme) MaterialTheme.colorScheme.surfaceContainer else desktopPanelDark
-        val safeMorphProgress = morphProgress.coerceIn(0f, 1f)
         CompositionLocalProvider(
             LocalNowPlayingMorphProgress provides safeMorphProgress,
             LocalNowPlayingArtworkBounds provides nowPlayingArtworkBoundsState,
@@ -760,12 +773,15 @@ fun App(
                             }
                             val isLandscape = currentOrientation() == Orientation.LANDSCAPE
 
+                            val navDockAlpha = (1f - stage(safeMorphProgress, 0f, 0.6f)).coerceIn(0f, 1f)
+
                             if (isLandscape) {
                                 Row(
                                     modifier =
                                         Modifier
                                             .fillMaxWidth()
-                                            .padding(bottom = 10.dp, start = 12.dp, end = 12.dp),
+                                            .padding(bottom = 10.dp, start = 12.dp, end = 12.dp)
+                                            .graphicsLayer { alpha = navDockAlpha },
                                     horizontalArrangement = Arrangement.Center,
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
@@ -777,7 +793,7 @@ fun App(
                                         onItemClick = { isShowNowPlaylistScreen = false },
                                     )
                                     AppMiniPlayer(
-                                        isShowMiniPlayer = isShowMiniPlayer && !isShowNowPlaylistScreen,
+                                        isShowMiniPlayer = isShowMiniPlayer && !isShowNowPlaylistScreen && safeMorphProgress < 0.05f,
                                         isTablet = isTablet,
                                         isLandscape = true,
                                         backdrop = backdrop,
@@ -799,27 +815,33 @@ fun App(
                                             .padding(bottom = 12.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                 ) {
-                                    AppMiniPlayer(
-                                        isShowMiniPlayer = isShowMiniPlayer && !isShowNowPlaylistScreen,
-                                        isTablet = isTablet,
-                                        isLandscape = false,
-                                        backdrop = backdrop,
-                                        onClick = { isShowNowPlaylistScreen = true },
-                                        onClose = {
-                                            viewModel.stopPlayer()
-                                            viewModel.isServiceRunning = false
-                                        },
-                                        onArtworkPositioned = { miniPlayerArtworkBoundsState.value = it },
-                                        onTextPositioned = { miniPlayerTextBoundsState.value = it },
-                                        onContainerPositioned = { miniPlayerContainerBoundsState.value = it },
-                                    )
-                                    AppBottomDock(
-                                        navController = navController,
-                                        showAnalyticsTab = showAnalyticsTab,
-                                        showMixForYouTab = showMixForYouTab,
-                                        reloadDestinationIfNeeded = reloadDestination,
-                                        onItemClick = { isShowNowPlaylistScreen = false },
-                                    )
+                                    if (isTablet) {
+                                        AppMiniPlayer(
+                                            isShowMiniPlayer = isShowMiniPlayer && !isShowNowPlaylistScreen && safeMorphProgress < 0.05f,
+                                            isTablet = isTablet,
+                                            isLandscape = false,
+                                            backdrop = backdrop,
+                                            onClick = { isShowNowPlaylistScreen = true },
+                                            onClose = {
+                                                viewModel.stopPlayer()
+                                                viewModel.isServiceRunning = false
+                                            },
+                                            onArtworkPositioned = { miniPlayerArtworkBoundsState.value = it },
+                                            onTextPositioned = { miniPlayerTextBoundsState.value = it },
+                                            onContainerPositioned = { miniPlayerContainerBoundsState.value = it },
+                                        )
+                                    }
+                                    Box(
+                                        modifier = Modifier.graphicsLayer { alpha = navDockAlpha },
+                                    ) {
+                                        AppBottomDock(
+                                            navController = navController,
+                                            showAnalyticsTab = showAnalyticsTab,
+                                            showMixForYouTab = showMixForYouTab,
+                                            reloadDestinationIfNeeded = reloadDestination,
+                                            onItemClick = { isShowNowPlaylistScreen = false },
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -837,7 +859,15 @@ fun App(
                         ),
                 ) {
                     Box(
-                        Modifier.fillMaxSize(),
+                        Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                if (!isTabletLandscape) {
+                                    scaleX = lerpF(1f, 0.94f, safeMorphProgress)
+                                    scaleY = lerpF(1f, 0.94f, safeMorphProgress)
+                                    alpha = lerpF(1f, 0.5f, safeMorphProgress)
+                                }
+                            },
                     ) {
                         // Desktop only: the content sits in its own rounded panel floating on a
                         // pure black window, Spotify style, while the rail stays flat black
@@ -984,9 +1014,9 @@ fun App(
 
                 if (isMorphActive && !isTabletLandscape) {
                     BackHandler(enabled = isShowNowPlaylistScreen) {
+                        coroutineScope.launch { nowPlayingMorphState.collapse() }
                         isShowNowPlaylistScreen = false
                     }
-                    val safeMorphProgress = morphProgress.coerceIn(0f, 1f)
                     val contentAlpha = ((safeMorphProgress - 0.05f) / 0.95f).coerceIn(0f, 1f)
                     val density = LocalDensity.current
                     ForceDarkContent {
@@ -999,7 +1029,10 @@ fun App(
                                     .clickable(
                                         interactionSource = remember { MutableInteractionSource() },
                                         indication = null,
-                                        onClick = { isShowNowPlaylistScreen = false },
+                                        onClick = {
+                                            coroutineScope.launch { nowPlayingMorphState.collapse() }
+                                            isShowNowPlaylistScreen = false
+                                        },
                                     ),
                                 contentAlignment = Alignment.Center,
                             ) {
@@ -1008,12 +1041,12 @@ fun App(
                                         .fillMaxHeight()
                                         .widthIn(max = 600.dp)
                                         .graphicsLayer {
-                                            scaleX = lerp(0.92f, 1f, safeMorphProgress)
-                                            scaleY = lerp(0.92f, 1f, safeMorphProgress)
+                                            scaleX = lerpF(0.92f, 1f, safeMorphProgress)
+                                            scaleY = lerpF(0.92f, 1f, safeMorphProgress)
                                             translationY = (1f - safeMorphProgress) * with(density) { 64.dp.toPx() }
                                             transformOrigin = TransformOrigin(0.5f, 0.95f)
                                         }
-                                        .clip(RoundedCornerShape(lerp(28f, 16f, safeMorphProgress).coerceAtLeast(0f).dp))
+                                        .clip(RoundedCornerShape(lerpF(28f, 16f, safeMorphProgress).coerceAtLeast(0f).dp))
                                         .clickable(
                                             interactionSource = remember { MutableInteractionSource() },
                                             indication = null,
@@ -1023,109 +1056,94 @@ fun App(
                                     NowPlayingScreen(
                                         navController = navController,
                                     ) {
+                                        coroutineScope.launch { nowPlayingMorphState.collapse() }
                                         isShowNowPlaylistScreen = false
                                     }
                                 }
                             }
-                        } else {
-                            val isLandscapeOrientation = currentOrientation() == Orientation.LANDSCAPE
-
-                            // Material 3 Container Transform: Expanding Sheet from MiniPlayer -> Now Playing
-                            val currentLeft = lerp(sourceContainerBounds.left, 0f, safeMorphProgress)
-                            val currentTop = lerp(sourceContainerBounds.top, 0f, safeMorphProgress)
-                            val currentRight = lerp(sourceContainerBounds.right, screenWidthPx, safeMorphProgress)
-                            val currentBottom = lerp(sourceContainerBounds.bottom, screenHeightPx, safeMorphProgress)
-
-                            val currentCornerRadiusPx =
-                                lerp(with(density) { 29.dp.toPx() }, 0f, safeMorphProgress).coerceAtLeast(0f)
-
-                            val startContainerColor = MaterialTheme.colorScheme.surfaceContainer
-                            val endContainerColor = Color.Black
-                            val currentContainerColor = lerp(startContainerColor, endContainerColor, safeMorphProgress)
-
-                            val containerMorphShape = remember { ContainerMorphShape() }
-
-                            val containerElevationPx =
-                                with(density) { lerp(6.dp.toPx(), 0f, safeMorphProgress) }
-
-                            // M3 container transform content crossfade:
-                            // MiniPlayer outgoing controls fade out 0.00..0.15.
-                            // NowPlaying incoming content fades in 0.10..0.50.
-                            val sheetContentAlpha = ((safeMorphProgress - 0.10f) / 0.40f).coerceIn(0f, 1f)
-                            val sheetContentScale = lerp(0.95f, 1f, safeMorphProgress)
-                            val sheetContentTranslationY =
-                                (1f - safeMorphProgress) * with(density) { (if (isLandscapeOrientation) 16.dp else 32.dp).toPx() }
-                            val transformOrigin =
-                                if (isLandscapeOrientation && sourceArtworkBounds != null && screenWidthPx > 0f && screenHeightPx > 0f) {
-                                    TransformOrigin(
-                                        (sourceArtworkBounds.center.x / screenWidthPx).coerceIn(0.1f, 0.95f),
-                                        (sourceArtworkBounds.center.y / screenHeightPx).coerceIn(0.1f, 0.95f),
-                                    )
-                                } else {
-                                    TransformOrigin(0.5f, 0.9f)
-                                }
-
+                        } else if (isLandscapeOrientation) {
+                            // Phone Landscape: Dimmed overlay with NowPlayingScreen (no blur, mini player hidden)
                             Box(
-                                Modifier.fillMaxSize(),
+                                Modifier
+                                    .fillMaxSize()
+                                    .graphicsLayer { alpha = contentAlpha }
+                                    .background(Color.Black.copy(alpha = 0.55f * contentAlpha))
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null,
+                                        onClick = {
+                                            coroutineScope.launch { nowPlayingMorphState.collapse() }
+                                            isShowNowPlaylistScreen = false
+                                        },
+                                    ),
                             ) {
-                                // Background Dimming Scrim behind the expanding Container Transform sheet
-                                if (safeMorphProgress > 0.001f && safeMorphProgress < 0.999f) {
-                                    Box(
-                                        Modifier
-                                            .fillMaxSize()
-                                            .background(Color.Black.copy(alpha = (safeMorphProgress * 0.55f).coerceIn(0f, 0.55f)))
-                                            .clickable(
-                                                interactionSource = remember { MutableInteractionSource() },
-                                                indication = null,
-                                                onClick = { isShowNowPlaylistScreen = false },
-                                            ),
-                                    )
-                                }
-
-                                // The expanding/morphing Container
                                 Box(
                                     Modifier
                                         .fillMaxSize()
-                                        .then(
-                                            if (safeMorphProgress < 0.999f) {
-                                                Modifier
-                                                    .graphicsLayer {
-                                                        containerMorphShape.left = currentLeft
-                                                        containerMorphShape.top = currentTop
-                                                        containerMorphShape.right = currentRight
-                                                        containerMorphShape.bottom = currentBottom
-                                                        containerMorphShape.cornerRadius = currentCornerRadiusPx
-                                                        this.shape = containerMorphShape
-                                                        this.clip = true
-                                                        this.shadowElevation = containerElevationPx
-                                                    }
-                                                    .background(currentContainerColor)
-                                            } else {
-                                                Modifier.background(Color.Black)
-                                            },
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = null,
+                                            onClick = {},
                                         ),
                                 ) {
-                                    Box(
-                                        Modifier
-                                            .fillMaxSize()
-                                            .graphicsLayer {
-                                                this.alpha = sheetContentAlpha
-                                                this.scaleX = sheetContentScale
-                                                this.scaleY = sheetContentScale
-                                                this.translationY = sheetContentTranslationY
-                                                this.transformOrigin = transformOrigin
-                                            },
+                                    NowPlayingScreen(
+                                        navController = navController,
                                     ) {
-                                        NowPlayingScreen(
-                                            navController = navController,
-                                        ) {
-                                            isShowNowPlaylistScreen = false
-                                        }
+                                        coroutineScope.launch { nowPlayingMorphState.collapse() }
+                                        isShowNowPlaylistScreen = false
                                     }
                                 }
                             }
                         }
                     }
+                }
+
+                // Phone Portrait: Continuous Shared-Element Morphing Transition
+                if (isShowMiniPlayer && !isTablet && !isLandscapeOrientation) {
+                    val currentTrack = nowPlayingDataState.value?.track
+                    val trackTitle = currentTrack?.title ?: ""
+                    val trackArtist = currentTrack?.artists?.firstOrNull()?.name ?: currentTrack?.uploader ?: ""
+                    val controllerState by viewModel.controllerState.collectAsStateWithLifecycle()
+                    val timelineState by viewModel.timeline.collectAsStateWithLifecycle()
+                    val positionFraction = if (timelineState.totalDuration > 0) {
+                        (timelineState.currentPosition.toFloat() / timelineState.totalDuration.toFloat()).coerceIn(0f, 1f)
+                    } else {
+                        0f
+                    }
+                    val durationSec = (timelineState.totalDuration / 1000L).toInt().coerceAtLeast(1)
+
+                    MiniToNowPlaying(
+                        state = nowPlayingMorphState,
+                        title = trackTitle,
+                        artist = trackArtist,
+                        isPlaying = controllerState.isPlaying,
+                        position = positionFraction,
+                        durationSec = durationSec,
+                        onPlayPause = { viewModel.onUIEvent(UIEvent.PlayPause) },
+                        onNext = { viewModel.onUIEvent(UIEvent.Next) },
+                        onPrevious = { viewModel.onUIEvent(UIEvent.Previous) },
+                        onSeek = { fraction -> viewModel.onUIEvent(UIEvent.UpdateProgress(fraction * 100f)) },
+                        miniBottomOffset = if (isNavBarVisible && !isInFullscreen) 74.dp else 10.dp,
+                        artwork = { artMod ->
+                            AsyncImage(
+                                model = currentTrack?.thumbnailUrl,
+                                contentDescription = trackTitle,
+                                contentScale = ContentScale.Crop,
+                                modifier = artMod,
+                            )
+                        },
+                        expandedContent = {
+                            NowPlayingScreenContent(
+                                navController = navController,
+                                sharedViewModel = viewModel,
+                                isExpanded = true,
+                                dismissIcon = SimpIcons.KeyboardArrowDown,
+                            ) {
+                                coroutineScope.launch { nowPlayingMorphState.collapse() }
+                                isShowNowPlaylistScreen = false
+                            }
+                        },
+                    )
                 }
 
                 val isSleepTimerDone by remember {
