@@ -182,6 +182,7 @@ fun MiniPlayer(
     onOpenFullscreenLyrics: () -> Unit = {},
     onArtworkPositioned: ((Rect) -> Unit)? = null,
     onTextPositioned: ((Rect) -> Unit)? = null,
+    onContainerPositioned: ((Rect) -> Unit)? = null,
 ) {
     val isLiquidGlassEnabled by sharedViewModel.getEnableLiquidGlass().collectAsStateWithLifecycle(DataStoreManager.FALSE)
     val controllerState by sharedViewModel.controllerState.collectAsStateWithLifecycle()
@@ -410,6 +411,11 @@ fun MiniPlayer(
                             // Smooth continuous fade-out in portrait: 1.0 at rest, 0.0 at 0.15 progress.
                             // In landscape, visibility and motion are handled by AppMiniPlayer's AnimatedVisibility.
                             alpha = if (isLandscape || morphProgress <= 0.001f) 1f else (1f - (morphProgress / 0.15f)).coerceIn(0f, 1f)
+                        }
+                        .onGloballyPositioned { coordinates ->
+                            if (!isLandscape) {
+                                onContainerPositioned?.invoke(coordinates.boundsInRoot())
+                            }
                         },
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(animatedSpacing),

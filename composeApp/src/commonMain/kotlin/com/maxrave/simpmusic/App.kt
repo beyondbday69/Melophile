@@ -71,9 +71,17 @@ import com.maxrave.simpmusic.extension.getColorFromPalette
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
@@ -178,6 +186,7 @@ fun AppMiniPlayer(
     onClose: () -> Unit,
     onArtworkPositioned: ((Rect) -> Unit)? = null,
     onTextPositioned: ((Rect) -> Unit)? = null,
+    onContainerPositioned: ((Rect) -> Unit)? = null,
 ) {
     AnimatedVisibility(
         visible = isShowMiniPlayer,
@@ -219,6 +228,7 @@ fun AppMiniPlayer(
             onClose = onClose,
             onArtworkPositioned = onArtworkPositioned,
             onTextPositioned = onTextPositioned,
+            onContainerPositioned = onContainerPositioned,
         )
     }
 }
@@ -305,6 +315,7 @@ fun App(
     val nowPlayingArtworkBoundsState = remember { mutableStateOf<Rect?>(null) }
     val miniPlayerTextBoundsState = remember { mutableStateOf<Rect?>(null) }
     val nowPlayingTextBoundsState = remember { mutableStateOf<Rect?>(null) }
+    val miniPlayerContainerBoundsState = remember { mutableStateOf<Rect?>(null) }
 
     // Fullscreen
     var isInFullscreen by rememberSaveable {
@@ -678,6 +689,7 @@ fun App(
 
                 var lastKnownMiniPlayerArtworkBounds by remember { mutableStateOf<Rect?>(null) }
                 var lastKnownMiniPlayerTextBounds by remember { mutableStateOf<Rect?>(null) }
+                var lastKnownMiniPlayerContainerBounds by remember { mutableStateOf<Rect?>(null) }
                 miniPlayerArtworkBoundsState.value?.let {
                     if (it.width > 0f && it.height > 0f) {
                         lastKnownMiniPlayerArtworkBounds = it
@@ -688,12 +700,33 @@ fun App(
                         lastKnownMiniPlayerTextBounds = it
                     }
                 }
+                miniPlayerContainerBoundsState.value?.let {
+                    if (it.width > 0f && it.height > 0f) {
+                        lastKnownMiniPlayerContainerBounds = it
+                    }
+                }
                 val sourceArtworkBounds =
                     miniPlayerArtworkBoundsState.value
                         ?: lastKnownMiniPlayerArtworkBounds
                 val sourceTextBounds =
                     miniPlayerTextBoundsState.value
                         ?: lastKnownMiniPlayerTextBounds
+                val sourceContainerBounds =
+                    miniPlayerContainerBoundsState.value
+                        ?: lastKnownMiniPlayerContainerBounds
+                        ?: run {
+                            val pillHeight = with(density) { 58.dp.toPx() }
+                            val pillWidth = (screenWidthPx * 0.94f).coerceAtMost(with(density) { 560.dp.toPx() })
+                            val left = (screenWidthPx - pillWidth) / 2f
+                            val top = sourceArtworkBounds?.let { it.center.y - (pillHeight / 2f) }
+                                ?: (screenHeightPx - with(density) { 120.dp.toPx() })
+                            Rect(
+                                left = left,
+                                top = top,
+                                right = left + pillWidth,
+                                bottom = top + pillHeight,
+                            )
+                        }
 
                 Scaffold(
                     containerColor =
@@ -769,6 +802,7 @@ fun App(
                                         },
                                         onArtworkPositioned = { miniPlayerArtworkBoundsState.value = it },
                                         onTextPositioned = { miniPlayerTextBoundsState.value = it },
+                                        onContainerPositioned = { miniPlayerContainerBoundsState.value = it },
                                     )
                                     AppBottomDock(
                                         navController = navController,
@@ -993,38 +1027,114 @@ fun App(
                             }
                         } else {
                             val isLandscapeOrientation = currentOrientation() == Orientation.LANDSCAPE
-                            val cornerRadius = lerp(28f, 0f, safeMorphProgress).coerceAtLeast(0f).dp
-                            val containerScale = lerp(0.92f, 1f, safeMorphProgress)
-                            val containerTranslationY =
-                                (1f - safeMorphProgress) * with(density) { if (isLandscapeOrientation) 20.dp.toPx() else 64.dp.toPx() }
-                            val transformOrigin =
-                                if (isLandscapeOrientation && sourceArtworkBounds != null && screenWidthPx > 0f && screenHeightPx > 0f) {
-                                    TransformOrigin(
-                                        (sourceArtworkBounds.center.x / screenWidthPx).coerceIn(0.1f, 0.95f),
-                                        (sourceArtworkBounds.center.y / screenHeightPx).coerceIn(0.1f, 0.95f),
+                            if (isLandscapeOrientation) {
+                                val cornerRadius = lerp(28f, 0f, safeMorphProgress).coerceAtLeast(0f).dp
+                                val containerScale = lerp(0.92f, 1f, safeMorphProgress)
+                                val containerTranslationY =
+                                    (1f - safeMorphProgress) * with(density) { 20.dp.toPx() }
+                                val transformOrigin =
+                                    if (sourceArtworkBounds != null && screenWidthPx > 0f && screenHeightPx > 0f) {
+                                        TransformOrigin(
+                                            (sourceArtworkBounds.center.x / screenWidthPx).coerceIn(0.1f, 0.95f),
+                                            (sourceArtworkBounds.center.y / screenHeightPx).coerceIn(0.1f, 0.95f),
+                                        )
+                                    } else {
+                                        TransformOrigin(0.80f, 0.95f)
+                                    }
+
+                                Box(
+                                    Modifier
+                                        .fillMaxSize()
+                                        .graphicsLayer {
+                                            this.alpha = contentAlpha
+                                            this.scaleX = containerScale
+                                            this.scaleY = containerScale
+                                            this.translationY = containerTranslationY
+                                            this.transformOrigin = transformOrigin
+                                        }
+                                        .clip(RoundedCornerShape(cornerRadius)),
+                                ) {
+                                    NowPlayingScreen(
+                                        navController = navController,
+                                    ) {
+                                        isShowNowPlaylistScreen = false
+                                    }
+                                }
+                            } else {
+                                // Material 3 Container Transform: Portrait MiniPlayer -> Now Playing
+                                val currentLeft = lerp(sourceContainerBounds.left, 0f, safeMorphProgress)
+                                val currentTop = lerp(sourceContainerBounds.top, 0f, safeMorphProgress)
+                                val currentRight = lerp(sourceContainerBounds.right, screenWidthPx, safeMorphProgress)
+                                val currentBottom = lerp(sourceContainerBounds.bottom, screenHeightPx, safeMorphProgress)
+
+                                val currentCornerRadiusPx =
+                                    lerp(with(density) { 29.dp.toPx() }, 0f, safeMorphProgress).coerceAtLeast(0f)
+
+                                val startContainerColor = MaterialTheme.colorScheme.surfaceContainer
+                                val endContainerColor = Color.Black
+                                val currentContainerColor = lerp(startContainerColor, endContainerColor, safeMorphProgress)
+
+                                val containerMorphShape = remember(
+                                    currentLeft,
+                                    currentTop,
+                                    currentRight,
+                                    currentBottom,
+                                    currentCornerRadiusPx,
+                                ) {
+                                    ContainerMorphShape(
+                                        left = currentLeft,
+                                        top = currentTop,
+                                        right = currentRight,
+                                        bottom = currentBottom,
+                                        cornerRadius = currentCornerRadiusPx,
                                     )
-                                } else if (isLandscapeOrientation) {
-                                    TransformOrigin(0.80f, 0.95f)
-                                } else {
-                                    TransformOrigin(0.5f, 0.95f)
                                 }
 
-                            Box(
-                                Modifier
-                                    .fillMaxSize()
-                                    .graphicsLayer {
-                                        this.alpha = contentAlpha
-                                        this.scaleX = containerScale
-                                        this.scaleY = containerScale
-                                        this.translationY = containerTranslationY
-                                        this.transformOrigin = transformOrigin
-                                    }
-                                    .clip(RoundedCornerShape(cornerRadius)),
-                            ) {
-                                NowPlayingScreen(
-                                    navController = navController,
+                                val containerElevationPx =
+                                    with(density) { lerp(6.dp.toPx(), 0f, safeMorphProgress) }
+
+                                // M3 container transform content crossfade:
+                                // MiniPlayer outgoing controls fade out 0.00..0.15.
+                                // NowPlaying incoming content fades in 0.10..0.50.
+                                val portraitContentAlpha = ((safeMorphProgress - 0.10f) / 0.40f).coerceIn(0f, 1f)
+                                val portraitContentScale = lerp(0.95f, 1f, safeMorphProgress)
+                                val portraitContentTranslationY =
+                                    (1f - safeMorphProgress) * with(density) { 32.dp.toPx() }
+
+                                Box(
+                                    Modifier
+                                        .fillMaxSize()
+                                        .then(
+                                            if (safeMorphProgress < 0.999f) {
+                                                Modifier
+                                                    .graphicsLayer {
+                                                        this.shape = containerMorphShape
+                                                        this.clip = true
+                                                        this.shadowElevation = containerElevationPx
+                                                    }
+                                                    .background(currentContainerColor)
+                                            } else {
+                                                Modifier.background(Color.Black)
+                                            },
+                                        ),
                                 ) {
-                                    isShowNowPlaylistScreen = false
+                                    Box(
+                                        Modifier
+                                            .fillMaxSize()
+                                            .graphicsLayer {
+                                                this.alpha = portraitContentAlpha
+                                                this.scaleX = portraitContentScale
+                                                this.scaleY = portraitContentScale
+                                                this.translationY = portraitContentTranslationY
+                                                this.transformOrigin = TransformOrigin(0.5f, 0.9f)
+                                            },
+                                    ) {
+                                        NowPlayingScreen(
+                                            navController = navController,
+                                        ) {
+                                            isShowNowPlaylistScreen = false
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1349,4 +1459,33 @@ private fun MorphingTextOverlay(
 
 private fun lerp(start: Float, stop: Float, fraction: Float): Float =
     start + (stop - start) * fraction
+
+private class ContainerMorphShape(
+    private val left: Float,
+    private val top: Float,
+    private val right: Float,
+    private val bottom: Float,
+    private val cornerRadius: Float,
+) : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
+        val safeLeft = left.coerceIn(0f, size.width)
+        val safeTop = top.coerceIn(0f, size.height)
+        val safeRight = right.coerceIn(0f, size.width).coerceAtLeast(safeLeft)
+        val safeBottom = bottom.coerceIn(0f, size.height).coerceAtLeast(safeTop)
+        val rect = Rect(
+            left = safeLeft,
+            top = safeTop,
+            right = safeRight,
+            bottom = safeBottom,
+        )
+        val maxRadius = ((safeBottom - safeTop) / 2f).coerceAtLeast(0f)
+        val safeRadius = cornerRadius.coerceIn(0f, maxRadius)
+        return Outline.Rounded(
+            RoundRect(
+                rect = rect,
+                cornerRadius = CornerRadius(safeRadius, safeRadius),
+            ),
+        )
+    }
+}
 
