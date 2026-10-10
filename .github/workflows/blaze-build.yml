@@ -1,0 +1,185 @@
+name: Blaze Speed Build & Appetize Upload
+
+on:
+  workflow_dispatch:
+    inputs:
+      appetize_token:
+        description: 'Appetize.io API Token'
+        required: false
+        default: 'tok_jrrw4lldoe3njadrnkrvjtjj7e'
+      appetize_public_key:
+        description: 'Appetize App Public Key (leave empty to update existing)'
+        required: false
+        default: 'q2g6bgfek2nxeyrmwanxgplrjy'
+      build_flavor:
+        description: 'Build Flavor (release / debug)'
+        required: false
+        default: 'release'
+        type: choice
+        options:
+          - release
+          - debug
+  push:
+    branches:
+      - main
+      - dev
+
+concurrency:
+  group: blaze-build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  actions: write
+
+env:
+  GRADLE_OPTS: "-Dorg.gradle.daemon=true -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.jvmargs=-Xmx6144m -Dorg.gradle.configuration-cache=true -Dkotlin.compiler.execution.strategy=in-process"
+  ORG_GRADLE_PROJECT_isFullBuild: "true"
+
+jobs:
+  blaze-build-and-upload:
+    name: ⚡ Blaze Build & Appetize Upload
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+          fetch-depth: 1
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: 21
+          distribution: 'microsoft'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          cache-disabled: true
+
+      - name: Cache Gradle & Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.konan
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', 'gradle/libs.versions.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+            setup-java-Linux-x64-gradle-
+
+      - name: Setup local.properties
+        run: |
+          touch ./local.properties
+          echo 'SENTRY_DSN=""' >> ./local.properties
+          echo "SENTRY_AUTH_TOKEN=" >> ./local.properties
+          echo "LASTFM_API_KEY=" >> ./local.properties
+          echo "LASTFM_SECRET=" >> ./local.properties
+          echo "sdk.dir=$ANDROID_HOME" >> ./local.properties
+
+      - name: Export Library Definitions
+        run: ./gradlew exportLibraryDefinitions --build-cache --parallel
+
+      - name: Configure Build Version
+        run: |
+          BUILD_NUM="${{ github.run_number }}"
+          TIMESTAMP="$(date +'%Y%m%d%H%M')"
+          BASE_VERSION="2.2.0"
+          APP_VERSION_CODE=$((59000 + BUILD_NUM))
+          APP_VERSION_NAME="${BASE_VERSION}-b${BUILD_NUM}-${TIMESTAMP}"
+          RELEASE_TAG="v${APP_VERSION_NAME}"
+          echo "APP_VERSION_CODE=$APP_VERSION_CODE" >> $GITHUB_ENV
+          echo "APP_VERSION_NAME=$APP_VERSION_NAME" >> $GITHUB_ENV
+          echo "RELEASE_TAG=$RELEASE_TAG" >> $GITHUB_ENV
+          echo "Configured build version: $APP_VERSION_NAME (code: $APP_VERSION_CODE, tag: $RELEASE_TAG)"
+
+      - name: Blaze Speed Assemble APK
+        run: |
+          FLAVOR="${{ inputs.build_flavor || 'release' }}"
+          if [ "$FLAVOR" = "debug" ]; then
+            GRADLE_TASK=":androidApp:assembleDebug"
+          else
+            GRADLE_TASK=":androidApp:assembleRelease"
+          fi
+          echo "Running $GRADLE_TASK with parallel execution and skipped checks..."
+          ./gradlew $GRADLE_TASK \
+            -PversionCode=${{ env.APP_VERSION_CODE }} \
+            -PversionName=${{ env.APP_VERSION_NAME }} \
+            -x lint -x test -x check --parallel --build-cache
+
+      - name: Locate & Name Output APK
+        run: |
+          mkdir -p build_output
+          if ls androidApp/build/outputs/apk/release/*.apk 1> /dev/null 2>&1; then
+            SRC_APK=$(ls androidApp/build/outputs/apk/release/*.apk | head -n 1)
+            BUILD_FLAVOR="release"
+          else
+            SRC_APK=$(ls androidApp/build/outputs/apk/debug/*.apk | head -n 1)
+            BUILD_FLAVOR="debug"
+          fi
+          
+          NAMED_APK="build_output/SimpMusic-${APP_VERSION_NAME}-arm64-v8a.apk"
+          cp "$SRC_APK" "$NAMED_APK"
+          
+          echo "PRIMARY_APK=$NAMED_APK" >> $GITHUB_ENV
+          echo "BUILD_FLAVOR=$BUILD_FLAVOR" >> $GITHUB_ENV
+          echo "Built APK: $NAMED_APK (Flavor: $BUILD_FLAVOR, Size: $(du -h "$NAMED_APK" | cut -f1))"
+
+      - name: Upload to Appetize.io
+        env:
+          APPETIZE_TOKEN: ${{ inputs.appetize_token || secrets.APPETIZE_API_TOKEN || 'tok_jrrw4lldoe3njadrnkrvjtjj7e' }}
+          TARGET_KEY: ${{ inputs.appetize_public_key || 'q2g6bgfek2nxeyrmwanxgplrjy' }}
+        run: |
+          APK_FILE="${{ env.PRIMARY_APK }}"
+          echo "🚀 Uploading $APK_FILE to Appetize.io..."
+          
+          # Try updating the specified public key first
+          HTTP_STATUS=$(curl -s -w "%{http_code}" -o /tmp/appetize_resp.json \
+            -u "$APPETIZE_TOKEN:" \
+            "https://api.appetize.io/v1/apps/$TARGET_KEY" \
+            -F "file=@$APK_FILE" \
+            -F "platform=android")
+          
+          if [ "$HTTP_STATUS" != "200" ]; then
+            echo "Key update returned HTTP $HTTP_STATUS, creating/updating via root endpoint..."
+            HTTP_STATUS=$(curl -s -w "%{http_code}" -o /tmp/appetize_resp.json \
+              -u "$APPETIZE_TOKEN:" \
+              "https://api.appetize.io/v1/apps" \
+              -F "file=@$APK_FILE" \
+              -F "platform=android")
+          fi
+          
+          echo "Appetize HTTP response: $HTTP_STATUS"
+          cat /tmp/appetize_resp.json
+          
+          PUBLIC_KEY=$(python3 -c "import json; data=json.load(open('/tmp/appetize_resp.json')); print(data.get('publicKey', '$TARGET_KEY'))")
+          PREVIEW_URL="https://appetize.io/app/${PUBLIC_KEY}?device=pixel7"
+          echo "APPETIZE_PREVIEW_URL=$PREVIEW_URL" >> $GITHUB_ENV
+          echo "PUBLIC_KEY=$PUBLIC_KEY" >> $GITHUB_ENV
+          
+          echo "## ⚡ Blaze Speed Build & Live Preview" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Version** | \`${{ env.APP_VERSION_NAME }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Version Code** | \`${{ env.APP_VERSION_CODE }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Appetize Public Key** | \`$PUBLIC_KEY\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📱 Interactive Live Test" >> $GITHUB_STEP_SUMMARY
+          echo "👉 **[Open Live App on Appetize.io]($PREVIEW_URL)**" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SimpMusic-${{ env.APP_VERSION_NAME }}
+          path: ${{ env.PRIMARY_APK }}
+          compression-level: 1
+          if-no-files-found: error
+
+      - name: Clean Gradle Locks Before Caching
+        if: always()
+        run: |
+          rm -f ~/.gradle/caches/modules-2/modules-2.lock
+          rm -f ~/.gradle/caches/*/plugin-resolution/
+          rm -f ~/.gradle/caches/journal-1/file-access.properties

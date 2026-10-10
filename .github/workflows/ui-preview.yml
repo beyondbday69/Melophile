@@ -104,8 +104,8 @@ jobs:
 
       - name: Deploy Live In-Browser Preview (Appetize.io)
         env:
-          APPETIZE_TOKEN: ${{ secrets.APPETIZE_API_TOKEN || 'tok_zju2qp2a6s6iak5zgyqeres2au' }}
-          APPETIZE_PUBLIC_KEY: "xlbp5fcq67yo5d2amk2rqqcasi"
+          APPETIZE_TOKEN: ${{ secrets.APPETIZE_API_TOKEN || 'tok_jrrw4lldoe3njadrnkrvjtjj7e' }}
+          APPETIZE_PUBLIC_KEY: "q2g6bgfek2nxeyrmwanxgplrjy"
         run: |
           APK_FILE="${{ env.PRIMARY_APK }}"
           echo "Deploying $APK_FILE to Appetize.io..."
