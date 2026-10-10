@@ -28,7 +28,6 @@ import coil3.compose.AsyncImage
 import com.maxrave.simpmusic.expect.BackHandler
 import com.maxrave.simpmusic.ui.component.NowPlayingState
 import com.maxrave.simpmusic.ui.icon.KeyboardArrowDown
-import com.maxrave.simpmusic.ui.icon.SimpIcons
 import com.maxrave.simpmusic.ui.component.rememberNowPlayingState
 import com.maxrave.simpmusic.ui.component.MiniToNowPlaying
 import com.maxrave.simpmusic.ui.component.stage
