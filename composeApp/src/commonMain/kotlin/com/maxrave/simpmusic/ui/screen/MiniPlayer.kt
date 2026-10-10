@@ -408,14 +408,11 @@ fun MiniPlayer(
                         .height(58.dp)
                         .offset { IntOffset(0, offsetY.value.roundToInt()) }
                         .graphicsLayer {
-                            // Smooth continuous fade-out in portrait: 1.0 at rest, 0.0 at 0.15 progress.
-                            // In landscape, visibility and motion are handled by AppMiniPlayer's AnimatedVisibility.
-                            alpha = if (isLandscape || morphProgress <= 0.001f) 1f else (1f - (morphProgress / 0.15f)).coerceIn(0f, 1f)
+                            // Smooth continuous fade-out: 1.0 at rest, 0.0 at 0.15 progress for container transform.
+                            alpha = if (morphProgress <= 0.001f) 1f else (1f - (morphProgress / 0.15f)).coerceIn(0f, 1f)
                         }
                         .onGloballyPositioned { coordinates ->
-                            if (!isLandscape) {
-                                onContainerPositioned?.invoke(coordinates.boundsInRoot())
-                            }
+                            onContainerPositioned?.invoke(coordinates.boundsInRoot())
                         },
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(animatedSpacing),

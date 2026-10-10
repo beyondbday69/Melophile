@@ -568,7 +568,7 @@ fun App(
     val isMorphActive = isShowNowPlaylistScreen || morphProgress > 0.001f
 
     val bgBlurRadius by animateDpAsState(
-        targetValue = if (isTabletLandscape && isShowNowPlaylistScreen && !isInFullscreen) 4.94.dp else 0.dp,
+        targetValue = if (isLandscapeOrientation && isShowNowPlaylistScreen && !isInFullscreen) 4.94.dp else 0.dp,
         animationSpec =
             tween(
                 durationMillis = 240,
@@ -716,8 +716,19 @@ fun App(
                         ?: lastKnownMiniPlayerContainerBounds
                         ?: run {
                             val pillHeight = with(density) { 58.dp.toPx() }
-                            val pillWidth = (screenWidthPx * 0.94f).coerceAtMost(with(density) { 560.dp.toPx() })
-                            val left = (screenWidthPx - pillWidth) / 2f
+                            val pillWidth =
+                                if (isLandscape) {
+                                    with(density) { 310.dp.toPx() }
+                                } else {
+                                    (screenWidthPx * 0.94f).coerceAtMost(with(density) { 560.dp.toPx() })
+                                }
+                            val left =
+                                if (isLandscape) {
+                                    sourceArtworkBounds?.let { it.center.x - with(density) { 40.dp.toPx() } }
+                                        ?: (screenWidthPx * 0.5f)
+                                } else {
+                                    (screenWidthPx - pillWidth) / 2f
+                                }
                             val top = sourceArtworkBounds?.let { it.center.y - (pillHeight / 2f) }
                                 ?: (screenHeightPx - with(density) { 120.dp.toPx() })
                             Rect(
@@ -769,7 +780,7 @@ fun App(
                                         onItemClick = { isShowNowPlaylistScreen = false },
                                     )
                                     AppMiniPlayer(
-                                        isShowMiniPlayer = isShowMiniPlayer && !isShowNowPlaylistScreen,
+                                        isShowMiniPlayer = isShowMiniPlayer,
                                         isTablet = isTablet,
                                         isLandscape = true,
                                         backdrop = backdrop,
@@ -780,6 +791,7 @@ fun App(
                                         },
                                         onArtworkPositioned = { miniPlayerArtworkBoundsState.value = it },
                                         onTextPositioned = { miniPlayerTextBoundsState.value = it },
+                                        onContainerPositioned = { miniPlayerContainerBoundsState.value = it },
                                     )
                                 }
                             } else {
@@ -1027,80 +1039,74 @@ fun App(
                             }
                         } else {
                             val isLandscapeOrientation = currentOrientation() == Orientation.LANDSCAPE
-                            if (isLandscapeOrientation) {
-                                val cornerRadius = lerp(28f, 0f, safeMorphProgress).coerceAtLeast(0f).dp
-                                val containerScale = lerp(0.92f, 1f, safeMorphProgress)
-                                val containerTranslationY =
-                                    (1f - safeMorphProgress) * with(density) { 20.dp.toPx() }
-                                val transformOrigin =
-                                    if (sourceArtworkBounds != null && screenWidthPx > 0f && screenHeightPx > 0f) {
-                                        TransformOrigin(
-                                            (sourceArtworkBounds.center.x / screenWidthPx).coerceIn(0.1f, 0.95f),
-                                            (sourceArtworkBounds.center.y / screenHeightPx).coerceIn(0.1f, 0.95f),
-                                        )
-                                    } else {
-                                        TransformOrigin(0.80f, 0.95f)
-                                    }
 
-                                Box(
-                                    Modifier
-                                        .fillMaxSize()
-                                        .graphicsLayer {
-                                            this.alpha = contentAlpha
-                                            this.scaleX = containerScale
-                                            this.scaleY = containerScale
-                                            this.translationY = containerTranslationY
-                                            this.transformOrigin = transformOrigin
-                                        }
-                                        .clip(RoundedCornerShape(cornerRadius)),
-                                ) {
-                                    NowPlayingScreen(
-                                        navController = navController,
-                                    ) {
-                                        isShowNowPlaylistScreen = false
-                                    }
+                            // Material 3 Container Transform: Expanding Sheet from MiniPlayer -> Now Playing
+                            val currentLeft = lerp(sourceContainerBounds.left, 0f, safeMorphProgress)
+                            val currentTop = lerp(sourceContainerBounds.top, 0f, safeMorphProgress)
+                            val currentRight = lerp(sourceContainerBounds.right, screenWidthPx, safeMorphProgress)
+                            val currentBottom = lerp(sourceContainerBounds.bottom, screenHeightPx, safeMorphProgress)
+
+                            val currentCornerRadiusPx =
+                                lerp(with(density) { 29.dp.toPx() }, 0f, safeMorphProgress).coerceAtLeast(0f)
+
+                            val startContainerColor = MaterialTheme.colorScheme.surfaceContainer
+                            val endContainerColor = Color.Black
+                            val currentContainerColor = lerp(startContainerColor, endContainerColor, safeMorphProgress)
+
+                            val containerMorphShape = remember(
+                                currentLeft,
+                                currentTop,
+                                currentRight,
+                                currentBottom,
+                                currentCornerRadiusPx,
+                            ) {
+                                ContainerMorphShape(
+                                    left = currentLeft,
+                                    top = currentTop,
+                                    right = currentRight,
+                                    bottom = currentBottom,
+                                    cornerRadius = currentCornerRadiusPx,
+                                )
+                            }
+
+                            val containerElevationPx =
+                                with(density) { lerp(6.dp.toPx(), 0f, safeMorphProgress) }
+
+                            // M3 container transform content crossfade:
+                            // MiniPlayer outgoing controls fade out 0.00..0.15.
+                            // NowPlaying incoming content fades in 0.10..0.50.
+                            val sheetContentAlpha = ((safeMorphProgress - 0.10f) / 0.40f).coerceIn(0f, 1f)
+                            val sheetContentScale = lerp(0.95f, 1f, safeMorphProgress)
+                            val sheetContentTranslationY =
+                                (1f - safeMorphProgress) * with(density) { (if (isLandscapeOrientation) 16.dp else 32.dp).toPx() }
+                            val transformOrigin =
+                                if (isLandscapeOrientation && sourceArtworkBounds != null && screenWidthPx > 0f && screenHeightPx > 0f) {
+                                    TransformOrigin(
+                                        (sourceArtworkBounds.center.x / screenWidthPx).coerceIn(0.1f, 0.95f),
+                                        (sourceArtworkBounds.center.y / screenHeightPx).coerceIn(0.1f, 0.95f),
+                                    )
+                                } else {
+                                    TransformOrigin(0.5f, 0.9f)
                                 }
-                            } else {
-                                // Material 3 Container Transform: Portrait MiniPlayer -> Now Playing
-                                val currentLeft = lerp(sourceContainerBounds.left, 0f, safeMorphProgress)
-                                val currentTop = lerp(sourceContainerBounds.top, 0f, safeMorphProgress)
-                                val currentRight = lerp(sourceContainerBounds.right, screenWidthPx, safeMorphProgress)
-                                val currentBottom = lerp(sourceContainerBounds.bottom, screenHeightPx, safeMorphProgress)
 
-                                val currentCornerRadiusPx =
-                                    lerp(with(density) { 29.dp.toPx() }, 0f, safeMorphProgress).coerceAtLeast(0f)
-
-                                val startContainerColor = MaterialTheme.colorScheme.surfaceContainer
-                                val endContainerColor = Color.Black
-                                val currentContainerColor = lerp(startContainerColor, endContainerColor, safeMorphProgress)
-
-                                val containerMorphShape = remember(
-                                    currentLeft,
-                                    currentTop,
-                                    currentRight,
-                                    currentBottom,
-                                    currentCornerRadiusPx,
-                                ) {
-                                    ContainerMorphShape(
-                                        left = currentLeft,
-                                        top = currentTop,
-                                        right = currentRight,
-                                        bottom = currentBottom,
-                                        cornerRadius = currentCornerRadiusPx,
+                            Box(
+                                Modifier.fillMaxSize(),
+                            ) {
+                                // Background Dimming Scrim behind the expanding Container Transform sheet
+                                if (safeMorphProgress > 0.001f && safeMorphProgress < 0.999f) {
+                                    Box(
+                                        Modifier
+                                            .fillMaxSize()
+                                            .background(Color.Black.copy(alpha = (safeMorphProgress * 0.55f).coerceIn(0f, 0.55f)))
+                                            .clickable(
+                                                interactionSource = remember { MutableInteractionSource() },
+                                                indication = null,
+                                                onClick = { isShowNowPlaylistScreen = false },
+                                            ),
                                     )
                                 }
 
-                                val containerElevationPx =
-                                    with(density) { lerp(6.dp.toPx(), 0f, safeMorphProgress) }
-
-                                // M3 container transform content crossfade:
-                                // MiniPlayer outgoing controls fade out 0.00..0.15.
-                                // NowPlaying incoming content fades in 0.10..0.50.
-                                val portraitContentAlpha = ((safeMorphProgress - 0.10f) / 0.40f).coerceIn(0f, 1f)
-                                val portraitContentScale = lerp(0.95f, 1f, safeMorphProgress)
-                                val portraitContentTranslationY =
-                                    (1f - safeMorphProgress) * with(density) { 32.dp.toPx() }
-
+                                // The expanding/morphing Container
                                 Box(
                                     Modifier
                                         .fillMaxSize()
@@ -1122,11 +1128,11 @@ fun App(
                                         Modifier
                                             .fillMaxSize()
                                             .graphicsLayer {
-                                                this.alpha = portraitContentAlpha
-                                                this.scaleX = portraitContentScale
-                                                this.scaleY = portraitContentScale
-                                                this.translationY = portraitContentTranslationY
-                                                this.transformOrigin = TransformOrigin(0.5f, 0.9f)
+                                                this.alpha = sheetContentAlpha
+                                                this.scaleX = sheetContentScale
+                                                this.scaleY = sheetContentScale
+                                                this.translationY = sheetContentTranslationY
+                                                this.transformOrigin = transformOrigin
                                             },
                                     ) {
                                         NowPlayingScreen(
