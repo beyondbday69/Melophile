@@ -24,10 +24,11 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.ContentScale
 import coil3.compose.AsyncImage
 import com.maxrave.simpmusic.expect.BackHandler
 import com.maxrave.simpmusic.ui.component.NowPlayingState
+import com.maxrave.simpmusic.ui.icon.KeyboardArrowDown
+import com.maxrave.simpmusic.ui.icon.SimpIcons
 import com.maxrave.simpmusic.ui.component.rememberNowPlayingState
 import com.maxrave.simpmusic.ui.component.MiniToNowPlaying
 import com.maxrave.simpmusic.ui.component.stage
@@ -1100,17 +1101,17 @@ fun App(
 
                 // Phone Portrait: Continuous Shared-Element Morphing Transition
                 if (isShowMiniPlayer && !isTablet && !isLandscapeOrientation) {
-                    val currentTrack = nowPlayingDataState.value?.track
-                    val trackTitle = currentTrack?.title ?: ""
-                    val trackArtist = currentTrack?.artists?.firstOrNull()?.name ?: currentTrack?.uploader ?: ""
+                    val currentSong = nowPlayingDataState.value?.songEntity
+                    val trackTitle = currentSong?.title ?: ""
+                    val trackArtist = currentSong?.artistName?.joinToString(", ") ?: ""
                     val controllerState by viewModel.controllerState.collectAsStateWithLifecycle()
                     val timelineState by viewModel.timeline.collectAsStateWithLifecycle()
-                    val positionFraction = if (timelineState.totalDuration > 0) {
-                        (timelineState.currentPosition.toFloat() / timelineState.totalDuration.toFloat()).coerceIn(0f, 1f)
+                    val positionFraction = if (timelineState.total > 0L && timelineState.current >= 0L) {
+                        (timelineState.current.toFloat() / timelineState.total.toFloat()).coerceIn(0f, 1f)
                     } else {
                         0f
                     }
-                    val durationSec = (timelineState.totalDuration / 1000L).toInt().coerceAtLeast(1)
+                    val durationSec = currentSong?.durationSeconds ?: ((timelineState.total / 1000L).toInt().coerceAtLeast(1))
 
                     MiniToNowPlaying(
                         state = nowPlayingMorphState,
@@ -1126,7 +1127,7 @@ fun App(
                         miniBottomOffset = if (isNavBarVisible && !isInFullscreen) 74.dp else 10.dp,
                         artwork = { artMod ->
                             AsyncImage(
-                                model = currentTrack?.thumbnailUrl,
+                                model = currentSong?.thumbnails ?: currentSong?.canvasThumbUrl,
                                 contentDescription = trackTitle,
                                 contentScale = ContentScale.Crop,
                                 modifier = artMod,
@@ -1301,10 +1302,10 @@ fun App(
                 val currentArtworkUrl =
                     nowPlayingDataState.value?.songEntity?.thumbnails
                         ?: nowPlayingDataState.value?.mediaItem?.metadata?.artworkUri
-                if (!isTabletLandscape) {
+                if (isTablet && !isTabletLandscape) {
                     MorphingArtworkOverlay(
                         artworkUrl = currentArtworkUrl,
-                        progress = morphProgress,
+                        progress = safeMorphProgress,
                         fromBounds = sourceArtworkBounds,
                         toBounds = targetArtworkBounds,
                     )
@@ -1320,7 +1321,7 @@ fun App(
                         title = currentTitle,
                         artist = currentArtist,
                         isExplicit = isExplicit,
-                        progress = morphProgress,
+                        progress = safeMorphProgress,
                         fromBounds = sourceTextBounds,
                         toBounds = targetTextBounds,
                     )

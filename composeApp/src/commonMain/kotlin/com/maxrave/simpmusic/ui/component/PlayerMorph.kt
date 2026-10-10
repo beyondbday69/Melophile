@@ -59,7 +59,7 @@ import com.maxrave.simpmusic.expect.BackHandler
 import com.maxrave.simpmusic.ui.icon.KeyboardArrowDown
 import com.maxrave.simpmusic.ui.icon.SkipNext
 import com.maxrave.simpmusic.ui.icon.SkipPrevious
-import com.maxrave.simpmusic.ui.theme.SimpIcons
+import com.maxrave.simpmusic.ui.icon.SimpIcons
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -400,7 +400,7 @@ private fun fmt(sec: Int): String {
     return "$m:$remStr"
 }
 
-private class Geo(density: Float, w: Float, h: Float, top: Float, bottom: Float, lift: Float) {
+private class Geo(val density: Float, val w: Float, val h: Float, val top: Float, val bottom: Float, val lift: Float) {
     private fun dp(v: Float) = v * density
     private fun box(l: Float, t: Float, wd: Float, ht: Float) = Rect(l, t, l + wd, t + ht)
 
