@@ -106,8 +106,7 @@ jobs:
           ./gradlew $GRADLE_TASK \
             -PversionCode=${{ env.APP_VERSION_CODE }} \
             -PversionName=${{ env.APP_VERSION_NAME }} \
-            -x lint -x lintVitalRelease -x lintVitalReportRelease -x lintVitalAnalyzeRelease -x test -x check \
-            --parallel --build-cache
+            -x lint -x test
 
       - name: Locate & Name Output APK
         run: |

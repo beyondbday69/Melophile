@@ -75,7 +75,7 @@ jobs:
 
       - name: Build Android App (APK)
         run: |
-          ./gradlew :androidApp:assembleRelease -PversionCode=${{ env.APP_VERSION_CODE }} -PversionName=${{ env.APP_VERSION_NAME }} -x lint -x lintVitalRelease -x lintVitalReportRelease -x lintVitalAnalyzeRelease -x test
+          ./gradlew :androidApp:assembleRelease -PversionCode=${{ env.APP_VERSION_CODE }} -PversionName=${{ env.APP_VERSION_NAME }} -x lint -x test
 
       - name: Locate & Name Output APKs
         run: |
