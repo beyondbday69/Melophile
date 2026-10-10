@@ -1,9 +1,9 @@
 package com.maxrave.simpmusic
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -64,7 +64,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import com.kmpalette.rememberPaletteState
 import com.maxrave.simpmusic.extension.getColorFromPalette
@@ -559,28 +558,26 @@ fun App(
     val morphProgress by animateFloatAsState(
         targetValue = if (isShowNowPlaylistScreen && !isTabletLandscape) 1f else 0f,
         animationSpec =
-            spring(
-                dampingRatio = 0.88f,
-                stiffness = Spring.StiffnessMediumLow,
-            ),
+            if (isShowNowPlaylistScreen) {
+                tween(
+                    durationMillis = 320,
+                    easing = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1.0f),
+                )
+            } else {
+                tween(
+                    durationMillis = 260,
+                    easing = CubicBezierEasing(0.3f, 0.0f, 0.8f, 0.15f),
+                )
+            },
         label = "nowPlayingMorphProgress",
     )
     val isMorphActive = isShowNowPlaylistScreen || morphProgress > 0.001f
 
-    val bgBlurRadius by animateDpAsState(
-        targetValue = if (isLandscapeOrientation && isShowNowPlaylistScreen && !isInFullscreen) 4.94.dp else 0.dp,
-        animationSpec =
-            tween(
-                durationMillis = 240,
-                easing = FastOutSlowInEasing,
-            ),
-        label = "landscapeNowPlayingBgBlur",
-    )
     val bgDimAlpha by animateFloatAsState(
-        targetValue = if (isTabletLandscape && isShowNowPlaylistScreen && !isInFullscreen) 0.55f else 0.0f,
+        targetValue = if (isLandscapeOrientation && isShowNowPlaylistScreen && !isInFullscreen) 0.55f else 0.0f,
         animationSpec =
             tween(
-                durationMillis = 240,
+                durationMillis = 260,
                 easing = FastOutSlowInEasing,
             ),
         label = "landscapeNowPlayingBgDim",
@@ -780,7 +777,7 @@ fun App(
                                         onItemClick = { isShowNowPlaylistScreen = false },
                                     )
                                     AppMiniPlayer(
-                                        isShowMiniPlayer = isShowMiniPlayer,
+                                        isShowMiniPlayer = isShowMiniPlayer && !isShowNowPlaylistScreen,
                                         isTablet = isTablet,
                                         isLandscape = true,
                                         backdrop = backdrop,
@@ -803,7 +800,7 @@ fun App(
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                 ) {
                                     AppMiniPlayer(
-                                        isShowMiniPlayer = isShowMiniPlayer,
+                                        isShowMiniPlayer = isShowMiniPlayer && !isShowNowPlaylistScreen,
                                         isTablet = isTablet,
                                         isLandscape = false,
                                         backdrop = backdrop,
@@ -855,13 +852,6 @@ fun App(
                                             .padding(8.dp)
                                             .clip(RoundedCornerShape(12.dp))
                                             .background(desktopPanel)
-                                    } else {
-                                        Modifier
-                                    },
-                                )
-                                .then(
-                                    if (bgBlurRadius > 0.dp) {
-                                        Modifier.blur(bgBlurRadius)
                                     } else {
                                         Modifier
                                     },
@@ -927,9 +917,9 @@ fun App(
                                 modifier = Modifier.align(Alignment.CenterEnd),
                                 enter =
                                     slideInHorizontally(
-                                        animationSpec = spring(
-                                            dampingRatio = 0.86f,
-                                            stiffness = Spring.StiffnessMediumLow,
+                                        animationSpec = tween(
+                                            durationMillis = 300,
+                                            easing = FastOutSlowInEasing,
                                         ),
                                         initialOffsetX = { it },
                                     ) + fadeIn(
@@ -940,9 +930,9 @@ fun App(
                                     ),
                                 exit =
                                     slideOutHorizontally(
-                                        animationSpec = spring(
-                                            dampingRatio = 0.90f,
-                                            stiffness = Spring.StiffnessMediumLow,
+                                        animationSpec = tween(
+                                            durationMillis = 240,
+                                            easing = FastOutSlowInEasing,
                                         ),
                                         targetOffsetX = { it },
                                     ) + fadeOut(
@@ -1053,21 +1043,7 @@ fun App(
                             val endContainerColor = Color.Black
                             val currentContainerColor = lerp(startContainerColor, endContainerColor, safeMorphProgress)
 
-                            val containerMorphShape = remember(
-                                currentLeft,
-                                currentTop,
-                                currentRight,
-                                currentBottom,
-                                currentCornerRadiusPx,
-                            ) {
-                                ContainerMorphShape(
-                                    left = currentLeft,
-                                    top = currentTop,
-                                    right = currentRight,
-                                    bottom = currentBottom,
-                                    cornerRadius = currentCornerRadiusPx,
-                                )
-                            }
+                            val containerMorphShape = remember { ContainerMorphShape() }
 
                             val containerElevationPx =
                                 with(density) { lerp(6.dp.toPx(), 0f, safeMorphProgress) }
@@ -1114,6 +1090,11 @@ fun App(
                                             if (safeMorphProgress < 0.999f) {
                                                 Modifier
                                                     .graphicsLayer {
+                                                        containerMorphShape.left = currentLeft
+                                                        containerMorphShape.top = currentTop
+                                                        containerMorphShape.right = currentRight
+                                                        containerMorphShape.bottom = currentBottom
+                                                        containerMorphShape.cornerRadius = currentCornerRadiusPx
                                                         this.shape = containerMorphShape
                                                         this.clip = true
                                                         this.shadowElevation = containerElevationPx
@@ -1467,11 +1448,11 @@ private fun lerp(start: Float, stop: Float, fraction: Float): Float =
     start + (stop - start) * fraction
 
 private class ContainerMorphShape(
-    private val left: Float,
-    private val top: Float,
-    private val right: Float,
-    private val bottom: Float,
-    private val cornerRadius: Float,
+    var left: Float = 0f,
+    var top: Float = 0f,
+    var right: Float = 0f,
+    var bottom: Float = 0f,
+    var cornerRadius: Float = 0f,
 ) : Shape {
     override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
         val safeLeft = left.coerceIn(0f, size.width)

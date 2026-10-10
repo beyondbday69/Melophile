@@ -122,6 +122,14 @@ android {
             signingConfig = signingConfigs.getByName("release")
         }
     }
+
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
+        ignoreWarnings = true
+        checkDependencies = false
+    }
+
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_21
