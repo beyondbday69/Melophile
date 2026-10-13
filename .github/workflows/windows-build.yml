@@ -37,8 +37,6 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
-        with:
-          cache-disabled: false
 
       - name: Setup local.properties
         run: |
@@ -49,25 +47,24 @@ jobs:
           echo "LASTFM_SECRET=" >> ./local.properties
           echo "isFullBuild=true" >> ./gradle.properties
 
-      - name: Cache mpv-natives
+      - name: Cache mpv-natives & ProGuard Intermediates
         uses: actions/cache@v4
         with:
-          path: mpv-natives
-          key: mpv-natives-${{ hashFiles('composeApp/build.gradle.kts') }}
+          path: |
+            mpv-natives
+            desktopApp/build/compose/tmp/main-release/proguard
+          key: desktop-build-cache-${{ hashFiles('composeApp/build.gradle.kts', 'desktopApp/build.gradle.kts', 'composeApp/proguard-desktop-rules.pro') }}
           restore-keys: |
-            mpv-natives-
+            desktop-build-cache-
 
       - name: Export Libraries, Stage mpv-natives & Write Conveyor Config
-        run: ./gradlew exportLibraryDefinitions :composeApp:mpvSetupAll :desktopApp:writeConveyorConfig --no-configuration-cache
+        run: ./gradlew exportLibraryDefinitions :composeApp:mpvSetupAll :desktopApp:writeConveyorConfig --no-configuration-cache --build-cache
 
-      - name: Install Conveyor CLI
-        run: |
-          curl -fsSL https://conveyor.hydraulic.dev/install.sh | bash
-          echo "$HOME/.conveyor/bin" >> $GITHUB_PATH
-
-      - name: Package Windows MSIX with Conveyor CLI
-        run: |
-          conveyor --agree-to-license=1 -Kapp.machines=[windows.amd64] make windows-msix
+      - name: Package Windows MSIX with Conveyor
+        uses: hydraulic-software/conveyor/actions/build@v22.0
+        with:
+          command: '-Kapp.machines=[windows.amd64] make windows-msix'
+          agree_to_license: 1
 
       - name: Bundle Windows Offline Installer Package
         id: bundle
