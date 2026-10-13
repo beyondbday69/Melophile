@@ -123,23 +123,29 @@ dependencies {
 // obfuscated + size-reduced bytecode instead of raw Gradle output.
 // `dependsOn(proguardReleaseJars)` builds the shrunk jars first.
 tasks.named<hydraulic.conveyor.gradle.WriteConveyorConfigTask>("writeConveyorConfig") {
-    dependsOn(tasks.named("proguardReleaseJars"))
+    val skipProguard = project.findProperty("skipProguard") == "true"
+    if (!skipProguard) {
+        dependsOn(tasks.named("proguardReleaseJars"))
+    }
     val proguardJarsDir = layout.buildDirectory.dir("compose/tmp/main-release/proguard")
     doLast {
+        val customInputs = if (!skipProguard) {
+            """
+            |// Override the Gradle-detected classpath with the ProGuard'd
+            |// jar directory.
+            |app.inputs = [
+            |    "${proguardJarsDir.get().asFile.absolutePath}"
+            |]
+            """.trimMargin()
+        } else ""
+
         destination.get().asFile.appendText(
             """
             |app.fsname = simpmusic
             |app.display-name = Melophile
             |app.rdns-name = com.maxrave.simpmusic
             |
-            |// Override the Gradle-detected classpath with the ProGuard'd
-            |// jar directory. Conveyor expands a directory entry to every
-            |// file inside it — saves ~750 MB raw / ~100 MB compressed in
-            |// the resulting AppImage by replacing 221 raw jars with the
-            |// shrunk equivalents from compose.desktop's proguard task.
-            |app.inputs = [
-            |    "${proguardJarsDir.get().asFile.absolutePath}"
-            |]
+            $customInputs
             """.trimMargin() + "\n",
         )
     }
