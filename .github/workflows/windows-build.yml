@@ -57,8 +57,11 @@ jobs:
           restore-keys: |
             desktop-build-cache-
 
-      - name: Export Libraries, Stage mpv-natives & Write Conveyor Config
-        run: ./gradlew exportLibraryDefinitions :composeApp:mpvSetupAll :desktopApp:writeConveyorConfig --no-configuration-cache --build-cache
+      - name: Export Library Definitions
+        run: ./gradlew exportLibraryDefinitions --no-configuration-cache
+
+      - name: Stage mpv-natives & Write Conveyor Config
+        run: ./gradlew :composeApp:mpvSetupAll :desktopApp:writeConveyorConfig --no-configuration-cache --build-cache
 
       - name: Package Windows MSIX with Conveyor
         uses: hydraulic-software/conveyor/actions/build@v22.0

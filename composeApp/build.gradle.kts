@@ -966,4 +966,13 @@ afterEvaluate {
         .configureEach {
             dependsOn("generateBuildKonfig")
         }
+
+    tasks
+        .matching {
+            it.name.contains("copyNonXmlValueResourcesFor") ||
+            it.name.contains("copyXmlValueResourcesFor")
+        }
+        .configureEach {
+            dependsOn("exportLibraryDefinitions")
+        }
 }
