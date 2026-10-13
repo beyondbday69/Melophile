@@ -62,9 +62,9 @@ jobs:
           tar -xzf conveyor.tar.gz
           export PATH="$PWD/conveyor-22.0/bin:$PATH"
           echo "Generating non-interactive key..."
-          conveyor keys generate --passphrase=""
+          conveyor keys generate --no-passphrase
           echo "Running Conveyor..."
-          conveyor --agree-to-license=1 --passphrase="" -Kapp.machines=windows.amd64 make windows-msix
+          conveyor --agree-to-license=1 -Kapp.machines=windows.amd64 make windows-msix
 
       - name: Bundle Windows Offline Installer Package
         id: bundle
