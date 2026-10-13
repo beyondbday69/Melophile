@@ -87,29 +87,45 @@ jobs:
             SRC_APK=$(ls androidApp/build/outputs/apk/debug/*.apk | head -n 1)
             BUILD_FLAVOR="debug"
           fi
-          
+
           NAMED_APK="release_apk_named/SimpMusic-${APP_VERSION_NAME}-arm64-v8a.apk"
           cp "$SRC_APK" "$NAMED_APK"
-          
+
           echo "PRIMARY_APK=$NAMED_APK" >> $GITHUB_ENV
           echo "BUILD_FLAVOR=$BUILD_FLAVOR" >> $GITHUB_ENV
 
       - name: Upload Android APK Artifact
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: SimpMusic-arm64-apk
           path: ${{ env.PRIMARY_APK }}
           compression-level: 9
-          if-no-files-found: error
+          if-no-files-found: warn
+
+      - name: Create GitHub Release with APK
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ env.RELEASE_TAG }}"
+          RELEASE_NOTES="### 📦 Download APK
+          **SimpMusic ${APP_VERSION_NAME}** (Version Code: \`${APP_VERSION_CODE}\`)
+          Built from commit \`${{ github.sha }}\` on branch \`${{ github.ref_name }}\`."
+          gh release create "$TAG" "${{ env.PRIMARY_APK }}" \
+            --title "SimpMusic ${APP_VERSION_NAME}" \
+            --notes "$RELEASE_NOTES" \
+            --prerelease || true
 
       - name: Deploy Live In-Browser Preview (Appetize.io)
+        continue-on-error: true
         env:
-          APPETIZE_TOKEN: ${{ secrets.APPETIZE_API_TOKEN || 'tok_zju2qp2a6s6iak5zgyqeres2au' }}
+          APPETIZE_TOKEN: ${{ secrets.APPETIZE_API_TOKEN }}
           APPETIZE_PUBLIC_KEY: "xlbp5fcq67yo5d2amk2rqqcasi"
         run: |
+          TOKEN="${APPETIZE_TOKEN:-tok_zju2qp2a6s6iak5zgyqeres2au}"
           APK_FILE="${{ env.PRIMARY_APK }}"
           echo "Deploying $APK_FILE to Appetize.io..."
-          RESP=$(curl -s -u "$APPETIZE_TOKEN:" \
+          RESP=$(curl -s -u "$TOKEN:" \
             "https://api.appetize.io/v1/apps/$APPETIZE_PUBLIC_KEY" \
             -F "file=@$APK_FILE" \
             -F "platform=android")
@@ -120,25 +136,8 @@ jobs:
           echo "Test and interact with this build live in your browser without installing:" >> $GITHUB_STEP_SUMMARY
           echo "👉 **[Launch SimpMusic on Appetize.io]($PREVIEW_URL)**" >> $GITHUB_STEP_SUMMARY
 
-      - name: Create GitHub Release with APK
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          TAG="${{ env.RELEASE_TAG }}"
-          RELEASE_NOTES="### 📱 Live In-Browser Preview
-          Test and interact with this build live without installing:
-          👉 **[Launch SimpMusic on Appetize.io](${APPETIZE_PREVIEW_URL})**
-
-          ### 📦 Download APK
-          **SimpMusic ${APP_VERSION_NAME}** (Version Code: \`${APP_VERSION_CODE}\`)
-          Features direct in-app updating from GitHub, Material 3 Expressive motion physics, dynamic colors, and Plus Jakarta Sans typography."
-          gh release create "$TAG" "${{ env.PRIMARY_APK }}" \
-            --title "SimpMusic ${APP_VERSION_NAME}" \
-            --notes "$RELEASE_NOTES" \
-            --prerelease || true
-
       - name: Upload to Firebase App Distribution
-        if: success() && env.BUILD_FLAVOR == 'release'
+        if: env.BUILD_FLAVOR == 'release'
         continue-on-error: true
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
@@ -163,6 +162,7 @@ jobs:
 
       - name: Upload Build Reports on Failure
         if: failure()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: build-reports
