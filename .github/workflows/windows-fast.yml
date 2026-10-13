@@ -61,8 +61,10 @@ jobs:
           wget -q https://downloads.hydraulic.dev/conveyor/conveyor-22.0-linux-amd64.tar.gz
           tar -xzf conveyor-22.0-linux-amd64.tar.gz
           export PATH="$PWD/conveyor-22.0/bin:$PATH"
+          echo "Generating non-interactive key..."
+          conveyor keys generate --passphrase=""
           echo "Running Conveyor..."
-          conveyor --agree-to-license=1 -Kapp.machines=[windows.amd64] make windows-msix
+          conveyor --agree-to-license=1 --passphrase="" -Kapp.machines=[windows.amd64] make windows-msix
 
       - name: Bundle Windows Offline Installer Package
         id: bundle
