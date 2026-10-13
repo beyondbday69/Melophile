@@ -2,18 +2,12 @@ name: Build & Package Windows Desktop (MSIX)
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-      - dev
-    paths:
-      - 'desktopApp/**'
-      - 'composeApp/**'
-      - 'gradle/**'
-      - 'conveyor.conf'
-      - '.github/workflows/windows-build.yml'
-  release:
-    types: [published, created]
+  # push:
+  #   branches:
+  #     - main
+  #     - dev
+  # release:
+  #   types: [published, created]
 
 permissions:
   contents: write

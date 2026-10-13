@@ -1,0 +1,129 @@
+name: Fast Windows MSIX (No ProGuard)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/windows-fast.yml'
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  fast-windows-msix:
+    name: Build & Package Fast Windows MSIX (~3-4 min)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: 21
+          distribution: 'microsoft'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Setup local.properties
+        run: |
+          touch ./local.properties
+          echo 'SENTRY_DSN=""' >> ./local.properties
+          echo "SENTRY_AUTH_TOKEN=" >> ./local.properties
+          echo "LASTFM_API_KEY=" >> ./local.properties
+          echo "LASTFM_SECRET=" >> ./local.properties
+          echo "isFullBuild=false" >> ./gradle.properties
+
+      - name: Cache mpv-natives
+        uses: actions/cache@v4
+        with:
+          path: mpv-natives
+          key: mpv-natives-${{ hashFiles('composeApp/build.gradle.kts') }}
+          restore-keys: |
+            mpv-natives-
+
+      - name: Export Library Definitions
+        run: ./gradlew exportLibraryDefinitions --no-configuration-cache
+
+      - name: Stage mpv-natives & Write Conveyor Config (No ProGuard)
+        run: |
+          ./gradlew :composeApp:mpvSetupAll :desktopApp:writeConveyorConfig -PskipProguard=true --no-configuration-cache
+
+      - name: Download & Run Conveyor CLI (Self-Signed)
+        run: |
+          echo "Downloading Conveyor CLI..."
+          wget -q https://downloads.hydraulic.dev/conveyor/conveyor-22.0-linux-amd64.tar.gz
+          tar -xzf conveyor-22.0-linux-amd64.tar.gz
+          export PATH="$PWD/conveyor-22.0/bin:$PATH"
+          echo "Running Conveyor..."
+          conveyor --agree-to-license=1 -Kapp.machines=[windows.amd64] make windows-msix
+
+      - name: Bundle Windows Offline Installer Package
+        id: bundle
+        run: |
+          set -euo pipefail
+          mkdir -p dist_windows
+
+          MSIX_FILE=$(find output -name "*.msix" | head -n 1)
+          if [ -z "$MSIX_FILE" ] || [ ! -f "$MSIX_FILE" ]; then
+            echo "::error::No .msix file generated in output directory!"
+            exit 1
+          fi
+
+          echo "Found MSIX: $MSIX_FILE"
+
+          STAGE_DIR=$(mktemp -d)
+          cp scripts/windows/install.bat "$STAGE_DIR/"
+
+          if [ -f output/simpmusic.crt ]; then
+            cp output/simpmusic.crt "$STAGE_DIR/"
+          fi
+
+          cp "$MSIX_FILE" "$STAGE_DIR/"
+
+          VERSION=$(grep '^version-name' gradle/libs.versions.toml | head -1 | cut -d'"' -f2)
+          BUNDLE_NAME="Melophile-${VERSION}-windows-x64-installer.zip"
+
+          (cd "$STAGE_DIR" && zip -q -r "${GITHUB_WORKSPACE}/dist_windows/${BUNDLE_NAME}" .)
+          rm -rf "$STAGE_DIR"
+
+          cp "$MSIX_FILE" "dist_windows/"
+
+          echo "BUNDLE_PATH=dist_windows/${BUNDLE_NAME}" >> $GITHUB_ENV
+          echo "MSIX_PATH=$MSIX_FILE" >> $GITHUB_ENV
+          echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
+
+          ls -lh dist_windows/
+
+      - name: Upload Windows Offline Installer Artifact
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: Melophile-Windows-Installer
+          path: ${{ env.BUNDLE_PATH }}
+          if-no-files-found: warn
+
+      - name: Upload Windows MSIX Artifact
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: Melophile-Windows-MSIX
+          path: ${{ env.MSIX_PATH }}
+          if-no-files-found: warn
+
+      - name: Publish to GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_TAG="v${{ env.APP_VERSION }}-windows-preview"
+          gh release create "$RELEASE_TAG" "${{ env.BUNDLE_PATH }}" "${{ env.MSIX_PATH }}" \
+            --title "Melophile v${{ env.APP_VERSION }} Windows" \
+            --notes "Fast Windows Desktop build (Self-Signed MSIX & Offline Installer Bundle)" \
+            --prerelease || \
+          gh release upload "$RELEASE_TAG" "${{ env.BUNDLE_PATH }}" "${{ env.MSIX_PATH }}" --clobber
