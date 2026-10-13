@@ -4,13 +4,13 @@
 <b>A modern, open-source YouTube Music client for Android & Desktop.</b>
 <p>Clean design, background playback, lyrics, equalizer, and complete control over your music.</p>
 
-<a href="https://github.com/beyondbday69/SimpMusic/releases"><img src="https://img.shields.io/github/v/release/beyondbday69/SimpMusic?label=Release&color=6750A4"></a> 
-<a href="https://github.com/beyondbday69/SimpMusic/releases"><img src="https://img.shields.io/github/downloads/beyondbday69/SimpMusic/total?color=006A60"></a> 
-<a href="https://github.com/beyondbday69/SimpMusic/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-GPL--3.0-blue.svg"></a>
+<a href="https://github.com/beyondbday69/Melophile/releases"><img src="https://img.shields.io/github/v/release/beyondbday69/Melophile?label=Release&color=6750A4"></a> 
+<a href="https://github.com/beyondbday69/Melophile/releases"><img src="https://img.shields.io/github/downloads/beyondbday69/Melophile/total?color=006A60"></a> 
+<a href="https://github.com/beyondbday69/Melophile/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-GPL--3.0-blue.svg"></a>
 <br><br>
 
 <h4>📥 Download</h4>  
-<a href="https://github.com/beyondbday69/SimpMusic/releases"><img src="https://raw.githubusercontent.com/NeoApplications/Neo-Backup/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png" width="190"></a> 
+<a href="https://github.com/beyondbday69/Melophile/releases"><img src="https://raw.githubusercontent.com/NeoApplications/Neo-Backup/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png" width="190"></a> 
 </div>  
 
 ---

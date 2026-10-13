@@ -1,0 +1,146 @@
+name: Build & Package Windows Desktop (MSIX)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'desktopApp/**'
+      - 'composeApp/**'
+      - 'gradle/**'
+      - 'conveyor.conf'
+      - '.github/workflows/windows-build.yml'
+  release:
+    types: [published, created]
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  build-windows:
+    name: Build & Package Windows MSIX
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: 21
+          distribution: 'microsoft'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          cache-disabled: true
+
+      - name: Cache Gradle & Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.konan
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', 'gradle/libs.versions.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Setup local.properties
+        run: |
+          touch ./local.properties
+          echo 'SENTRY_DSN=""' >> ./local.properties
+          echo "SENTRY_AUTH_TOKEN=" >> ./local.properties
+          echo "LASTFM_API_KEY=" >> ./local.properties
+          echo "LASTFM_SECRET=" >> ./local.properties
+          echo "isFullBuild=true" >> ./gradle.properties
+
+      - name: Export Library Definitions
+        run: ./gradlew exportLibraryDefinitions --no-configuration-cache
+
+      - name: Cache mpv-natives
+        uses: actions/cache@v4
+        with:
+          path: mpv-natives
+          key: mpv-natives-${{ hashFiles('composeApp/build.gradle.kts') }}
+          restore-keys: |
+            mpv-natives-
+
+      - name: Stage mpv-natives for all OSes
+        run: ./gradlew :composeApp:mpvSetupAll --no-configuration-cache
+
+      - name: Generate Conveyor config
+        run: ./gradlew :desktopApp:writeConveyorConfig --no-configuration-cache
+
+      - name: Package Windows MSIX with Conveyor
+        uses: hydraulic-software/conveyor/actions/build@v22.0
+        with:
+          command: '-Kapp.machines=[windows.amd64] make windows-msix'
+          agree_to_license: 1
+
+      - name: Bundle Windows Offline Installer Package
+        id: bundle
+        run: |
+          set -euo pipefail
+          mkdir -p dist_windows
+          
+          MSIX_FILE=$(find output -name "*.msix" | head -n 1)
+          if [ -z "$MSIX_FILE" ] || [ ! -f "$MSIX_FILE" ]; then
+            echo "::error::No .msix file generated in output directory!"
+            exit 1
+          fi
+          
+          echo "Found MSIX: $MSIX_FILE"
+          
+          STAGE_DIR=$(mktemp -d)
+          cp scripts/windows/install.bat "$STAGE_DIR/"
+          
+          if [ -f output/simpmusic.crt ]; then
+            cp output/simpmusic.crt "$STAGE_DIR/"
+          fi
+          
+          cp "$MSIX_FILE" "$STAGE_DIR/"
+          
+          VERSION=$(grep '^version-name' gradle/libs.versions.toml | head -1 | cut -d'"' -f2)
+          BUNDLE_NAME="Melophile-${VERSION}-windows-x64-installer.zip"
+          
+          (cd "$STAGE_DIR" && zip -q -r "${GITHUB_WORKSPACE}/dist_windows/${BUNDLE_NAME}" .)
+          rm -rf "$STAGE_DIR"
+          
+          cp "$MSIX_FILE" "dist_windows/"
+          
+          echo "BUNDLE_PATH=dist_windows/${BUNDLE_NAME}" >> $GITHUB_ENV
+          echo "MSIX_PATH=$MSIX_FILE" >> $GITHUB_ENV
+          echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
+          
+          ls -lh dist_windows/
+
+      - name: Upload Windows Offline Installer Artifact
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: Melophile-Windows-Installer
+          path: ${{ env.BUNDLE_PATH }}
+          if-no-files-found: warn
+
+      - name: Upload Windows MSIX Artifact
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: Melophile-Windows-MSIX
+          path: ${{ env.MSIX_PATH }}
+          if-no-files-found: warn
+
+      - name: Attach Windows Installer to GitHub Release
+        if: github.event_name == 'release'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          echo "Uploading Windows assets to release tag: $TAG"
+          gh release upload "$TAG" "${{ env.BUNDLE_PATH }}" "${{ env.MSIX_PATH }}" --clobber
