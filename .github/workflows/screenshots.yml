@@ -94,40 +94,34 @@ jobs:
             exit 1
           }
 
-          Write-Host "Found: $($app.Name)"
-          Write-Host "PackageFullName: $($app.PackageFullName)"
-          Write-Host "InstallLocation: $($app.InstallLocation)"
+          $appName   = $app.Name
+          $installDir = $app.InstallLocation.TrimEnd('\')
+          $packageId = $app.PackageFullName
+          Write-Host "Found: $appName"
+          Write-Host "InstallLocation: $installDir"
+          Write-Host "PackageFullName: $packageId"
 
-          # Try using Get-AppxPackageManifest for reliable extraction
-          try {
-            $manifestXml = [xml](Get-AppxPackageManifest -PackageId $app.PackageFullName)
-            $appElement = $manifestXml.Package.Applications.Application
-            $exe = $appElement.Executable
-            $appId = $appElement.Id
+          # Read manifest via Get-AppxPackageManifest
+          $manifestXml = Get-AppxPackageManifest -PackageId $packageId -ErrorAction Stop
+          $appElement  = $manifestXml.Package.Applications.Application
+          $relativeExe = $appElement.Executable    # e.g. "bin\Melophile.exe"
+          $appId       = $appElement.Id           # e.g. "App"
 
-            Write-Host "Executable (manifest): $exe"
-            Write-Host "AppId (manifest): $appId"
-          } catch {
-            Write-Host "Get-AppxPackageManifest failed: $_"
-            # Fallback: try reading AppxManifest.xml directly
-            $pf = $env:ProgramFiles
-            $manifest = "$pf\WindowsApps\$($app.PackageFullName)\AppxManifest.xml"
-            Write-Host "Trying manifest at: $manifest"
-            if (Test-Path $manifest) {
-              [xml]$xml = Get-Content $manifest -ErrorAction Stop
-              $appElem = $xml.Package.Applications.Application
-              $exe = $appElem.Executable
-              $appId = $appElem.Id
-              Write-Host "Executable (XML): $exe"
-              Write-Host "AppId (XML): $appId"
-            } else {
-              Write-Host "Manifest file not found at expected path"
-              exit 1
-            }
+          # Manifest paths are relative to InstallLocation — join them.
+          $fullExe = "$installDir\$relativeExe"
+
+          Write-Host "RelativeExecutable: $relativeExe"
+          Write-Host "FullExecutable: $fullExe"
+          Write-Host "AppId: $appId"
+
+          if (-not (Test-Path $fullExe)) {
+            Write-Host "WARNING: Full executable path does not exist! Trying relative."
+            $fullExe = $relativeExe
           }
 
-          "EXE_PATH=$exe" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
-          "APP_ID=$appId" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          # Write outputs: first line wins (no -Append), second must use -Append
+          "EXE_PATH=$fullExe" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
+          "APP_ID=$appId"     | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
       - name: Run Screenshots
         env:
