@@ -9,26 +9,15 @@ on:
         default: ''
 
 env:
-  # Window dimensions from DesktopApp.kt: DpSize(1500.dp, 860.dp)
   WINDOW_WIDTH: 1500
   WINDOW_HEIGHT: 860
-  # Window is centered on 1920x1080 desktop: x=(1920-1500)/2=210, y=(1080-860)/2=110
   WINDOW_X: 210
   WINDOW_Y: 110
-  # NavigationRail is on the left side of the window, ~72dp wide (Material3 standard)
-  # Nav item vertical positions (from window top, accounting for rail layout):
-  #   - First Spacer(16dp) + Logo(32dp) + Spacer(20dp) = ~68dp from top
-  #   - Home icon center ≈ 68 + 24 = 92dp
-  #   - Search ≈ 92 + 56 (item height + 8 spacing) = 156dp
-  #   - Library ≈ 156 + 56 = 212dp
-  #   - Mix ≈ 212 + 56 = 268dp (if visible)
-  #   - Analytics ≈ 268 + 56 = 324dp (if visible)
-  #   - Settings at bottom of rail ≈ 860 - 20 (spacer) - 24 = 816dp
-  NAV_X: 246  # ~210 (window left) + 36 (half of rail width)
-  HOME_Y: 202  # 110 (window top) + 92
-  SEARCH_Y: 266  # 110 + 156
-  LIBRARY_Y: 322  # 110 + 212
-  SETTINGS_Y: 926  # 110 + 816
+  NAV_X: 246
+  HOME_Y: 202
+  SEARCH_Y: 266
+  LIBRARY_Y: 322
+  SETTINGS_Y: 926
 
 jobs:
   screenshots:
@@ -55,205 +44,50 @@ jobs:
             Write-Host "Using specified release: $tag"
           }
           gh release download $tag --pattern "*.msix" -R "${{ github.repository }}" --dir .
-          Write-Host "Downloaded MSIX files:"
           Get-ChildItem -Filter "*.msix"
 
       - name: Install MSIX
         run: |
           $msix = Get-ChildItem -Filter "*.msix" | Select-Object -First 1
-          if ($msix) {
-            Write-Host "Installing: $($msix.FullName)"
-            Add-AppxPackage -Path $msix.FullName -DependencyPackages @() -ForceApplicationShutdown
-            Write-Host "MSIX installed successfully"
-          } else {
+          if (-not $msix) {
             Write-Host "No MSIX found!"
             exit 1
           }
+          Write-Host "Installing: $($msix.FullName)"
+          Add-AppxPackage -Path $msix.FullName -DependencyPackages @() -ForceApplicationShutdown
+          Write-Host "MSIX installed"
 
       - name: Find App Executable
         id: find-app
         run: |
-          $app = Get-AppxPackage | Where-Object { $_.Name -like "*Melophile*" -or $_.Name -like "*SimpMusic*" -or $_.Name -like "*simpmusic*" } | Select-Object -First 1
-          if ($app) {
-            Write-Host "Found app: $($app.Name)"
-            $manifest = "$env:ProgramFiles\WindowsApps\$($app.PackageFullName)\AppxManifest.xml"
-            if (Test-Path $manifest) {
-              [xml]$xml = Get-Content $manifest
-              $exe = $xml.Package.Applications.Application.Executable
-              $appId = $xml.Package.Applications.Application.Id
-              Write-Host "Executable: $exe"
-              Write-Host "AppId: $appId"
-              "EXE_PATH=$exe" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
-              "APP_ID=$appId" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
-              "PACKAGE_NAME=$($app.PackageFullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
-            }
-          } else {
-            Write-Host "App not found!"
+          $app = Get-AppxPackage | Where-Object {
+            $_.Name -like "*Melophile*" -or
+            $_.Name -like "*SimpMusic*" -or
+            $_.Name -like "*simpmusic*"
+          } | Select-Object -First 1
+
+          if (-not $app) {
+            Write-Host "App not found in installed packages!"
+            Get-AppxPackage | Where-Object { $_.Name -like "*mel*" -or $_.Name -like "*simp*" }
             exit 1
           }
 
-      - name: Launch App and Take Screenshots
+          Write-Host "Found: $($app.Name)"
+          $manifest = "$env:ProgramFiles\WindowsApps\$($app.PackageFullName)\AppxManifest.xml"
+          [xml]$xml = Get-Content $manifest
+          $exe = $xml.Package.Applications.Application.Executable
+          $appId = $xml.Package.Applications.Application.Id
+
+          Write-Host "Executable: $exe"
+          Write-Host "AppId: $appId"
+
+          "EXE_PATH=$exe" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
+          "APP_ID=$appId"  | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
+
+      - name: Run Screenshots
         run: |
-          $exePath = "${{ steps.find-app.outputs.EXE_PATH }}"
-          $appId = "${{ steps.find-app.outputs.APP_ID }}"
-
-          # Environment variables
-          $navX = $env:NAV_X
-          $homeY = $env:HOME_Y
-          $searchY = $env:SEARCH_Y
-          $libraryY = $env:LIBRARY_Y
-          $settingsY = $env:SETTINGS_Y
-          $winX = $env:WINDOW_X
-          $winY = $env:WINDOW_Y
-
-          Write-Host "Nav click X: $navX"
-          Write-Host "Home Y: $homeY, Search Y: $searchY, Library Y: $libraryY, Settings Y: $settingsY"
-          Write-Host "Window offset X: $winX, Y: $winY"
-
-          New-Item -ItemType Directory -Force -Path screenshots
-
-          # Function to take screenshot of the window only (not entire screen)
-          function Take-WindowScreenshot {
-            param([string]$name, [int]$wait=3)
-
-            Start-Sleep -Seconds $wait
-
-            # Get the app window handle
-            $hwnd = (Get-Process | Where-Object { $_.MainWindowTitle -like "*SimpMusic*" -or $_.MainWindowTitle -like "*Melophile*" } | Select-Object -First 1).MainWindowHandle
-            if (-not $hwnd) {
-              Write-Host "Window not found by title, trying by process name"
-              $hwnd = (Get-Process | Where-Object { $_.ProcessName -like "*Melophile*" -or $_.ProcessName -like "*simpmusic*" } | Select-Object -First 1).MainWindowHandle
-            }
-
-            if ($hwnd) {
-              # Use Win32 API to get window bounds
-              Add-Type @"
-                using System;
-                using System.Runtime.InteropServices;
-                public class Win32 {
-                  [DllImport("user32.dll")]
-                  public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
-                  [StructLayout(LayoutKind.Sequential)]
-                  public struct RECT { public int Left, Top, Right, Bottom; }
-                }
-"@
-              $rect = New-Object Win32+RECT
-              [Win32]::GetWindowRect($hwnd, [ref]$rect) | Out-Null
-              $width = $rect.Right - $rect.Left
-              $height = $rect.Bottom - $rect.Top
-              Write-Host "Window rect: $($rect.Left),$($rect.Top) ${width}x${height}"
-
-              Add-Type -AssemblyName System.Windows.Forms
-              Add-Type -AssemblyName System.Drawing
-              $bitmap = New-Object System.Drawing.Bitmap($width, $height)
-              $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
-              $graphics.CopyFromScreen($rect.Left, $rect.Top, 0, 0, (New-Object System.Drawing.Size($width, $height)))
-              $bitmap.Save("screenshots/$name.png", [System.Drawing.Imaging.ImageFormat]::Png)
-              $graphics.Dispose()
-              $bitmap.Dispose()
-              Write-Host "Captured: screenshots/$name.png (${width}x${height})"
-            } else {
-              Write-Host "WARNING: Could not find window, falling back to full screen"
-              # Fallback: take full screen and hope the window is visible
-              Add-Type -AssemblyName System.Windows.Forms
-              Add-Type -AssemblyName System.Drawing
-              $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
-              $bitmap = New-Object System.Drawing.Bitmap($bounds.Width, $bounds.Height)
-              $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
-              $graphics.CopyFromScreen($bounds.Location, [System.Drawing.Point]::Empty, $bounds.Size)
-              $bitmap.Save("screenshots/$name.png", [System.Drawing.Imaging.ImageFormat]::Png)
-              $graphics.Dispose()
-              $bitmap.Dispose()
-            }
-          }
-
-          # Function to click at absolute screen coordinates
-          function Click-Coordinate {
-            param([int]$x, [int]$y, [int]$wait=2)
-            Add-Type @"
-              using System;
-              using System.Runtime.InteropServices;
-              public class Mouse {
-                [DllImport("user32.dll")]
-                public static extern bool SetCursorPos(int X, int Y);
-                [DllImport("user32.dll")]
-                public static extern void mouse_event(uint dwFlags, int dx, int dy, int dwData, int dwExtraInfo);
-                public const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
-                public const uint MOUSEEVENTF_LEFTUP = 0x0004;
-              }
-"@
-            [Mouse]::SetCursorPos($x, $y)
-            Start-Sleep -Milliseconds 100
-            [Mouse]::mouse_event([Mouse]::MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
-            [Mouse]::mouse_event([Mouse]::MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
-            Write-Host "Clicked at ($x, $y)"
-            Start-Sleep -Seconds $wait
-          }
-
-          # Launch app
-          Write-Host "Launching app: $exePath"
-          $proc = Start-Process -FilePath $exePath -ArgumentList $appId -PassThru
-          Write-Host "Process started with PID: $($proc.Id)"
-
-          # Wait for app to fully load
-          Write-Host "Waiting 15s for app to load..."
-          Start-Sleep -Seconds 15
-
-          # --- Screenshot 1: Home ---
-          Write-Host "`n=== Screenshot: Home ==="
-          Take-WindowScreenshot -name "01-home" -wait 3
-
-          # --- Screenshot 2: Search (click on nav rail Search icon) ---
-          Write-Host "`n=== Navigating to Search ==="
-          Click-Coordinate -x ([int]$winX + [int]$navX) -y ([int]$winY + [int]$searchY) -wait 3
-          Take-WindowScreenshot -name "02-search" -wait 3
-
-          # --- Screenshot 3: Library ---
-          Write-Host "`n=== Navigating to Library ==="
-          Click-Coordinate -x ([int]$winX + [int]$navX) -y ([int]$winY + [int]$libraryY) -wait 3
-          Take-WindowScreenshot -name "03-library" -wait 3
-
-          # --- Screenshot 4: Settings ---
-          Write-Host "`n=== Navigating to Settings ==="
-          Click-Coordinate -x ([int]$winX + [int]$navX) -y ([int]$winY + [int]$settingsY) -wait 4
-          Take-WindowScreenshot -name "04-settings" -wait 4
-
-          # --- Navigate back to Home first ---
-          Write-Host "`n=== Back to Home ==="
-          Click-Coordinate -x ([int]$winX + [int]$navX) -y ([int]$winY + [int]$homeY) -wait 3
-
-          # --- Screenshot 5: Now Playing (if a track is playing) ---
-          # Try to open Now Playing by clicking on the mini player area
-          # Mini player is typically at the bottom center of the window
-          Write-Host "`n=== Trying to capture Now Playing ==="
-          $nowPlayingX = [int]$winX + [int]$env:WINDOW_WIDTH / 2
-          $nowPlayingY = [int]$winY + [int]$env:WINDOW_HEIGHT - 60
-          Click-Coordinate -x $nowPlayingX -y $nowPlayingY -wait 5
-          Take-WindowScreenshot -name "05-now-playing" -wait 3
-
-          # Press Escape to close Now Playing
-          [System.Windows.Forms.SendKeys]::SendWait("{ESC}")
-          Start-Sleep -Seconds 2
-
-          # --- Screenshot 6: Settings -> Playback (scroll to see playback settings) ---
-          Write-Host "`n=== Settings -> Playback section ==="
-          Click-Coordinate -x ([int]$winX + [int]$navX) -y ([int]$winY + [int]$settingsY) -wait 3
-          Take-WindowScreenshot -name "06-settings-playback" -wait 3
-
-          # --- Screenshot 7: Settings -> Appearance (scroll down to theme/appearance) ---
-          Write-Host "`n=== Scrolling Settings to Appearance ==="
-          # Scroll down in settings
-          [System.Windows.Forms.SendKeys]::SendWait("{PGDN}")
-          Start-Sleep -Seconds 2
-          [System.Windows.Forms.SendKeys]::SendWait("{PGDN}")
-          Start-Sleep -Seconds 2
-          Take-WindowScreenshot -name "07-settings-appearance" -wait 3
-
-          Write-Host "`n=== All screenshots captured! ==="
-          Get-ChildItem screenshots | ForEach-Object { Write-Host "  $($_.Name) - $($_.Length) bytes" }
-
-          # Kill the app
-          Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+          & "${{ github.workspace }}\.github\workflows\scripts\take-screenshots.ps1"
+        shell: pwsh
 
       - name: Upload Screenshots
         uses: actions/upload-artifact@v4
@@ -264,14 +98,6 @@ jobs:
 
       - name: Summary
         run: |
-          Write-Host "Screenshots captured successfully!"
-          Write-Host "Download artifacts from: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          Write-Host ""
-          Write-Host "Screenshots taken:"
-          Write-Host "  01-home.png - Home screen"
-          Write-Host "  02-search.png - Search screen"
-          Write-Host "  03-library.png - Library screen"
-          Write-Host "  04-settings.png - Settings screen"
-          Write-Host "  05-now-playing.png - Now Playing (if track was playing)"
-          Write-Host "  06-settings-playback.png - Settings Playback section"
-          Write-Host "  07-settings-appearance.png - Settings Appearance section"
+          Write-Host "Screenshots captured!"
+          Write-Host "Artifacts: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          Get-ChildItem screenshots | ForEach-Object { Write-Host "  $_" }
