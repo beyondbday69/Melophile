@@ -11,6 +11,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -36,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -176,15 +178,25 @@ fun ExpressiveSearchButtonGroup(
                 bottomEnd = endCorner,
             )
 
-            // Smooth tonal container and content color transitions
+            // Smooth tonal container, border and content color transitions (transparent background)
             val containerColor by animateColorAsState(
                 targetValue = when {
                     isSelected -> colorScheme.primaryContainer
-                    isPressed -> colorScheme.surfaceContainerHighest
-                    else -> colorScheme.surfaceContainerHigh
+                    isPressed -> colorScheme.surfaceContainerHighest.copy(alpha = 0.25f)
+                    else -> Color.Transparent
                 },
                 animationSpec = spring(stiffness = Spring.StiffnessMedium),
                 label = "m3ButtonContainerColor_${category.name}",
+            )
+
+            val borderColor by animateColorAsState(
+                targetValue = when {
+                    isSelected -> Color.Transparent
+                    isPressed -> colorScheme.primary.copy(alpha = 0.5f)
+                    else -> colorScheme.outlineVariant.copy(alpha = 0.5f)
+                },
+                animationSpec = spring(stiffness = Spring.StiffnessMedium),
+                label = "m3ButtonBorderColor_${category.name}",
             )
 
             val contentColor by animateColorAsState(
@@ -197,26 +209,15 @@ fun ExpressiveSearchButtonGroup(
                 label = "m3ButtonContentColor_${category.name}",
             )
 
-            val tonalElevation by animateDpAsState(
-                targetValue = if (isSelected) 3.dp else 0.dp,
-                animationSpec = spring(stiffness = Spring.StiffnessMedium),
-                label = "m3ButtonTonal_${category.name}",
-            )
-
-            val shadowElevation by animateDpAsState(
-                targetValue = if (isSelected) 1.dp else 0.dp,
-                animationSpec = spring(stiffness = Spring.StiffnessMedium),
-                label = "m3ButtonShadow_${category.name}",
-            )
-
             Surface(
                 onClick = { onSelectType(category) },
                 shape = buttonShape,
                 color = containerColor,
                 contentColor = contentColor,
+                border = BorderStroke(1.dp, borderColor),
                 interactionSource = interactionSource,
-                tonalElevation = tonalElevation,
-                shadowElevation = shadowElevation,
+                tonalElevation = 0.dp,
+                shadowElevation = 0.dp,
                 modifier = Modifier
                     .graphicsLayer {
                         scaleX = scale
