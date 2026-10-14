@@ -91,21 +91,43 @@ jobs:
 
           if (-not $app) {
             Write-Host "App not found in installed packages!"
-            Get-AppxPackage | Where-Object { $_.Name -like "*mel*" -or $_.Name -like "*simp*" }
             exit 1
           }
 
           Write-Host "Found: $($app.Name)"
-          $manifest = "$env:ProgramFiles\WindowsApps\$($app.PackageFullName)\AppxManifest.xml"
-          [xml]$xml = Get-Content $manifest
-          $exe = $xml.Package.Applications.Application.Executable
-          $appId = $xml.Package.Applications.Application.Id
+          Write-Host "PackageFullName: $($app.PackageFullName)"
+          Write-Host "InstallLocation: $($app.InstallLocation)"
 
-          Write-Host "Executable: $exe"
-          Write-Host "AppId: $appId"
+          # Try using Get-AppxPackageManifest for reliable extraction
+          try {
+            $manifestXml = [xml](Get-AppxPackageManifest -PackageId $app.PackageFullName)
+            $appElement = $manifestXml.Package.Applications.Application
+            $exe = $appElement.Executable
+            $appId = $appElement.Id
+
+            Write-Host "Executable (manifest): $exe"
+            Write-Host "AppId (manifest): $appId"
+          } catch {
+            Write-Host "Get-AppxPackageManifest failed: $_"
+            # Fallback: try reading AppxManifest.xml directly
+            $pf = $env:ProgramFiles
+            $manifest = "$pf\WindowsApps\$($app.PackageFullName)\AppxManifest.xml"
+            Write-Host "Trying manifest at: $manifest"
+            if (Test-Path $manifest) {
+              [xml]$xml = Get-Content $manifest -ErrorAction Stop
+              $appElem = $xml.Package.Applications.Application
+              $exe = $appElem.Executable
+              $appId = $appElem.Id
+              Write-Host "Executable (XML): $exe"
+              Write-Host "AppId (XML): $appId"
+            } else {
+              Write-Host "Manifest file not found at expected path"
+              exit 1
+            }
+          }
 
           "EXE_PATH=$exe" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
-          "APP_ID=$appId"  | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
+          "APP_ID=$appId" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
       - name: Run Screenshots
         env:
