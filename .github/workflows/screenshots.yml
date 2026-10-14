@@ -54,7 +54,7 @@ jobs:
             exit 1
           }
           Write-Host "Installing: $($msix.FullName)"
-          Add-AppxPackage -Path $msix.FullName -DependencyPackages @() -ForceApplicationShutdown
+          Add-AppxPackage -Path $msix.FullName -ForceApplicationShutdown
           Write-Host "MSIX installed"
 
       - name: Find App Executable
