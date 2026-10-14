@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
-$exePath = "${{ steps.find-app.outputs.EXE_PATH }}"
-$appId = "${{ steps.find-app.outputs.APP_ID }}"
+$exePath = $env:EXE_PATH
+$appId  = $env:APP_ID
 
 # Environment variables
 $navX = $env:NAV_X

@@ -108,6 +108,9 @@ jobs:
           "APP_ID=$appId"  | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8
 
       - name: Run Screenshots
+        env:
+          EXE_PATH: ${{ steps.find-app.outputs.EXE_PATH }}
+          APP_ID: ${{ steps.find-app.outputs.APP_ID }}
         run: |
           & "${{ github.workspace }}\.github\workflows\scripts\take-screenshots.ps1"
         shell: pwsh
