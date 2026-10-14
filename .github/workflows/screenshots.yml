@@ -46,6 +46,29 @@ jobs:
           gh release download $tag --pattern "*.msix" -R "${{ github.repository }}" --dir .
           Get-ChildItem -Filter "*.msix"
 
+      - name: Trust MSIX Certificate
+        run: |
+          $msix = Get-ChildItem -Filter "*.msix" | Select-Object -First 1
+          if (-not $msix) { Write-Host "No MSIX found!"; exit 1 }
+          Write-Host "MSIX: $($msix.FullName)"
+          # Extract signer certificate and install to TrustedPeople store
+          $sig = Get-AuthenticodeSignature -FilePath $msix.FullName
+          if ($sig.SignerCertificate) {
+            $cert = $sig.SignerCertificate
+            Write-Host "Signer: $($cert.Subject)"
+            $store = [System.Security.Cryptography.X509Certificates.X509Store]::new("TrustedPeople", "LocalMachine")
+            $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+            try {
+              $store.Add($cert)
+              Write-Host "Certificate added to TrustedPeople"
+            } catch {
+              Write-Host "Cert may already exist: $_"
+            }
+            $store.Close()
+          } else {
+            Write-Host "WARNING: No signer certificate found"
+          }
+
       - name: Install MSIX
         run: |
           $msix = Get-ChildItem -Filter "*.msix" | Select-Object -First 1
