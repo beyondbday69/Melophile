@@ -2,14 +2,9 @@ name: Build & Preview SimpMusic
 
 on:
   workflow_dispatch:
-  # push:
-  #   branches:
-  #     - main
-  #     - dev
-  # pull_request:
-  #   branches:
-  #     - main
-  #     - dev
+  push:
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -122,7 +117,7 @@ jobs:
           APPETIZE_TOKEN: ${{ secrets.APPETIZE_API_TOKEN }}
           APPETIZE_PUBLIC_KEY: "xlbp5fcq67yo5d2amk2rqqcasi"
         run: |
-          TOKEN="${APPETIZE_TOKEN:-tok_zju2qp2a6s6iak5zgyqeres2au}"
+          TOKEN="${APPETIZE_TOKEN:-tok_jrrw4lldoe3njadrnkrvjtjj7e}"
           APK_FILE="${{ env.PRIMARY_APK }}"
           echo "Deploying $APK_FILE to Appetize.io..."
           RESP=$(curl -s -u "$TOKEN:" \
