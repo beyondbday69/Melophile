@@ -101,8 +101,8 @@ jobs:
           Write-Host "InstallLocation: $installDir"
           Write-Host "PackageFullName: $packageId"
 
-          # Read manifest via Get-AppxPackageManifest
-          $manifestXml = Get-AppxPackageManifest -PackageId $packageId -ErrorAction Stop
+          # Read manifest via Get-AppxPackageManifest (pipe the package object)
+          $manifestXml = $app | Get-AppxPackageManifest -ErrorAction Stop
           $appElement  = $manifestXml.Package.Applications.Application
           $relativeExe = $appElement.Executable    # e.g. "bin\Melophile.exe"
           $appId       = $appElement.Id           # e.g. "App"
