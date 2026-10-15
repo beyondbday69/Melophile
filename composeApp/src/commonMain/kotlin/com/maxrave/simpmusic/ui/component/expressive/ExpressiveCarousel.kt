@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -30,8 +31,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,8 +51,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import coil3.request.CachePolicy
@@ -71,17 +76,45 @@ data class ExpressiveCarouselItem(
     val rawData: Any? = null,
 )
 
+private fun lerpFloat(start: Float, stop: Float, fraction: Float): Float = start + (stop - start) * fraction
+
+/**
+ * Distance of an item's center from the hero center in screen coordinates.
+ */
+private fun getCenterOffset(diff: Float): Dp {
+    val absDiff = kotlin.math.abs(diff)
+    val sign = if (diff < 0) -1f else 1f
+    val offset = when {
+        absDiff <= 1f -> absDiff * 161f
+        absDiff <= 2f -> 161f + (absDiff - 1f) * 86f
+        else -> 247f + (absDiff - 2f) * 72f
+    }
+    return (sign * offset).dp
+}
+
+/**
+ * Item width based on its distance from the active hero position.
+ * Hero is 214dp, adjacent items shrink to 92dp, outer items shrink to 64dp.
+ */
+private fun getItemWidth(diff: Float): Dp {
+    val absDiff = kotlin.math.abs(diff)
+    return when {
+        absDiff <= 1f -> lerpFloat(214f, 92f, absDiff).dp
+        absDiff <= 2f -> lerpFloat(92f, 64f, absDiff - 1f).dp
+        else -> 64.dp
+    }
+}
+
 /**
  * Expressive Carousel (Material 3 Expressive).
  *
  * - Height: 216dp, edge-to-edge.
- * - Hero width 214dp, adjacent 92dp, others 64dp.
- * - Hero is horizontally centered on screen.
- * - Widths and translation offset animate via spring(dampingRatio = 0.7f, stiffness = 380f).
- * - Hero shows bottom gradient scrim (title 21sp bold, subtitle 14sp) and top-right 44dp play button
- *   (radius 22dp paused, 14dp playing).
+ * - Hero item width 214dp, adjacent 92dp, others 64dp.
+ * - Windowed relative positioning: items are placed relative to screen center without unbounded display lists,
+ *   preventing OpenGL/RenderNode buffer limits and clipping regardless of how many items are present.
+ * - Hero shows bottom gradient scrim (title 21sp bold, subtitle 14sp) and top-right 44dp play button.
  * - Drag moves hero by one item per 46dp. Tap non-hero to center; tap hero to trigger action.
- * - Below: page indicator dots (8dp dots, active 24dp pill).
+ * - Below: page indicator dots (sliding 7-dot window when item count > 7, avoiding screen overflow).
  */
 @Composable
 fun ExpressiveCarousel(
@@ -96,11 +129,8 @@ fun ExpressiveCarousel(
 ) {
     if (items.isEmpty()) return
 
+    val currentHeroIndex by rememberUpdatedState(activeHeroIndex)
     val density = LocalDensity.current
-    val heroWidthDp = 214.dp
-    val adjacentWidthDp = 92.dp
-    val otherWidthDp = 64.dp
-    val gapDp = 8.dp
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -114,12 +144,12 @@ fun ExpressiveCarousel(
             val totalWidthDp = maxWidth
 
             // Horizontal drag gesture tracking
-            var accumulatedDrag by remember { mutableStateOf(0f) }
+            var accumulatedDrag by remember { mutableFloatStateOf(0f) }
             val dragThresholdPx = with(density) { 46.dp.toPx() }
 
             // Non-bouncy spring specs (critically damped: zero overshoot, zero bouncy oscillation)
             val nonBouncySpringDp = remember {
-                spring<androidx.compose.ui.unit.Dp>(
+                spring<Dp>(
                     dampingRatio = Spring.DampingRatioNoBouncy,
                     stiffness = Spring.StiffnessMediumLow,
                 )
@@ -131,55 +161,30 @@ fun ExpressiveCarousel(
                 )
             }
 
-            // Width of each item: centers active hero (214dp) while shrinking/squeezing adjacent (92dp) and others (64dp)
-            val itemWidths = items.mapIndexed { index, _ ->
-                val targetWidth = when {
-                    index == activeHeroIndex -> heroWidthDp
-                    kotlin.math.abs(index - activeHeroIndex) == 1 -> adjacentWidthDp
-                    else -> otherWidthDp
-                }
-                animateDpAsState(
-                    targetValue = targetWidth,
-                    animationSpec = nonBouncySpringDp,
-                    label = "carouselItemWidth_$index",
-                ).value
-            }
-
-            // Calculate target offset to center active hero card exactly in the viewport
-            var targetHeroStartX = 0.dp
-            for (i in 0 until activeHeroIndex) {
-                val targetW = when {
-                    kotlin.math.abs(i - activeHeroIndex) == 1 -> adjacentWidthDp
-                    else -> otherWidthDp
-                }
-                targetHeroStartX += targetW + gapDp
-            }
-            val targetHeroCenterInStrip = targetHeroStartX + heroWidthDp / 2
-            val targetTranslateX = (totalWidthDp / 2) - targetHeroCenterInStrip
-
-            val animatedTranslateX by animateFloatAsState(
-                targetValue = with(density) { targetTranslateX.toPx() },
+            // Smooth animated hero float position for fluid relative card placement
+            val animatedHeroFloat by animateFloatAsState(
+                targetValue = activeHeroIndex.toFloat(),
                 animationSpec = nonBouncySpringFloat,
-                label = "carouselTranslateX",
+                label = "carouselAnimatedHeroFloat",
             )
 
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .pointerInput(items.size, activeHeroIndex) {
+                    .pointerInput(items.size) {
                         detectHorizontalDragGestures(
                             onDragStart = { accumulatedDrag = 0f },
                             onHorizontalDrag = { change, dragAmount ->
                                 change.consume()
                                 accumulatedDrag += dragAmount
                                 if (accumulatedDrag > dragThresholdPx) {
-                                    if (activeHeroIndex > 0) {
-                                        onHeroIndexChange(activeHeroIndex - 1)
+                                    if (currentHeroIndex > 0) {
+                                        onHeroIndexChange(currentHeroIndex - 1)
                                     }
                                     accumulatedDrag = 0f
                                 } else if (accumulatedDrag < -dragThresholdPx) {
-                                    if (activeHeroIndex < items.size - 1) {
-                                        onHeroIndexChange(activeHeroIndex + 1)
+                                    if (currentHeroIndex < items.size - 1) {
+                                        onHeroIndexChange(currentHeroIndex + 1)
                                     }
                                     accumulatedDrag = 0f
                                 }
@@ -189,22 +194,30 @@ fun ExpressiveCarousel(
                         )
                     },
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .graphicsLayer {
-                            translationX = animatedTranslateX
-                        },
-                    horizontalArrangement = Arrangement.spacedBy(gapDp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    items.forEachIndexed { i, item ->
-                        val isHero = i == activeHeroIndex
-                        val isItemPlaying = isPlaying && item.id == playingItemId
+                // Windowed rendering: only compose visible items near the hero position
+                val heroInt = animatedHeroFloat.toInt()
+                val minVisible = (heroInt - 2).coerceAtLeast(0)
+                val maxVisible = (heroInt + 2).coerceAtMost(items.size - 1)
 
+                for (i in minVisible..maxVisible) {
+                    val item = items[i]
+                    val diff = i - animatedHeroFloat
+                    val width = getItemWidth(diff)
+                    val centerOffset = getCenterOffset(diff)
+                    val cardCenterX = totalWidthDp / 2 + centerOffset
+                    val cardStartX = cardCenterX - width / 2
+                    val isHero = i == activeHeroIndex
+                    val isItemPlaying = isPlaying && item.id == playingItemId
+
+                    Box(
+                        modifier = Modifier
+                            .offset(x = cardStartX)
+                            .width(width)
+                            .fillMaxHeight()
+                            .zIndex(if (isHero) 2f else if (kotlin.math.abs(diff) <= 1f) 1f else 0f),
+                    ) {
                         CarouselCard(
                             item = item,
-                            width = itemWidths[i],
                             isHero = isHero,
                             isPlaying = isItemPlaying,
                             onClick = {
@@ -223,35 +236,64 @@ fun ExpressiveCarousel(
             }
         }
 
-        // Page Indicator Dots
-        Row(
-            modifier = Modifier
-                .padding(top = 14.dp)
-                .height(8.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            items.forEachIndexed { i, _ ->
-                val isActive = i == activeHeroIndex
-                val dotWidth by animateDpAsState(
-                    targetValue = if (isActive) 24.dp else 8.dp,
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioNoBouncy,
-                        stiffness = Spring.StiffnessMediumLow,
-                    ),
-                    label = "dotWidth_$i",
+        // Page Indicator Dots: sliding window when total items > 7 to keep layout within screen bounds
+        if (items.size > 1) {
+            val maxVisibleDots = 7
+            val totalDots = items.size
+            val showSlidingWindow = totalDots > maxVisibleDots
+            val windowStart = if (showSlidingWindow) {
+                (activeHeroIndex - 3).coerceIn(0, totalDots - maxVisibleDots)
+            } else {
+                0
+            }
+            val windowEnd = if (showSlidingWindow) windowStart + maxVisibleDots else totalDots
+
+            val nonBouncyDotSpring = remember {
+                spring<Dp>(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessMediumLow,
                 )
-                val dotColor by animateColorAsState(
-                    targetValue = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-                    animationSpec = tween(150),
-                    label = "dotColor_$i",
-                )
-                Box(
-                    modifier = Modifier
-                        .size(width = dotWidth, height = 8.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(dotColor),
-                )
+            }
+
+            Row(
+                modifier = Modifier
+                    .padding(top = 14.dp)
+                    .height(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                for (i in windowStart until windowEnd) {
+                    val isActive = i == activeHeroIndex
+                    val isEdgeDot = showSlidingWindow && (
+                        (i == windowStart && windowStart > 0) ||
+                        (i == windowEnd - 1 && windowEnd < totalDots)
+                    )
+                    val targetDotWidth = when {
+                        isActive -> 24.dp
+                        isEdgeDot -> 4.dp
+                        else -> 8.dp
+                    }
+                    val dotWidth by animateDpAsState(
+                        targetValue = targetDotWidth,
+                        animationSpec = nonBouncyDotSpring,
+                        label = "dotWidth_$i",
+                    )
+                    val dotColor by animateColorAsState(
+                        targetValue = if (isActive) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.outlineVariant
+                        },
+                        animationSpec = tween(150),
+                        label = "dotColor_$i",
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(width = dotWidth, height = 8.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(dotColor),
+                    )
+                }
             }
         }
     }
@@ -260,7 +302,6 @@ fun ExpressiveCarousel(
 @Composable
 private fun CarouselCard(
     item: ExpressiveCarouselItem,
-    width: androidx.compose.ui.unit.Dp,
     isHero: Boolean,
     isPlaying: Boolean,
     onClick: () -> Unit,
@@ -302,8 +343,7 @@ private fun CarouselCard(
 
     Box(
         modifier = Modifier
-            .width(width)
-            .fillMaxHeight()
+            .fillMaxSize()
             .clip(cardShape)
             .graphicsLayer {
                 alpha = cardAlpha
