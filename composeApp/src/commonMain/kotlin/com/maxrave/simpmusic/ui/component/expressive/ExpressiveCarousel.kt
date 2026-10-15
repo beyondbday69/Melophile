@@ -97,10 +97,8 @@ fun ExpressiveCarousel(
     if (items.isEmpty()) return
 
     val density = LocalDensity.current
-    val heroWidthDp = 214.dp
-    val adjacentWidthDp = 92.dp
-    val otherWidthDp = 64.dp
-    val gapDp = 8.dp
+    val cardWidthDp = 214.dp
+    val gapDp = 12.dp
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -131,31 +129,11 @@ fun ExpressiveCarousel(
                 )
             }
 
-            // Width of each item
-            val itemWidths = items.mapIndexed { index, _ ->
-                val targetWidth = when {
-                    index == activeHeroIndex -> heroWidthDp
-                    kotlin.math.abs(index - activeHeroIndex) == 1 -> adjacentWidthDp
-                    else -> otherWidthDp
-                }
-                animateDpAsState(
-                    targetValue = targetWidth,
-                    animationSpec = nonBouncySpringDp,
-                    label = "carouselItemWidth_$index",
-                ).value
-            }
-
-            // Calculate target offset to center active hero card exactly in the viewport
-            var targetHeroStartX = 0.dp
-            for (i in 0 until activeHeroIndex) {
-                val targetW = when {
-                    kotlin.math.abs(i - activeHeroIndex) == 1 -> adjacentWidthDp
-                    else -> otherWidthDp
-                }
-                targetHeroStartX += targetW + gapDp
-            }
-            val targetHeroCenterInStrip = targetHeroStartX + heroWidthDp / 2
-            val targetTranslateX = (totalWidthDp / 2) - targetHeroCenterInStrip
+            // Target offset to center the active song card exactly at the horizontal center of the screen.
+            // Shape and width remain completely fixed across all items — no shape changes when centered.
+            val heroStartX = activeHeroIndex * (cardWidthDp + gapDp)
+            val heroCenterInStrip = heroStartX + cardWidthDp / 2
+            val targetTranslateX = (totalWidthDp / 2) - heroCenterInStrip
 
             val animatedTranslateX by animateFloatAsState(
                 targetValue = with(density) { targetTranslateX.toPx() },
@@ -201,11 +179,10 @@ fun ExpressiveCarousel(
                     items.forEachIndexed { i, item ->
                         val isHero = i == activeHeroIndex
                         val isItemPlaying = isPlaying && item.id == playingItemId
-                        val width = itemWidths[i]
 
                         CarouselCard(
                             item = item,
-                            width = width,
+                            width = cardWidthDp,
                             isHero = isHero,
                             isPlaying = isItemPlaying,
                             onClick = {
@@ -269,15 +246,18 @@ private fun CarouselCard(
 ) {
     var isPressed by remember { mutableStateOf(false) }
 
-    val animatedRadius by animateDpAsState(
-        targetValue = if (isPressed) 20.dp else 28.dp,
+    // Constant invariant shape: 24dp rounded corners across all states — does not morph
+    val cardShape = remember { RoundedCornerShape(24.dp) }
+
+    // Side songs dimmed for enhanced visual contrast and focus on centered song
+    val cardAlpha by animateFloatAsState(
+        targetValue = if (isHero) 1.0f else 0.45f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioNoBouncy,
             stiffness = Spring.StiffnessMediumLow,
         ),
-        label = "cardRadius",
+        label = "cardAlpha",
     )
-    val cardShape = remember(animatedRadius) { RoundedCornerShape(animatedRadius) }
 
     val playBtnRadius by animateDpAsState(
         targetValue = if (isPlaying) 14.dp else 22.dp,
@@ -293,6 +273,9 @@ private fun CarouselCard(
             .width(width)
             .fillMaxHeight()
             .clip(cardShape)
+            .graphicsLayer {
+                alpha = cardAlpha
+            }
             .semantics { role = Role.Button }
             .pressFeedback(
                 minDurationMs = 130L,
@@ -329,6 +312,15 @@ private fun CarouselCard(
                     modifier = Modifier.size(if (isHero) 56.dp else 28.dp),
                 )
             }
+        }
+
+        // Dimming overlay on side cards for enhanced focal depth and contrast
+        if (!isHero) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.25f)),
+            )
         }
 
         // Overlay & controls only visible on hero
