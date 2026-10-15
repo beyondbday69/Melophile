@@ -115,6 +115,20 @@ fun ExpressiveCarousel(
             var accumulatedDrag by remember { mutableStateOf(0f) }
             val dragThresholdPx = with(density) { 46.dp.toPx() }
 
+            // Non-bouncy spring specs (critically damped: zero overshoot, zero bouncy oscillation)
+            val nonBouncySpringDp = remember {
+                spring<androidx.compose.ui.unit.Dp>(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessMediumLow,
+                )
+            }
+            val nonBouncySpringFloat = remember {
+                spring<Float>(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessMediumLow,
+                )
+            }
+
             // Width of each item
             val itemWidths = items.mapIndexed { index, _ ->
                 val targetWidth = when {
@@ -124,22 +138,26 @@ fun ExpressiveCarousel(
                 }
                 animateDpAsState(
                     targetValue = targetWidth,
-                    animationSpec = expressiveSpring(),
+                    animationSpec = nonBouncySpringDp,
                     label = "carouselItemWidth_$index",
                 ).value
             }
 
-            // Calculate offset of hero in strip and target translation to center hero
-            var heroStartX = 0.dp
+            // Calculate target offset to center active hero card exactly in the viewport
+            var targetHeroStartX = 0.dp
             for (i in 0 until activeHeroIndex) {
-                heroStartX += itemWidths[i] + gapDp
+                val targetW = when {
+                    kotlin.math.abs(i - activeHeroIndex) == 1 -> adjacentWidthDp
+                    else -> otherWidthDp
+                }
+                targetHeroStartX += targetW + gapDp
             }
-            val heroCenterInStrip = heroStartX + itemWidths[activeHeroIndex] / 2
-            val targetTranslateX = (totalWidthDp / 2) - heroCenterInStrip
+            val targetHeroCenterInStrip = targetHeroStartX + heroWidthDp / 2
+            val targetTranslateX = (totalWidthDp / 2) - targetHeroCenterInStrip
 
             val animatedTranslateX by animateFloatAsState(
                 targetValue = with(density) { targetTranslateX.toPx() },
-                animationSpec = expressiveSpring(),
+                animationSpec = nonBouncySpringFloat,
                 label = "carouselTranslateX",
             )
 
@@ -216,7 +234,10 @@ fun ExpressiveCarousel(
                 val isActive = i == activeHeroIndex
                 val dotWidth by animateDpAsState(
                     targetValue = if (isActive) 24.dp else 8.dp,
-                    animationSpec = expressiveSpring(),
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMediumLow,
+                    ),
                     label = "dotWidth_$i",
                 )
                 val dotColor by animateColorAsState(
@@ -248,14 +269,20 @@ private fun CarouselCard(
 
     val animatedRadius by animateDpAsState(
         targetValue = if (isPressed) 20.dp else 28.dp,
-        animationSpec = expressiveSpring(),
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow,
+        ),
         label = "cardRadius",
     )
     val cardShape = remember(animatedRadius) { RoundedCornerShape(animatedRadius) }
 
     val playBtnRadius by animateDpAsState(
         targetValue = if (isPlaying) 14.dp else 22.dp,
-        animationSpec = expressiveSpring(),
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow,
+        ),
         label = "playBtnRadius",
     )
 

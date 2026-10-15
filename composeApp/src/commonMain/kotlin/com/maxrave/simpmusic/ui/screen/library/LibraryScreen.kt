@@ -73,7 +73,7 @@ import com.maxrave.simpmusic.ui.component.ArtistFullWidthItems
 import com.maxrave.simpmusic.ui.component.NowPlayingBottomSheet
 import com.maxrave.simpmusic.ui.component.PlaylistFullWidthItems
 import com.maxrave.simpmusic.ui.component.SongFullWidthItems
-import com.maxrave.simpmusic.ui.component.expressive.ConnectedSegmentedGroup
+import com.maxrave.simpmusic.ui.component.ExpressiveLibraryButtonGroup
 import com.maxrave.simpmusic.ui.component.expressive.ExpressiveCarousel
 import com.maxrave.simpmusic.ui.component.expressive.ExpressiveCarouselItem
 import com.maxrave.simpmusic.ui.component.expressive.QuickAccessGrid
@@ -369,17 +369,11 @@ fun LibraryScreen(
                 }
             }
 
-            // 2. Connected Segmented Group (margin top 12dp, bottom 14dp, padding horizontal 16dp)
-            Spacer(modifier = Modifier.height(12.dp))
-            ConnectedSegmentedGroup(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                segments = listOf(
-                    stringResource(Res.string.your_library),
-                    stringResource(Res.string.songs),
-                    stringResource(Res.string.playlists),
-                ),
-                selectedIndex = selectedTab,
-                onSegmentSelected = { newIndex ->
+            // 2. Expressive Button Group (same style as Home & Search screens)
+            Spacer(modifier = Modifier.height(10.dp))
+            ExpressiveLibraryButtonGroup(
+                selectedTab = selectedTab,
+                onSelectTab = { newIndex ->
                     selectedTab = newIndex
                     activeHeroIndex = 0
                     when (newIndex) {
@@ -391,8 +385,11 @@ fun LibraryScreen(
                         }
                     }
                 },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp),
             )
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             // 3. Quick Access Grid (2 columns 1.12 : 1, 2 rows of 76dp, gap 8dp, padding horizontal 16dp)
             val favCountText = "${favoriteSongs.size} songs"
