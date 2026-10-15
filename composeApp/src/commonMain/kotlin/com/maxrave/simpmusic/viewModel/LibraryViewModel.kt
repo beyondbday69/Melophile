@@ -99,6 +99,10 @@ class LibraryViewModel(
         MutableStateFlow(LocalResource.Loading())
     val chartPlaylists: StateFlow<LocalResource<List<ChartItem>>> get() = _chartPlaylists.asStateFlow()
 
+    private val _recentSongs: MutableStateFlow<LocalResource<List<SongEntity>>> =
+        MutableStateFlow(LocalResource.Loading())
+    val recentSongs: StateFlow<LocalResource<List<SongEntity>>> get() = _recentSongs.asStateFlow()
+
     private val _listCanvasSong: MutableStateFlow<LocalResource<List<SongEntity>>> =
         MutableStateFlow(LocalResource.Loading())
     val listCanvasSong: StateFlow<LocalResource<List<SongEntity>>> get() = _listCanvasSong.asStateFlow()
@@ -185,6 +189,15 @@ class LibraryViewModel(
                 }
                 temp.reverse()
                 _recentlyAdded.value = LocalResource.Success(temp.toImmutableList())
+            }
+        }
+    }
+
+    fun getRecentSongs() {
+        viewModelScope.launch {
+            songRepository.getAllSongs(100).collectLatest { songs ->
+                val filtered = songs.filter { it.inLibrary != Config.REMOVED_SONG_DATE_TIME }
+                _recentSongs.value = LocalResource.Success(filtered.toImmutableList())
             }
         }
     }
@@ -383,11 +396,13 @@ class LibraryViewModel(
 
     fun deleteSong(videoId: String) {
         _recentlyAdded.value = LocalResource.Loading()
+        _recentSongs.value = LocalResource.Loading()
         viewModelScope.launch {
             songRepository.setInLibrary(videoId, Config.REMOVED_SONG_DATE_TIME)
             songRepository.resetTotalPlayTime(videoId)
             delay(500) // Wait for the database to update
             getRecentlyAdded()
+            getRecentSongs()
         }
     }
 

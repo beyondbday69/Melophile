@@ -3,6 +3,7 @@ package com.maxrave.simpmusic.ui.screen.library
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -57,15 +58,21 @@ import com.maxrave.domain.data.entities.AlbumEntity
 import com.maxrave.domain.data.entities.ArtistEntity
 import com.maxrave.domain.data.entities.LocalPlaylistEntity
 import com.maxrave.domain.data.entities.PlaylistEntity
+import com.maxrave.domain.data.entities.PodcastsEntity
 import com.maxrave.domain.data.entities.SongEntity
 import com.maxrave.domain.data.model.searchResult.playlists.PlaylistsResult
 import com.maxrave.domain.data.type.ChartItem
+import com.maxrave.domain.data.type.PlaylistType
 import com.maxrave.domain.data.type.RecentlyType
 import com.maxrave.domain.mediaservice.handler.PlaylistType as DomainPlaylistType
 import com.maxrave.domain.mediaservice.handler.QueueData
 import com.maxrave.domain.utils.toTrack
 import com.maxrave.logger.Logger
 import com.maxrave.simpmusic.ui.component.AddToPlaylistModalBottomSheet
+import com.maxrave.simpmusic.ui.component.ArtistFullWidthItems
+import com.maxrave.simpmusic.ui.component.NowPlayingBottomSheet
+import com.maxrave.simpmusic.ui.component.PlaylistFullWidthItems
+import com.maxrave.simpmusic.ui.component.SongFullWidthItems
 import com.maxrave.simpmusic.ui.component.expressive.ConnectedSegmentedGroup
 import com.maxrave.simpmusic.ui.component.expressive.ExpressiveCarousel
 import com.maxrave.simpmusic.ui.component.expressive.ExpressiveCarouselItem
@@ -75,6 +82,7 @@ import com.maxrave.simpmusic.ui.component.expressive.pressFeedback
 import com.maxrave.simpmusic.ui.component.selection.SelectedSongsBottomSheet
 import com.maxrave.simpmusic.ui.component.selection.SongSelectionTopAppBar
 import com.maxrave.simpmusic.ui.component.selection.rememberSongSelectionState
+import com.maxrave.simpmusic.ui.icon.Add
 import com.maxrave.simpmusic.ui.icon.Groups
 import com.maxrave.simpmusic.ui.icon.SimpIcons
 import com.maxrave.simpmusic.ui.navigation.destination.home.ListenTogetherDestination
@@ -83,6 +91,7 @@ import com.maxrave.simpmusic.ui.navigation.destination.list.AlbumDestination
 import com.maxrave.simpmusic.ui.navigation.destination.list.ArtistDestination
 import com.maxrave.simpmusic.ui.navigation.destination.list.LocalPlaylistDestination
 import com.maxrave.simpmusic.ui.navigation.destination.list.PlaylistDestination
+import com.maxrave.simpmusic.ui.navigation.destination.list.PodcastDestination
 import com.maxrave.simpmusic.viewModel.LibraryDynamicPlaylistViewModel
 import com.maxrave.simpmusic.viewModel.LibraryViewModel
 import com.maxrave.simpmusic.viewModel.SharedViewModel
@@ -95,13 +104,13 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import simpmusic.composeapp.generated.resources.Res
-import simpmusic.composeapp.generated.resources.chart
 import simpmusic.composeapp.generated.resources.create
 import simpmusic.composeapp.generated.resources.library
 import simpmusic.composeapp.generated.resources.playlist_name
 import simpmusic.composeapp.generated.resources.playlist_name_cannot_be_empty
+import simpmusic.composeapp.generated.resources.playlists
 import simpmusic.composeapp.generated.resources.recently_added
-import simpmusic.composeapp.generated.resources.simpmusic_charts
+import simpmusic.composeapp.generated.resources.songs
 import simpmusic.composeapp.generated.resources.your_library
 import simpmusic.composeapp.generated.resources.your_playlists
 
@@ -129,7 +138,7 @@ fun LibraryScreen(
 
     val nowPlaying by viewModel.nowPlayingVideoId.collectAsStateWithLifecycle()
     val recentlyAdded by viewModel.recentlyAdded.collectAsStateWithLifecycle()
-    val chartPlaylists by viewModel.chartPlaylists.collectAsStateWithLifecycle()
+    val recentSongs by viewModel.recentSongs.collectAsStateWithLifecycle()
     val yourLocalPlaylist by viewModel.yourLocalPlaylist.collectAsStateWithLifecycle()
     val youTubePlaylist by viewModel.youTubePlaylist.collectAsStateWithLifecycle()
 
@@ -145,13 +154,15 @@ fun LibraryScreen(
     var showSelectionSheet by rememberSaveable { mutableStateOf(false) }
     var showSelectionAddToPlaylist by rememberSaveable { mutableStateOf(false) }
     var showAddSheet by remember { mutableStateOf(false) }
+    var songEntityForBottomSheet by remember { mutableStateOf<SongEntity?>(null) }
+    var showSongBottomSheet by remember { mutableStateOf(false) }
 
     var selectedTab by rememberSaveable { mutableStateOf(0) }
     var activeHeroIndex by rememberSaveable { mutableStateOf(0) }
 
     LaunchedEffect(Unit) {
         viewModel.getRecentlyAdded()
-        viewModel.getChartPlaylists()
+        viewModel.getRecentSongs()
         viewModel.getLocalPlaylist()
         viewModel.getYouTubePlaylist()
     }
@@ -159,6 +170,7 @@ fun LibraryScreen(
     LaunchedEffect(nowPlaying) {
         Logger.w("LibraryScreen", "Check nowPlaying: $nowPlaying")
         viewModel.getRecentlyAdded()
+        viewModel.getRecentSongs()
     }
 
     LaunchedEffect(scrollState) {
@@ -172,7 +184,7 @@ fun LibraryScreen(
     val carouselItems = remember(
         selectedTab,
         recentlyAdded.data,
-        chartPlaylists.data,
+        recentSongs.data,
         yourLocalPlaylist.data,
         youTubePlaylist.data,
     ) {
@@ -230,16 +242,16 @@ fun LibraryScreen(
                 }
             }
             1 -> {
-                val list = chartPlaylists.data ?: emptyList()
-                list.mapIndexed { idx, chart ->
+                val list = recentSongs.data ?: emptyList()
+                list.mapIndexed { idx, song ->
                     val gradient = gradientPresets[idx % gradientPresets.size]
                     ExpressiveCarouselItem(
-                        id = chart.ytPlaylistId,
-                        title = chart.name,
-                        subtitle = "Chart",
-                        imageUrl = null,
+                        id = song.videoId,
+                        title = song.title,
+                        subtitle = song.artistName?.joinToString(", ") ?: "Song",
+                        imageUrl = song.thumbnails,
                         gradientColors = gradient,
-                        rawData = chart,
+                        rawData = song,
                     )
                 }
             }
@@ -296,11 +308,13 @@ fun LibraryScreen(
                     state = selectionState,
                     windowInsets = WindowInsets(0),
                     onSelectAll = {
-                        selectionState.toggleSelectAll(
-                            (recentlyAdded.data ?: emptyList())
+                        val ids = when (selectedTab) {
+                            1 -> (recentSongs.data ?: emptyList()).map { it.videoId }
+                            else -> (recentlyAdded.data ?: emptyList())
                                 .filterIsInstance<SongEntity>()
-                                .map { it.videoId },
-                        )
+                                .map { it.videoId }
+                        }
+                        selectionState.toggleSelectAll(ids)
                     },
                     onOpenActions = { showSelectionSheet = true },
                     containerColor = Color.Transparent,
@@ -361,8 +375,8 @@ fun LibraryScreen(
                 modifier = Modifier.padding(horizontal = 16.dp),
                 segments = listOf(
                     stringResource(Res.string.your_library),
-                    stringResource(Res.string.simpmusic_charts),
-                    stringResource(Res.string.your_playlists),
+                    stringResource(Res.string.songs),
+                    stringResource(Res.string.playlists),
                 ),
                 selectedIndex = selectedTab,
                 onSegmentSelected = { newIndex ->
@@ -370,7 +384,7 @@ fun LibraryScreen(
                     activeHeroIndex = 0
                     when (newIndex) {
                         0 -> viewModel.getRecentlyAdded()
-                        1 -> viewModel.getChartPlaylists()
+                        1 -> viewModel.getRecentSongs()
                         2 -> {
                             viewModel.getLocalPlaylist()
                             viewModel.getYouTubePlaylist()
@@ -416,7 +430,7 @@ fun LibraryScreen(
             // 4. Section Header (margin top 22dp, bottom 10dp, padding horizontal 20dp)
             val sectionTitle = when (selectedTab) {
                 0 -> stringResource(Res.string.recently_added)
-                1 -> stringResource(Res.string.chart)
+                1 -> stringResource(Res.string.songs)
                 else -> stringResource(Res.string.your_playlists)
             }
             val totalCount = carouselItems.size
@@ -530,6 +544,211 @@ fun LibraryScreen(
                     },
                 )
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            when (selectedTab) {
+                0 -> {
+                    val list = (recentlyAdded.data ?: emptyList()).filterIsInstance<RecentlyType>()
+                    if (list.isNotEmpty()) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp),
+                        ) {
+                            list.forEach { item ->
+                                when (item.objectType()) {
+                                    RecentlyType.Type.SONG -> {
+                                        val song = item as SongEntity
+                                        SongFullWidthItems(
+                                            songEntity = song,
+                                            isPlaying = song.videoId == nowPlaying && isMediaPlaying,
+                                            modifier = Modifier,
+                                            onMoreClickListener = {
+                                                songEntityForBottomSheet = song
+                                                showSongBottomSheet = true
+                                            },
+                                            onClickListener = {
+                                                viewModel.setQueueData(
+                                                    QueueData.Data(
+                                                        listTracks = arrayListOf(song.toTrack()),
+                                                        firstPlayedTrack = song.toTrack(),
+                                                        playlistId = "RDAMVM${song.videoId}",
+                                                        playlistName = song.title,
+                                                        playlistType = DomainPlaylistType.RADIO,
+                                                        continuation = null,
+                                                    ),
+                                                )
+                                                viewModel.loadMediaItem(
+                                                    song,
+                                                    type = Config.SONG_CLICK,
+                                                    index = 0,
+                                                )
+                                            },
+                                            selectionMode = selectionState.isActive,
+                                            isSelected = selectionState.isSelected(song.videoId),
+                                            onLongClick = { id -> selectionState.start(id) },
+                                            onSelectToggle = { id -> selectionState.toggle(id) },
+                                            onAddToQueue = {
+                                                sharedViewModel.addListToQueue(
+                                                    arrayListOf(song.toTrack()),
+                                                )
+                                            },
+                                        )
+                                    }
+                                    RecentlyType.Type.ARTIST -> {
+                                        val artist = item as ArtistEntity
+                                        ArtistFullWidthItems(
+                                            data = artist,
+                                            onClickListener = {
+                                                navController.navigate(
+                                                    ArtistDestination(channelId = artist.channelId),
+                                                )
+                                            },
+                                        )
+                                    }
+                                    else -> {
+                                        if (item is PlaylistType) {
+                                            PlaylistFullWidthItems(
+                                                data = item,
+                                                onClickListener = {
+                                                    when (item) {
+                                                        is AlbumEntity -> {
+                                                            navController.navigate(AlbumDestination(item.browseId))
+                                                        }
+                                                        is PlaylistEntity -> {
+                                                            navController.navigate(PlaylistDestination(item.id))
+                                                        }
+                                                        is PodcastsEntity -> {
+                                                            navController.navigate(PodcastDestination(item.podcastId))
+                                                        }
+                                                    }
+                                                },
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                1 -> {
+                    val songs = recentSongs.data ?: emptyList()
+                    if (songs.isNotEmpty()) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 4.dp),
+                        ) {
+                            songs.forEach { song ->
+                                SongFullWidthItems(
+                                    songEntity = song,
+                                    isPlaying = song.videoId == nowPlaying && isMediaPlaying,
+                                    modifier = Modifier,
+                                    onMoreClickListener = {
+                                        songEntityForBottomSheet = song
+                                        showSongBottomSheet = true
+                                    },
+                                    onClickListener = {
+                                        viewModel.setQueueData(
+                                            QueueData.Data(
+                                                listTracks = arrayListOf(song.toTrack()),
+                                                firstPlayedTrack = song.toTrack(),
+                                                playlistId = "RDAMVM${song.videoId}",
+                                                playlistName = song.title,
+                                                playlistType = DomainPlaylistType.RADIO,
+                                                continuation = null,
+                                            ),
+                                        )
+                                        viewModel.loadMediaItem(
+                                            song,
+                                            type = Config.SONG_CLICK,
+                                            index = 0,
+                                        )
+                                    },
+                                    selectionMode = selectionState.isActive,
+                                    isSelected = selectionState.isSelected(song.videoId),
+                                    onLongClick = { id -> selectionState.start(id) },
+                                    onSelectToggle = { id -> selectionState.toggle(id) },
+                                    onAddToQueue = {
+                                        sharedViewModel.addListToQueue(
+                                            arrayListOf(song.toTrack()),
+                                        )
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+                2 -> {
+                    val localList = yourLocalPlaylist.data ?: emptyList()
+                    val ytList = youTubePlaylist.data ?: emptyList()
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(16.dp))
+                                .clickable { showAddSheet = true },
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(MaterialTheme.colorScheme.primaryContainer),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(
+                                        imageVector = SimpIcons.Add,
+                                        contentDescription = "Create playlist",
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.size(24.dp),
+                                    )
+                                }
+                                Column {
+                                    Text(
+                                        text = stringResource(Res.string.create),
+                                        style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                    )
+                                    Text(
+                                        text = stringResource(Res.string.playlist_name),
+                                        style = TextStyle(fontSize = 13.sp),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        }
+
+                        localList.forEach { pl ->
+                            PlaylistFullWidthItems(
+                                data = pl,
+                                onClickListener = {
+                                    navController.navigate(LocalPlaylistDestination(pl.id))
+                                },
+                            )
+                        }
+                        ytList.forEach { yt ->
+                            PlaylistFullWidthItems(
+                                data = yt,
+                                onClickListener = {
+                                    navController.navigate(PlaylistDestination(yt.browseId))
+                                },
+                            )
+                        }
+                    }
+                }
+            }
         }
 
         // Create Playlist Dialog / BottomSheet
@@ -638,6 +857,21 @@ fun LibraryScreen(
                     selectionState.exit()
                 },
                 onYTPlaylistClick = {},
+            )
+        }
+
+        // Song Options Bottom Sheet
+        if (showSongBottomSheet && songEntityForBottomSheet != null) {
+            NowPlayingBottomSheet(
+                onDismiss = {
+                    showSongBottomSheet = false
+                    songEntityForBottomSheet = null
+                },
+                navController = navController,
+                song = songEntityForBottomSheet,
+                onLibraryDelete = {
+                    songEntityForBottomSheet?.videoId?.let { viewModel.deleteSong(it) }
+                },
             )
         }
     }

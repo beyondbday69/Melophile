@@ -49,6 +49,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import coil3.compose.LocalPlatformContext
+import coil3.request.CachePolicy
+import coil3.request.ImageRequest
+import com.maxrave.simpmusic.ui.icon.LibraryMusic
 import com.maxrave.simpmusic.ui.icon.Pause
 import com.maxrave.simpmusic.ui.icon.PlayArrow
 import com.maxrave.simpmusic.ui.icon.SimpIcons
@@ -275,11 +279,27 @@ private fun CarouselCard(
         // Thumbnail Image
         if (!item.imageUrl.isNullOrEmpty()) {
             AsyncImage(
-                model = item.imageUrl,
+                model = ImageRequest.Builder(LocalPlatformContext.current)
+                    .data(item.imageUrl)
+                    .diskCachePolicy(CachePolicy.ENABLED)
+                    .diskCacheKey(item.imageUrl)
+                    .build(),
                 contentDescription = item.title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),
             )
+        } else {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = SimpIcons.LibraryMusic,
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.35f),
+                    modifier = Modifier.size(if (isHero) 56.dp else 28.dp),
+                )
+            }
         }
 
         // Overlay & controls only visible on hero
