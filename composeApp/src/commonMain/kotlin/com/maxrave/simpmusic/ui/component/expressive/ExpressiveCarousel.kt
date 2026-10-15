@@ -97,8 +97,10 @@ fun ExpressiveCarousel(
     if (items.isEmpty()) return
 
     val density = LocalDensity.current
-    val cardWidthDp = 214.dp
-    val gapDp = 12.dp
+    val heroWidthDp = 214.dp
+    val adjacentWidthDp = 92.dp
+    val otherWidthDp = 64.dp
+    val gapDp = 8.dp
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -129,11 +131,31 @@ fun ExpressiveCarousel(
                 )
             }
 
-            // Target offset to center the active song card exactly at the horizontal center of the screen.
-            // Shape and width remain completely fixed across all items — no shape changes when centered.
-            val heroStartX = (cardWidthDp + gapDp) * activeHeroIndex
-            val heroCenterInStrip = heroStartX + cardWidthDp / 2
-            val targetTranslateX = (totalWidthDp / 2) - heroCenterInStrip
+            // Width of each item: centers active hero (214dp) while shrinking/squeezing adjacent (92dp) and others (64dp)
+            val itemWidths = items.mapIndexed { index, _ ->
+                val targetWidth = when {
+                    index == activeHeroIndex -> heroWidthDp
+                    kotlin.math.abs(index - activeHeroIndex) == 1 -> adjacentWidthDp
+                    else -> otherWidthDp
+                }
+                animateDpAsState(
+                    targetValue = targetWidth,
+                    animationSpec = nonBouncySpringDp,
+                    label = "carouselItemWidth_$index",
+                ).value
+            }
+
+            // Calculate target offset to center active hero card exactly in the viewport
+            var targetHeroStartX = 0.dp
+            for (i in 0 until activeHeroIndex) {
+                val targetW = when {
+                    kotlin.math.abs(i - activeHeroIndex) == 1 -> adjacentWidthDp
+                    else -> otherWidthDp
+                }
+                targetHeroStartX += targetW + gapDp
+            }
+            val targetHeroCenterInStrip = targetHeroStartX + heroWidthDp / 2
+            val targetTranslateX = (totalWidthDp / 2) - targetHeroCenterInStrip
 
             val animatedTranslateX by animateFloatAsState(
                 targetValue = with(density) { targetTranslateX.toPx() },
@@ -182,7 +204,7 @@ fun ExpressiveCarousel(
 
                         CarouselCard(
                             item = item,
-                            width = cardWidthDp,
+                            width = itemWidths[i],
                             isHero = isHero,
                             isPlaying = isItemPlaying,
                             onClick = {
@@ -246,8 +268,18 @@ private fun CarouselCard(
 ) {
     var isPressed by remember { mutableStateOf(false) }
 
-    // Constant invariant shape: 24dp rounded corners across all states — does not morph
-    val cardShape = remember { RoundedCornerShape(24.dp) }
+    // Constant invariant rounded corners: 28dp across all states — does NOT morph when touched!
+    val cardShape = remember { RoundedCornerShape(28.dp) }
+
+    // Tactile press scale gives physical touch feedback without changing corner radius
+    val pressScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.96f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow,
+        ),
+        label = "pressScale",
+    )
 
     // Side songs dimmed for enhanced visual contrast and focus on centered song
     val cardAlpha by animateFloatAsState(
@@ -275,6 +307,8 @@ private fun CarouselCard(
             .clip(cardShape)
             .graphicsLayer {
                 alpha = cardAlpha
+                scaleX = pressScale
+                scaleY = pressScale
             }
             .semantics { role = Role.Button }
             .pressFeedback(
