@@ -132,6 +132,21 @@ private fun getCardAlpha(diff: Float): Float {
 }
 
 /**
+ * Continuous hero text alpha: fades smoothly from 1.0f when centered (absDiff <= 0.15f)
+ * down to 0.0f when moving towards adjacent positions (absDiff >= 0.65f).
+ * Bound 1:1 to continuous drag/spring coordinates so title, artist, and scrim never
+ * pop or lag behind gestures.
+ */
+private fun getHeroTextAlpha(diff: Float): Float {
+    val absDiff = kotlin.math.abs(diff)
+    return when {
+        absDiff <= 0.15f -> 1.0f
+        absDiff <= 0.65f -> lerpFloat(1.0f, 0.0f, (absDiff - 0.15f) / 0.50f)
+        else -> 0.0f
+    }
+}
+
+/**
  * Expressive Carousel (Material 3 Expressive).
  *
  * - Height: 216dp, edge-to-edge.
@@ -246,6 +261,7 @@ fun ExpressiveCarousel(
                         val cardCenterX = totalWidthDp / 2 + centerOffset
                         val cardStartX = cardCenterX - width / 2
                         val cardAlpha = getCardAlpha(diff)
+                        val heroTextAlpha = getHeroTextAlpha(diff)
                         val isHero = kotlin.math.abs(diff) < 0.5f
                         val isItemPlaying = isPlaying && item.id == playingItemId
 
@@ -259,6 +275,7 @@ fun ExpressiveCarousel(
                             CarouselCard(
                                 item = item,
                                 cardAlpha = cardAlpha,
+                                heroTextAlpha = heroTextAlpha,
                                 isHero = isHero,
                                 isPlaying = isItemPlaying,
                                 onClick = {
@@ -345,6 +362,7 @@ fun ExpressiveCarousel(
 private fun CarouselCard(
     item: ExpressiveCarouselItem,
     cardAlpha: Float,
+    heroTextAlpha: Float,
     isHero: Boolean,
     isPlaying: Boolean,
     onClick: () -> Unit,
@@ -364,7 +382,6 @@ private fun CarouselCard(
         ),
         label = "pressScale",
     )
-
 
     val playBtnRadius by animateDpAsState(
         targetValue = if (isPlaying) 14.dp else 22.dp,
@@ -422,23 +439,25 @@ private fun CarouselCard(
             }
         }
 
-        // Dimming overlay on side cards for enhanced focal depth and contrast
-        if (!isHero) {
+        // Continuous dimming overlay on side cards for enhanced focal depth and contrast
+        val sideDimAlpha = ((1f - heroTextAlpha) * 0.25f).coerceIn(0f, 0.25f)
+        if (sideDimAlpha > 0.005f) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.25f)),
+                    .background(Color.Black.copy(alpha = sideDimAlpha)),
             )
         }
 
-        // Overlay & controls only visible on hero
-        AnimatedVisibility(
-            visible = isHero,
-            enter = fadeIn(tween(250)),
-            exit = fadeOut(tween(150)),
-            modifier = Modifier.fillMaxSize(),
-        ) {
-            Box(modifier = Modifier.fillMaxSize()) {
+        // Overlay & controls smoothly fade in/out continuously as card moves
+        if (heroTextAlpha > 0.005f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        alpha = heroTextAlpha
+                    },
+            ) {
                 // Top-right play/pause button
                 Box(
                     modifier = Modifier
@@ -462,7 +481,7 @@ private fun CarouselCard(
                     )
                 }
 
-                // Bottom scrim with text
+                // Bottom scrim with text: smoothly fades in with heroTextAlpha
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
