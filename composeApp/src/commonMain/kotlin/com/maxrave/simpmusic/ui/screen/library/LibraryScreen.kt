@@ -471,6 +471,7 @@ fun LibraryScreen(
                     onItemClick = { item ->
                         when (val raw = item.rawData) {
                             is SongEntity -> {
+                                activeHeroIndex = 0
                                 viewModel.setQueueData(
                                     QueueData.Data(
                                         listTracks = arrayListOf(raw.toTrack()),
@@ -509,6 +510,7 @@ fun LibraryScreen(
                                 if (nowPlaying == raw.videoId) {
                                     sharedViewModel.onUIEvent(UIEvent.PlayPause)
                                 } else {
+                                    activeHeroIndex = 0
                                     viewModel.setQueueData(
                                         QueueData.Data(
                                             listTracks = arrayListOf(raw.toTrack()),
@@ -566,6 +568,7 @@ fun LibraryScreen(
                                                 showSongBottomSheet = true
                                             },
                                             onClickListener = {
+                                                activeHeroIndex = 0
                                                 viewModel.setQueueData(
                                                     QueueData.Data(
                                                         listTracks = arrayListOf(song.toTrack()),
@@ -647,6 +650,7 @@ fun LibraryScreen(
                                         showSongBottomSheet = true
                                     },
                                     onClickListener = {
+                                        activeHeroIndex = 0
                                         viewModel.setQueueData(
                                             QueueData.Data(
                                                 listTracks = arrayListOf(song.toTrack()),

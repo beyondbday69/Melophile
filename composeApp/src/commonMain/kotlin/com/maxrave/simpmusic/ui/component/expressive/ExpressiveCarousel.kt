@@ -2,6 +2,7 @@ package com.maxrave.simpmusic.ui.component.expressive
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -30,10 +31,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -63,6 +67,10 @@ import com.maxrave.simpmusic.ui.icon.LibraryMusic
 import com.maxrave.simpmusic.ui.icon.Pause
 import com.maxrave.simpmusic.ui.icon.PlayArrow
 import com.maxrave.simpmusic.ui.icon.SimpIcons
+import kotlinx.coroutines.launch
+import kotlin.math.ceil
+import kotlin.math.floor
+import kotlin.math.roundToInt
 
 /**
  * Data model for expressive carousel items.
@@ -87,21 +95,39 @@ private fun getCenterOffset(diff: Float): Dp {
     val offset = when {
         absDiff <= 1f -> absDiff * 161f
         absDiff <= 2f -> 161f + (absDiff - 1f) * 86f
-        else -> 247f + (absDiff - 2f) * 72f
+        absDiff <= 2.8f -> 247f + (absDiff - 2f) * 72f
+        else -> 247f + 0.8f * 72f + (absDiff - 2.8f) * 60f
     }
     return (sign * offset).dp
 }
 
 /**
  * Item width based on its distance from the active hero position.
- * Hero is 214dp, adjacent items shrink to 92dp, outer items shrink to 64dp.
+ * Hero is 214dp, adjacent items shrink to 92dp, outer items shrink to 64dp, fading edges shrink to 48dp.
  */
 private fun getItemWidth(diff: Float): Dp {
     val absDiff = kotlin.math.abs(diff)
     return when {
         absDiff <= 1f -> lerpFloat(214f, 92f, absDiff).dp
         absDiff <= 2f -> lerpFloat(92f, 64f, absDiff - 1f).dp
-        else -> 64.dp
+        absDiff <= 2.8f -> lerpFloat(64f, 48f, (absDiff - 2f) / 0.8f).dp
+        else -> 48.dp
+    }
+}
+
+/**
+ * Continuous edge-fade alpha: hero is 1.0f, adjacent items are dimmed to 0.48f,
+ * outer items are 0.28f, and cards leaving the screen smoothly fade down to 0.0f
+ * before exiting composition, eliminating abrupt culling or disappearing artifacts.
+ */
+private fun getCardAlpha(diff: Float): Float {
+    val absDiff = kotlin.math.abs(diff)
+    return when {
+        absDiff <= 0.05f -> 1.0f
+        absDiff <= 1.0f -> lerpFloat(1.0f, 0.48f, absDiff)
+        absDiff <= 2.0f -> lerpFloat(0.48f, 0.28f, absDiff - 1f)
+        absDiff <= 2.7f -> lerpFloat(0.28f, 0.0f, (absDiff - 2f) / 0.7f)
+        else -> 0.0f
     }
 }
 
@@ -109,11 +135,11 @@ private fun getItemWidth(diff: Float): Dp {
  * Expressive Carousel (Material 3 Expressive).
  *
  * - Height: 216dp, edge-to-edge.
- * - Hero item width 214dp, adjacent 92dp, others 64dp.
- * - Windowed relative positioning: items are placed relative to screen center without unbounded display lists,
- *   preventing OpenGL/RenderNode buffer limits and clipping regardless of how many items are present.
+ * - Hero item width 214dp, adjacent 92dp, outer 64dp.
+ * - Real-time 1:1 finger tracking: cards follow user drag with zero deadzone and snap with smooth non-bouncy springs.
+ * - Continuous edge fade: outer cards seamlessly fade to transparent before exiting the viewport.
+ * - Keyed items: items retain state across reorders for butter-smooth morphing to #1 on play.
  * - Hero shows bottom gradient scrim (title 21sp bold, subtitle 14sp) and top-right 44dp play button.
- * - Drag moves hero by one item per 46dp. Tap non-hero to center; tap hero to trigger action.
  * - Below: page indicator dots (sliding 7-dot window when item count > 7, avoiding screen overflow).
  */
 @Composable
@@ -129,8 +155,31 @@ fun ExpressiveCarousel(
 ) {
     if (items.isEmpty()) return
 
-    val currentHeroIndex by rememberUpdatedState(activeHeroIndex)
     val density = LocalDensity.current
+    val coroutineScope = rememberCoroutineScope()
+    val itemStepPx = with(density) { 161.dp.toPx() }
+
+    // Non-bouncy spring specs (critically damped: zero overshoot, zero bouncy oscillation)
+    val nonBouncySpringFloat = remember {
+        spring<Float>(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow,
+        )
+    }
+
+    val animatableHeroFloat = remember { Animatable(activeHeroIndex.toFloat()) }
+
+    // Synchronize animatable smoothly when activeHeroIndex changes from parent or selection
+    LaunchedEffect(activeHeroIndex, items.size) {
+        val maxIdx = (items.size - 1).coerceAtLeast(0).toFloat()
+        val target = activeHeroIndex.toFloat().coerceIn(0f, maxIdx)
+        if (animatableHeroFloat.targetValue != target) {
+            animatableHeroFloat.animateTo(
+                targetValue = target,
+                animationSpec = nonBouncySpringFloat,
+            )
+        }
+    }
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -143,94 +192,87 @@ fun ExpressiveCarousel(
         ) {
             val totalWidthDp = maxWidth
 
-            // Horizontal drag gesture tracking
-            var accumulatedDrag by remember { mutableFloatStateOf(0f) }
-            val dragThresholdPx = with(density) { 46.dp.toPx() }
-
-            // Non-bouncy spring specs (critically damped: zero overshoot, zero bouncy oscillation)
-            val nonBouncySpringDp = remember {
-                spring<Dp>(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessMediumLow,
-                )
-            }
-            val nonBouncySpringFloat = remember {
-                spring<Float>(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessMediumLow,
-                )
-            }
-
-            // Smooth animated hero float position for fluid relative card placement
-            val animatedHeroFloat by animateFloatAsState(
-                targetValue = activeHeroIndex.toFloat(),
-                animationSpec = nonBouncySpringFloat,
-                label = "carouselAnimatedHeroFloat",
-            )
-
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .pointerInput(items.size) {
                         detectHorizontalDragGestures(
-                            onDragStart = { accumulatedDrag = 0f },
+                            onDragStart = {
+                                coroutineScope.launch { animatableHeroFloat.stop() }
+                            },
                             onHorizontalDrag = { change, dragAmount ->
                                 change.consume()
-                                accumulatedDrag += dragAmount
-                                if (accumulatedDrag > dragThresholdPx) {
-                                    if (currentHeroIndex > 0) {
-                                        onHeroIndexChange(currentHeroIndex - 1)
-                                    }
-                                    accumulatedDrag = 0f
-                                } else if (accumulatedDrag < -dragThresholdPx) {
-                                    if (currentHeroIndex < items.size - 1) {
-                                        onHeroIndexChange(currentHeroIndex + 1)
-                                    }
-                                    accumulatedDrag = 0f
+                                val deltaFloat = -dragAmount / itemStepPx
+                                val currentVal = animatableHeroFloat.value
+                                val maxIdx = (items.size - 1).coerceAtLeast(0).toFloat()
+                                val newVal = (currentVal + deltaFloat).coerceIn(-0.35f, maxIdx + 0.35f)
+                                coroutineScope.launch { animatableHeroFloat.snapTo(newVal) }
+                            },
+                            onDragEnd = {
+                                val maxIdx = (items.size - 1).coerceAtLeast(0)
+                                val targetIndex = animatableHeroFloat.value.roundToInt().coerceIn(0, maxIdx)
+                                onHeroIndexChange(targetIndex)
+                                coroutineScope.launch {
+                                    animatableHeroFloat.animateTo(
+                                        targetValue = targetIndex.toFloat(),
+                                        animationSpec = nonBouncySpringFloat,
+                                    )
                                 }
                             },
-                            onDragEnd = { accumulatedDrag = 0f },
-                            onDragCancel = { accumulatedDrag = 0f },
+                            onDragCancel = {
+                                val maxIdx = (items.size - 1).coerceAtLeast(0)
+                                val targetIndex = animatableHeroFloat.value.roundToInt().coerceIn(0, maxIdx)
+                                onHeroIndexChange(targetIndex)
+                                coroutineScope.launch {
+                                    animatableHeroFloat.animateTo(
+                                        targetValue = targetIndex.toFloat(),
+                                        animationSpec = nonBouncySpringFloat,
+                                    )
+                                }
+                            },
                         )
                     },
             ) {
-                // Windowed rendering: only compose visible items near the hero position
-                val heroInt = animatedHeroFloat.toInt()
-                val minVisible = (heroInt - 2).coerceAtLeast(0)
-                val maxVisible = (heroInt + 2).coerceAtMost(items.size - 1)
+                val currentFloatPos = animatableHeroFloat.value
+                val minVisible = (floor(currentFloatPos) - 3).toInt().coerceAtLeast(0)
+                val maxVisible = (ceil(currentFloatPos) + 3).toInt().coerceAtMost(items.size - 1)
 
                 for (i in minVisible..maxVisible) {
                     val item = items[i]
-                    val diff = i - animatedHeroFloat
-                    val width = getItemWidth(diff)
-                    val centerOffset = getCenterOffset(diff)
-                    val cardCenterX = totalWidthDp / 2 + centerOffset
-                    val cardStartX = cardCenterX - width / 2
-                    val isHero = i == activeHeroIndex
-                    val isItemPlaying = isPlaying && item.id == playingItemId
+                    key(item.id) {
+                        val diff = i - currentFloatPos
+                        val width = getItemWidth(diff)
+                        val centerOffset = getCenterOffset(diff)
+                        val cardCenterX = totalWidthDp / 2 + centerOffset
+                        val cardStartX = cardCenterX - width / 2
+                        val cardAlpha = getCardAlpha(diff)
+                        val isHero = kotlin.math.abs(diff) < 0.5f
+                        val isItemPlaying = isPlaying && item.id == playingItemId
 
-                    Box(
-                        modifier = Modifier
-                            .offset(x = cardStartX)
-                            .width(width)
-                            .fillMaxHeight()
-                            .zIndex(if (isHero) 2f else if (kotlin.math.abs(diff) <= 1f) 1f else 0f),
-                    ) {
-                        CarouselCard(
-                            item = item,
-                            isHero = isHero,
-                            isPlaying = isItemPlaying,
-                            onClick = {
-                                if (isHero) {
-                                    onItemClick(item)
-                                } else {
-                                    onHeroIndexChange(i)
-                                }
-                            },
-                            onPlayPauseClick = {
-                                onPlayPauseClick(item)
-                            },
-                        )
+                        Box(
+                            modifier = Modifier
+                                .offset(x = cardStartX)
+                                .width(width)
+                                .fillMaxHeight()
+                                .zIndex(if (isHero) 2f else if (kotlin.math.abs(diff) <= 1f) 1f else 0f),
+                        ) {
+                            CarouselCard(
+                                item = item,
+                                cardAlpha = cardAlpha,
+                                isHero = isHero,
+                                isPlaying = isItemPlaying,
+                                onClick = {
+                                    if (isHero) {
+                                        onItemClick(item)
+                                    } else {
+                                        onHeroIndexChange(i)
+                                    }
+                                },
+                                onPlayPauseClick = {
+                                    onPlayPauseClick(item)
+                                },
+                            )
+                        }
                     }
                 }
             }
@@ -302,6 +344,7 @@ fun ExpressiveCarousel(
 @Composable
 private fun CarouselCard(
     item: ExpressiveCarouselItem,
+    cardAlpha: Float,
     isHero: Boolean,
     isPlaying: Boolean,
     onClick: () -> Unit,
@@ -322,15 +365,6 @@ private fun CarouselCard(
         label = "pressScale",
     )
 
-    // Side songs dimmed for enhanced visual contrast and focus on centered song
-    val cardAlpha by animateFloatAsState(
-        targetValue = if (isHero) 1.0f else 0.45f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessMediumLow,
-        ),
-        label = "cardAlpha",
-    )
 
     val playBtnRadius by animateDpAsState(
         targetValue = if (isPlaying) 14.dp else 22.dp,
