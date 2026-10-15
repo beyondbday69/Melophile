@@ -368,20 +368,8 @@ private fun CarouselCard(
     onClick: () -> Unit,
     onPlayPauseClick: () -> Unit,
 ) {
-    var isPressed by remember { mutableStateOf(false) }
-
     // Constant invariant rounded corners: 28dp across all states — does NOT morph when touched!
     val cardShape = remember { RoundedCornerShape(28.dp) }
-
-    // Tactile press scale gives physical touch feedback without changing corner radius
-    val pressScale by animateFloatAsState(
-        targetValue = if (isPressed) 0.96f else 1.0f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessMediumLow,
-        ),
-        label = "pressScale",
-    )
 
     val playBtnRadius by animateDpAsState(
         targetValue = if (isPlaying) 14.dp else 22.dp,
@@ -398,13 +386,11 @@ private fun CarouselCard(
             .clip(cardShape)
             .graphicsLayer {
                 alpha = cardAlpha
-                scaleX = pressScale
-                scaleY = pressScale
             }
             .semantics { role = Role.Button }
             .pressFeedback(
-                minDurationMs = 130L,
-                onPressedChange = { isPressed = it },
+                minDurationMs = 0L,
+                onPressedChange = {},
                 onClick = onClick,
             )
             .background(
