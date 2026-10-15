@@ -60,9 +60,7 @@ import com.maxrave.domain.data.entities.PlaylistEntity
 import com.maxrave.domain.data.entities.SongEntity
 import com.maxrave.domain.data.model.searchResult.playlists.PlaylistsResult
 import com.maxrave.domain.data.type.ChartItem
-import com.maxrave.domain.data.type.PlaylistType
 import com.maxrave.domain.data.type.RecentlyType
-import com.maxrave.domain.mediaservice.handler.PlayerEvent
 import com.maxrave.domain.mediaservice.handler.PlaylistType as DomainPlaylistType
 import com.maxrave.domain.mediaservice.handler.QueueData
 import com.maxrave.domain.utils.toTrack
@@ -89,6 +87,7 @@ import com.maxrave.simpmusic.viewModel.LibraryDynamicPlaylistViewModel
 import com.maxrave.simpmusic.viewModel.LibraryViewModel
 import com.maxrave.simpmusic.viewModel.SharedViewModel
 import com.maxrave.simpmusic.viewModel.SongSelectionViewModel
+import com.maxrave.simpmusic.viewModel.UIEvent
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.jetbrains.compose.resources.getString
@@ -138,8 +137,8 @@ fun LibraryScreen(
     val followedArtists by dynamicPlaylistViewModel.listFollowedArtist.collectAsStateWithLifecycle()
     val downloadedSongs by dynamicPlaylistViewModel.listDownloadedSong.collectAsStateWithLifecycle()
 
-    val simpleMediaState by sharedViewModel.simpleMediaState.collectAsStateWithLifecycle()
-    val isMediaPlaying = simpleMediaState.isPlaying
+    val controllerState by sharedViewModel.controllerState.collectAsStateWithLifecycle()
+    val isMediaPlaying = controllerState.isPlaying
 
     val selectionState = rememberSongSelectionState()
     val selectionViewModel: SongSelectionViewModel = koinViewModel()
@@ -205,17 +204,26 @@ fun LibraryScreen(
                                 rawData = artist,
                             )
                         }
-                        else -> {
-                            val title = (item as? PlaylistType)?.title ?: "Playlist"
-                            val id = (item as? PlaylistEntity)?.id ?: (item as? AlbumEntity)?.browseId ?: idx.toString()
-                            val thumb = (item as? PlaylistEntity)?.thumbnails ?: (item as? AlbumEntity)?.thumbnails
+                        RecentlyType.Type.ALBUM -> {
+                            val album = item as AlbumEntity
                             ExpressiveCarouselItem(
-                                id = id,
-                                title = title,
-                                subtitle = (item as? PlaylistEntity)?.author ?: (item as? AlbumEntity)?.artists?.joinToString(", ") ?: "Music",
-                                imageUrl = thumb,
+                                id = album.browseId,
+                                title = album.title,
+                                subtitle = album.artistName?.joinToString(", ") ?: "Album",
+                                imageUrl = album.thumbnails,
                                 gradientColors = gradient,
-                                rawData = item,
+                                rawData = album,
+                            )
+                        }
+                        RecentlyType.Type.PLAYLIST -> {
+                            val playlist = item as PlaylistEntity
+                            ExpressiveCarouselItem(
+                                id = playlist.id,
+                                title = playlist.title,
+                                subtitle = playlist.author ?: "Playlist",
+                                imageUrl = playlist.thumbnails,
+                                gradientColors = gradient,
+                                rawData = playlist,
                             )
                         }
                     }
@@ -226,10 +234,10 @@ fun LibraryScreen(
                 list.mapIndexed { idx, chart ->
                     val gradient = gradientPresets[idx % gradientPresets.size]
                     ExpressiveCarouselItem(
-                        id = chart.id,
-                        title = chart.title,
-                        subtitle = chart.author ?: "Chart",
-                        imageUrl = chart.thumbnails,
+                        id = chart.ytPlaylistId,
+                        title = chart.name,
+                        subtitle = "Chart",
+                        imageUrl = null,
                         gradientColors = gradient,
                         rawData = chart,
                     )
@@ -405,7 +413,7 @@ fun LibraryScreen(
                 },
             )
 
-            // 4. Section Header (margin top 22dp, bottom 10dp, padding horizontal 16dp)
+            // 4. Section Header (margin top 22dp, bottom 10dp, padding horizontal 20dp)
             val sectionTitle = when (selectedTab) {
                 0 -> stringResource(Res.string.recently_added)
                 1 -> stringResource(Res.string.chart)
@@ -474,7 +482,7 @@ fun LibraryScreen(
                                 navController.navigate(PlaylistDestination(raw.id))
                             }
                             is ChartItem -> {
-                                navController.navigate(PlaylistDestination(raw.id))
+                                navController.navigate(PlaylistDestination(raw.ytPlaylistId))
                             }
                             is LocalPlaylistEntity -> {
                                 navController.navigate(LocalPlaylistDestination(raw.id))
@@ -488,7 +496,7 @@ fun LibraryScreen(
                         when (val raw = item.rawData) {
                             is SongEntity -> {
                                 if (nowPlaying == raw.videoId) {
-                                    sharedViewModel.onUIEvent(PlayerEvent.PlayPause)
+                                    sharedViewModel.onUIEvent(UIEvent.PlayPause)
                                 } else {
                                     viewModel.setQueueData(
                                         QueueData.Data(
@@ -513,7 +521,7 @@ fun LibraryScreen(
                                 navController.navigate(AlbumDestination(raw.browseId))
                             }
                             is ChartItem -> {
-                                navController.navigate(PlaylistDestination(raw.id))
+                                navController.navigate(PlaylistDestination(raw.ytPlaylistId))
                             }
                             is PlaylistsResult -> {
                                 navController.navigate(PlaylistDestination(raw.browseId))

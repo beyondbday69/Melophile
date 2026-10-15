@@ -4,14 +4,13 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.input.pointer.pointerInput
+import kotlin.time.TimeSource
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
 
 /** Standard M3 Expressive spring spec for shapes and sizes */
 fun <T> expressiveSpring(
@@ -35,13 +34,13 @@ fun Modifier.pressFeedback(
     val coroutineScope = rememberCoroutineScope()
     if (!enabled) return@composed this
 
-    pointerInput(Unit) {
+    pointerInput(minDurationMs, enabled) {
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false)
             onPressedChange(true)
-            val startTime = Clock.System.now().toEpochMilliseconds()
+            val mark = TimeSource.Monotonic.markNow()
             val up = waitForUpOrCancellation()
-            val elapsed = Clock.System.now().toEpochMilliseconds() - startTime
+            val elapsed = mark.elapsedNow().inWholeMilliseconds
             val remaining = maxOf(0L, minDurationMs - elapsed)
             coroutineScope.launch {
                 if (remaining > 0L) {
