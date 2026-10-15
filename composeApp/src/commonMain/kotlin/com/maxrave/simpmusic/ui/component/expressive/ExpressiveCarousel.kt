@@ -131,7 +131,7 @@ fun ExpressiveCarousel(
 
             // Target offset to center the active song card exactly at the horizontal center of the screen.
             // Shape and width remain completely fixed across all items — no shape changes when centered.
-            val heroStartX = activeHeroIndex * (cardWidthDp + gapDp)
+            val heroStartX = (cardWidthDp + gapDp) * activeHeroIndex
             val heroCenterInStrip = heroStartX + cardWidthDp / 2
             val targetTranslateX = (totalWidthDp / 2) - heroCenterInStrip
 
