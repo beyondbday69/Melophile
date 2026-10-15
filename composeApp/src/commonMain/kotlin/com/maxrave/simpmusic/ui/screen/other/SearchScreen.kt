@@ -1332,22 +1332,38 @@ fun SearchScreen(
             animationSpec = motionScheme.defaultSpatialSpec(),
             label = "searchBarPaddingHorizontal",
         )
-        val searchBarBorderColor by animateColorAsState(
+        // M3 tonal container color transition
+        val searchBarContainerColor by animateColorAsState(
             targetValue =
                 if (isFocused) {
-                    MaterialTheme.colorScheme.primary
+                    MaterialTheme.colorScheme.surfaceContainerHighest
+                } else if (!isContentAtTop) {
+                    MaterialTheme.colorScheme.surfaceContainerHigh
                 } else {
-                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    MaterialTheme.colorScheme.surfaceContainer
                 },
             animationSpec = motionScheme.fastEffectsSpec(),
-            label = "searchBarBorderColor",
+            label = "searchBarContainerColor",
         )
 
+        // The scrim colour is animated directly on the Column. This used to be an
+        // AnimatedContent(targetState = isContentAtTop) wrapping the whole Column just to
+        // crossfade Transparent <-> background — but AnimatedContent unmounts and recreates
+        // its content on every target change, and isContentAtTop flips on the first pixel of
+        // scroll. That destroyed the SearchBar's InputField, dropping focus and dismissing the
+        // keyboard the moment results or suggestions moved. Animating only the colour keeps the
+        // SearchBar permanently mounted, so scrolling never disturbs focus.
+        val scrimBackground by animateColorAsState(
+            targetValue = if (isContentAtTop) Color.Transparent else MaterialTheme.colorScheme.background,
+            animationSpec = motionScheme.fastEffectsSpec(),
+            label = "search_bar_scrim_color",
+        )
         Column(
             modifier =
                 Modifier
                     .align(Alignment.TopCenter)
                     .fillMaxWidth()
+                    .background(scrimBackground)
                     .onGloballyPositioned { searchBarHeightPx = it.size.height }
                     .windowInsetsPadding(WindowInsets.statusBars)
                     .padding(vertical = 10.dp),
@@ -1513,19 +1529,12 @@ fun SearchScreen(
                             .focusRequester(focusRequester)
                             .onFocusChanged {
                                 isFocused = it.isFocused
-                            }
-                            .border(
-                                width = 1.dp,
-                                color = searchBarBorderColor,
-                                shape = RoundedCornerShape(searchBarCorner),
-                            ),
+                            },
                     shape = RoundedCornerShape(searchBarCorner),
                     colors =
                         SearchBarDefaults.colors(
-                            containerColor = Color.Transparent,
+                            containerColor = searchBarContainerColor,
                         ),
-                    tonalElevation = 0.dp,
-                    shadowElevation = 0.dp,
                     // See the note on SongSelectionTopAppBar above — the Column owns the status-bar inset.
                     windowInsets = WindowInsets(0),
                     content = {},
