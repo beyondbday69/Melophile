@@ -651,7 +651,7 @@ fun LocalPlaylistScreen(
                             ExpressivePlaylistCover(
                                 thumbnailUrl = uiState.thumbnail,
                                 title = uiState.title,
-                                shapePreset = currentShape,
+                                shape = currentShape.getShape(200.dp),
                                 containerColor = currentCoverColor,
                                 size = 200.dp,
                             )
@@ -837,7 +837,7 @@ fun LocalPlaylistScreen(
                             ExpressivePlaylistCover(
                                 thumbnailUrl = uiState.thumbnail,
                                 title = uiState.title,
-                                shapePreset = currentShape,
+                                shape = currentShape.getShape(200.dp),
                                 containerColor = currentCoverColor,
                                 size = 200.dp,
                             )

@@ -147,6 +147,25 @@ val ExpressiveCoverColors = listOf(
 @Composable
 fun ExpressivePlaylistCover(
     thumbnailUrl: String?,
+    shapePreset: MaterialShapePreset,
+    containerColor: Color,
+    modifier: Modifier = Modifier,
+    size: Dp = 64.dp,
+    title: String = "",
+) {
+    ExpressivePlaylistCover(
+        thumbnailUrl = thumbnailUrl,
+        shape = shapePreset.getShape(size),
+        containerColor = containerColor,
+        modifier = modifier,
+        size = size,
+        title = title,
+    )
+}
+
+@Composable
+fun ExpressivePlaylistCover(
+    thumbnailUrl: String?,
     shape: Shape,
     containerColor: Color,
     modifier: Modifier = Modifier,
