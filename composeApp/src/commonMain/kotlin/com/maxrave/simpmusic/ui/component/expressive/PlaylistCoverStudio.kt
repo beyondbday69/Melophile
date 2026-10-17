@@ -221,18 +221,19 @@ fun ExpressivePlaylistCard(
     containerColor: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    tag: String? = null,
     onCustomize: (() -> Unit)? = null,
     onPlay: (() -> Unit)? = null,
 ) {
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(22.dp))
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onCustomize,
             ),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(22.dp),
         color = MaterialTheme.colorScheme.surfaceContainer,
         tonalElevation = 2.dp,
     ) {
@@ -245,9 +246,9 @@ fun ExpressivePlaylistCard(
         ) {
             ExpressivePlaylistCover(
                 thumbnailUrl = thumbnailUrl,
-                shape = shapePreset.getShape(64.dp),
+                shape = shapePreset.getShape(72.dp),
                 containerColor = containerColor,
-                size = 64.dp,
+                size = 72.dp,
                 title = title,
             )
 
@@ -265,14 +266,38 @@ fun ExpressivePlaylistCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    if (tag != null) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(
+                                    if (tag == "Local") MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.8f)
+                                    else MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.8f),
+                                )
+                                .padding(horizontal = 6.dp, vertical = 2.dp),
+                        ) {
+                            Text(
+                                text = tag,
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = if (tag == "Local") MaterialTheme.colorScheme.onPrimaryContainer
+                                else MaterialTheme.colorScheme.onSecondaryContainer,
+                                fontSize = 10.sp,
+                            )
+                        }
+                    }
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
 
             Row(

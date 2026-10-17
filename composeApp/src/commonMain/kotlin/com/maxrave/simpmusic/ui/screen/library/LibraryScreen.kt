@@ -24,10 +24,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -263,36 +265,8 @@ fun LibraryScreen(
                 }
             }
             2 -> {
-                val localList = yourLocalPlaylist.data ?: emptyList()
-                val ytList = youTubePlaylist.data ?: emptyList()
-                val combined = mutableListOf<ExpressiveCarouselItem>()
-                localList.forEachIndexed { idx, pl ->
-                    val gradient = gradientPresets[idx % gradientPresets.size]
-                    combined.add(
-                        ExpressiveCarouselItem(
-                            id = pl.id.toString(),
-                            title = pl.title,
-                            subtitle = "${pl.tracks?.size ?: 0} songs",
-                            imageUrl = pl.thumbnail,
-                            gradientColors = gradient,
-                            rawData = pl,
-                        ),
-                    )
-                }
-                ytList.forEachIndexed { idx, yt ->
-                    val gradient = gradientPresets[(idx + localList.size) % gradientPresets.size]
-                    combined.add(
-                        ExpressiveCarouselItem(
-                            id = yt.browseId,
-                            title = yt.title,
-                            subtitle = yt.author ?: "YouTube Playlist",
-                            imageUrl = yt.thumbnails?.firstOrNull()?.url,
-                            gradientColors = gradient,
-                            rawData = yt,
-                        ),
-                    )
-                }
-                combined
+                // Carousel removed from Playlists tab: dedicated Material 3 Expressive Playlists UI
+                emptyList()
             }
             else -> emptyList()
         }
@@ -431,44 +405,43 @@ fun LibraryScreen(
                 },
             )
 
-            // 4. Section Header (margin top 22dp, bottom 10dp, padding horizontal 20dp)
-            val sectionTitle = when (selectedTab) {
-                0 -> stringResource(Res.string.recently_added)
-                1 -> stringResource(Res.string.songs)
-                else -> stringResource(Res.string.your_playlists)
-            }
-            val totalCount = carouselItems.size
-            val displayHeroIndex = if (totalCount == 0) 0 else (activeHeroIndex + 1).coerceAtMost(totalCount)
+            // 4. Section Header and Carousel (Only for Tab 0 and Tab 1)
+            if (selectedTab != 2 && carouselItems.isNotEmpty()) {
+                val sectionTitle = when (selectedTab) {
+                    0 -> stringResource(Res.string.recently_added)
+                    else -> stringResource(Res.string.songs)
+                }
+                val totalCount = carouselItems.size
+                val displayHeroIndex = if (totalCount == 0) 0 else (activeHeroIndex + 1).coerceAtMost(totalCount)
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 22.dp, bottom = 10.dp)
-                    .padding(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = sectionTitle,
-                    style = TextStyle(
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = (-0.4).sp,
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                Text(
-                    text = "$displayHeroIndex / $totalCount",
-                    style = TextStyle(
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                    ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 22.dp, bottom = 10.dp)
+                        .padding(horizontal = 20.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = sectionTitle,
+                        style = TextStyle(
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = (-0.4).sp,
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = "$displayHeroIndex / $totalCount",
+                        style = TextStyle(
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                        ),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
 
-            // 5. Expressive Carousel (height 216dp, edge-to-edge)
-            if (carouselItems.isNotEmpty()) {
+                // 5. Expressive Carousel (height 216dp, edge-to-edge)
                 ExpressiveCarousel(
                     items = carouselItems,
                     activeHeroIndex = activeHeroIndex.coerceIn(0, (carouselItems.size - 1).coerceAtLeast(0)),
@@ -608,83 +581,150 @@ fun LibraryScreen(
                 2 -> {
                     val localList = yourLocalPlaylist.data ?: emptyList()
                     val ytList = youTubePlaylist.data ?: emptyList()
+                    var playlistFilterIndex by rememberSaveable { mutableStateOf(0) }
+
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
+                        // Material 3 Expressive Header: Title + Count Badge
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 4.dp, vertical = 2.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = stringResource(Res.string.your_playlists),
+                                style = TextStyle(
+                                    fontSize = 28.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = (-0.6).sp,
+                                ),
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                            ) {
+                                Text(
+                                    text = "${localList.size + ytList.size} playlists",
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                )
+                            }
+                        }
+
+                        // Material 3 Filter Chips Row
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            FilterChip(
+                                selected = playlistFilterIndex == 0,
+                                onClick = { playlistFilterIndex = 0 },
+                                label = { Text("All (${localList.size + ytList.size})") },
+                                shape = RoundedCornerShape(12.dp),
+                            )
+                            FilterChip(
+                                selected = playlistFilterIndex == 1,
+                                onClick = { playlistFilterIndex = 1 },
+                                label = { Text("Local (${localList.size})") },
+                                shape = RoundedCornerShape(12.dp),
+                            )
+                            FilterChip(
+                                selected = playlistFilterIndex == 2,
+                                onClick = { playlistFilterIndex = 2 },
+                                label = { Text("YouTube (${ytList.size})") },
+                                shape = RoundedCornerShape(12.dp),
+                            )
+                        }
+
+                        // Create Playlist Hero Card
                         ExpressiveCreatePlaylistCard(
                             onClick = { showAddSheet = true },
                         )
 
-                        localList.forEachIndexed { idx, pl ->
-                            val shapeIdFlow = remember(pl.id) { viewModel.getPlaylistShapeFlow(pl.id.toString()) }
-                            val colorHexFlow = remember(pl.id) { viewModel.getPlaylistColorFlow(pl.id.toString()) }
-                            val savedShapeId by shapeIdFlow.collectAsStateWithLifecycle(null)
-                            val savedColorHex by colorHexFlow.collectAsStateWithLifecycle(null)
+                        // Local Playlists with Material 3 Expressive Shapes
+                        if (playlistFilterIndex == 0 || playlistFilterIndex == 1) {
+                            localList.forEachIndexed { idx, pl ->
+                                val shapeIdFlow = remember(pl.id) { viewModel.getPlaylistShapeFlow(pl.id.toString()) }
+                                val colorHexFlow = remember(pl.id) { viewModel.getPlaylistColorFlow(pl.id.toString()) }
+                                val savedShapeId by shapeIdFlow.collectAsStateWithLifecycle(null)
+                                val savedColorHex by colorHexFlow.collectAsStateWithLifecycle(null)
 
-                            val defaultShape = MaterialShapePreset.entries[idx % MaterialShapePreset.entries.size]
-                            val defaultColor = ExpressiveCoverColors[idx % ExpressiveCoverColors.size]
+                                val defaultShape = MaterialShapePreset.entries[idx % MaterialShapePreset.entries.size]
+                                val defaultColor = ExpressiveCoverColors[idx % ExpressiveCoverColors.size]
 
-                            val shapePreset = savedShapeId?.let { MaterialShapePreset.fromId(it) } ?: defaultShape
-                            val coverColor = savedColorHex?.let { hex ->
-                                try { Color(hex.toLong(16).toULong()) } catch (_: Exception) { null }
-                            } ?: defaultColor
+                                val shapePreset = savedShapeId?.let { MaterialShapePreset.fromId(it) } ?: defaultShape
+                                val coverColor = savedColorHex?.let { hex ->
+                                    try { Color(hex.toLong(16).toULong()) } catch (_: Exception) { null }
+                                } ?: defaultColor
 
-                            ExpressivePlaylistCard(
-                                title = pl.title,
-                                subtitle = "${pl.tracks?.size ?: 0} songs • Local",
-                                thumbnailUrl = pl.thumbnail,
-                                shapePreset = shapePreset,
-                                containerColor = coverColor,
-                                onClick = {
-                                    navController.navigate(LocalPlaylistDestination(pl.id))
-                                },
-                                onCustomize = {
-                                    customizingPlaylist = pl
-                                    showCoverCustomizer = true
-                                },
-                                onPlay = {
-                                    coroutineScope.launch {
-                                        val tracks = viewModel.getPlaylistTracks(pl.id)
-                                        if (tracks.isNotEmpty()) {
-                                            val firstSong = tracks.first()
-                                            viewModel.setQueueData(
-                                                QueueData.Data(
-                                                    listTracks = ArrayList(tracks.map { it.toTrack() }),
-                                                    firstPlayedTrack = firstSong.toTrack(),
-                                                    playlistId = "local_${pl.id}",
-                                                    playlistName = pl.title,
-                                                    playlistType = DomainPlaylistType.PLAYLIST,
-                                                    continuation = null,
-                                                ),
-                                            )
-                                            viewModel.loadMediaItem(firstSong, type = Config.SONG_CLICK, index = 0)
+                                ExpressivePlaylistCard(
+                                    title = pl.title,
+                                    subtitle = "${pl.tracks?.size ?: 0} tracks",
+                                    tag = "Local",
+                                    thumbnailUrl = pl.thumbnail,
+                                    shapePreset = shapePreset,
+                                    containerColor = coverColor,
+                                    onClick = {
+                                        navController.navigate(LocalPlaylistDestination(pl.id))
+                                    },
+                                    onCustomize = {
+                                        customizingPlaylist = pl
+                                        showCoverCustomizer = true
+                                    },
+                                    onPlay = {
+                                        coroutineScope.launch {
+                                            val tracks = viewModel.getPlaylistTracks(pl.id)
+                                            if (tracks.isNotEmpty()) {
+                                                val firstSong = tracks.first()
+                                                viewModel.setQueueData(
+                                                    QueueData.Data(
+                                                        listTracks = ArrayList(tracks.map { it.toTrack() }),
+                                                        firstPlayedTrack = firstSong.toTrack(),
+                                                        playlistId = "local_${pl.id}",
+                                                        playlistName = pl.title,
+                                                        playlistType = DomainPlaylistType.PLAYLIST,
+                                                        continuation = null,
+                                                    ),
+                                                )
+                                                viewModel.loadMediaItem(firstSong, type = Config.SONG_CLICK, index = 0)
+                                            }
                                         }
-                                    }
-                                },
-                            )
+                                    },
+                                )
+                            }
                         }
 
-                        ytList.forEachIndexed { idx, yt ->
-                            val defaultShape = MaterialShapePreset.entries[(idx + localList.size) % MaterialShapePreset.entries.size]
-                            val defaultColor = ExpressiveCoverColors[(idx + localList.size) % ExpressiveCoverColors.size]
+                        // YouTube Playlists with Material 3 Expressive Shapes
+                        if (playlistFilterIndex == 0 || playlistFilterIndex == 2) {
+                            ytList.forEachIndexed { idx, yt ->
+                                val defaultShape = MaterialShapePreset.entries[(idx + localList.size) % MaterialShapePreset.entries.size]
+                                val defaultColor = ExpressiveCoverColors[(idx + localList.size) % ExpressiveCoverColors.size]
 
-                            ExpressivePlaylistCard(
-                                title = yt.title,
-                                subtitle = yt.author ?: "YouTube Playlist",
-                                thumbnailUrl = yt.thumbnails?.firstOrNull()?.url,
-                                shapePreset = defaultShape,
-                                containerColor = defaultColor,
-                                onClick = {
-                                    navController.navigate(PlaylistDestination(yt.browseId))
-                                },
-                                onCustomize = null,
-                                onPlay = {
-                                    navController.navigate(PlaylistDestination(yt.browseId))
-                                },
-                            )
+                                ExpressivePlaylistCard(
+                                    title = yt.title,
+                                    subtitle = yt.author ?: "YouTube Playlist",
+                                    tag = "YouTube",
+                                    thumbnailUrl = yt.thumbnails?.firstOrNull()?.url,
+                                    shapePreset = defaultShape,
+                                    containerColor = defaultColor,
+                                    onClick = {
+                                        navController.navigate(PlaylistDestination(yt.browseId))
+                                    },
+                                    onCustomize = null,
+                                    onPlay = {
+                                        navController.navigate(PlaylistDestination(yt.browseId))
+                                    },
+                                )
+                            }
                         }
                     }
                 }
