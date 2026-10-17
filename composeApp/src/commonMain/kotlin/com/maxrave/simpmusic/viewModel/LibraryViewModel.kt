@@ -30,6 +30,7 @@ import com.maxrave.simpmusic.viewModel.base.BaseViewModel
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -51,6 +52,8 @@ import kotlinx.datetime.number
 import kotlinx.datetime.plus
 import simpmusic.composeapp.generated.resources.Res
 import simpmusic.composeapp.generated.resources.added_local_playlist
+import simpmusic.composeapp.generated.resources.delete
+import simpmusic.composeapp.generated.resources.updated
 import simpmusic.composeapp.generated.resources.wrapped_recap_month
 import simpmusic.composeapp.generated.resources.wrapped_recap_month_year
 import simpmusic.composeapp.generated.resources.youtube_liked_music
@@ -403,6 +406,48 @@ class LibraryViewModel(
             delay(500) // Wait for the database to update
             getRecentlyAdded()
             getRecentSongs()
+        }
+    }
+
+    fun updatePlaylistThumbnail(playlistId: Long, thumbnail: String) {
+        viewModelScope.launch {
+            localPlaylistRepository.updateThumbnailLocalPlaylist(
+                playlistId,
+                thumbnail,
+                getString(Res.string.updated),
+            ).lastOrNull()
+            getLocalPlaylist()
+        }
+    }
+
+    suspend fun getPlaylistTracks(playlistId: Long): List<SongEntity> {
+        return localPlaylistRepository.getFullPlaylistTracks(playlistId)
+    }
+
+    fun savePlaylistShape(playlistKey: String, shapeId: String) {
+        viewModelScope.launch {
+            dataStoreManager.putString("pl_shape_$playlistKey", shapeId)
+        }
+    }
+
+    fun getPlaylistShapeFlow(playlistKey: String): Flow<String?> {
+        return dataStoreManager.getString("pl_shape_$playlistKey")
+    }
+
+    fun savePlaylistColor(playlistKey: String, colorHex: String) {
+        viewModelScope.launch {
+            dataStoreManager.putString("pl_color_$playlistKey", colorHex)
+        }
+    }
+
+    fun getPlaylistColorFlow(playlistKey: String): Flow<String?> {
+        return dataStoreManager.getString("pl_color_$playlistKey")
+    }
+
+    fun deletePlaylist(playlistId: Long) {
+        viewModelScope.launch {
+            localPlaylistRepository.deleteLocalPlaylist(playlistId, getString(Res.string.delete)).lastOrNull()
+            getLocalPlaylist()
         }
     }
 
