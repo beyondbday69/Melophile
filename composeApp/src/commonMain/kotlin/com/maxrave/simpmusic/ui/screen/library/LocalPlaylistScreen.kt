@@ -2,6 +2,7 @@ package com.maxrave.simpmusic.ui.screen.library
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -394,62 +395,16 @@ fun LocalPlaylistScreen(
     LaunchedEffect(key1 = firstItemVisible) {
         shouldHideTopBar = !firstItemVisible
     }
-    val paletteState = rememberPaletteState()
-    var bitmap by remember {
-        mutableStateOf<ImageBitmap?>(null)
-    }
-    // Track which thumbnail we've already extracted a palette from.
-    // Prevents palette flash when LazyColumn recycles the header item on scroll —
-    // AsyncImage re-mount fires onSuccess again, but we skip the regenerate.
-    var paletteGeneratedFor by remember {
-        mutableStateOf<String?>(null)
-    }
-    val currentThumbnail = uiState.thumbnail
 
-    LaunchedEffect(bitmap) {
-        val bm = bitmap
-        if (bm != null && paletteGeneratedFor != currentThumbnail) {
-            paletteState.generate(bm)
-            paletteGeneratedFor = currentThumbnail
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        snapshotFlow { paletteState.palette }
-            .distinctUntilChanged()
-            .collectLatest {
-                viewModel.setBrush(listOf(it.getColorFromPalette(), Color.Black))
-            }
-    }
-
-    // Apple Music-inspired immersive treatment. Which header is used depends on the window's
-    // aspect ratio alone, not on the platform: a portrait window (a phone held upright, or a
-    // narrow desktop window) gets the edge-to-edge artwork header, a landscape one gets the
-    // side-by-side header. Everything else on the page — the palette background, the row
-    // dividers, the blurred top bar — is shared by both.
     val screenInfo = getScreenSizeInfo()
     val isPortrait = screenInfo.wDP < screenInfo.hDP
-    // Apple Music-style page background. When the playlist has real artwork we pick a vivid
-    // swatch from its palette (getColorFromPalette). Many local playlists have NO artwork —
-    // AsyncImage shows the title placeholder and onSuccess never fires, so the palette stays
-    // null; in that case we fall back to the SAME deterministic title gradient the placeholder
-    // draws, so the background still matches the thumbnail. Darkened slightly for readability.
-    val mutedPaletteBg =
-        run {
-            val palette = paletteState.palette
-            if (palette != null) {
-                palette.toImmersiveBackground()
-            } else {
-                val titleColors = playlistTitleGradient(uiState.title)
-                val base =
-                    if (titleColors.size >= 2) {
-                        lerp(titleColors[0], titleColors[1], 0.5f)
-                    } else {
-                        titleColors.firstOrNull() ?: Color.Black
-                    }
-                lerp(base, Color.Black, 0.3f)
-            }
-        }
+
+    // Smooth ambient background accent based on the playlist's Material 3 theme color
+    val animatedBgAccent by animateColorAsState(
+        targetValue = currentCoverColor,
+        animationSpec = tween(durationMillis = 350),
+        label = "playlistBgAccent",
+    )
 
     // Loading dialog
     val showLoadingDialog by viewModel.showLoadingDialog.collectAsStateWithLifecycle()
@@ -472,14 +427,29 @@ fun LocalPlaylistScreen(
     var showSearchBar by rememberSaveable { mutableStateOf(false) }
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
-//    Box {
-    LazyColumn(
+    Box(
         modifier =
             Modifier
-                .fillMaxWidth()
-                .background(mutedPaletteBg)
-                
-                .pointerInput(changingOrder) {
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .background(
+                    Brush.verticalGradient(
+                        colors =
+                            listOf(
+                                animatedBgAccent.copy(alpha = 0.22f),
+                                animatedBgAccent.copy(alpha = 0.05f),
+                                Color.Transparent,
+                            ),
+                        startY = 0f,
+                        endY = 1200f,
+                    ),
+                ),
+    ) {
+        LazyColumn(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .pointerInput(changingOrder) {
                     if (!changingOrder) return@pointerInput
                     val onDrag: (change: androidx.compose.ui.input.pointer.PointerInputChange, offset: Offset) -> Unit =
                         { change, offset ->
@@ -1216,7 +1186,7 @@ fun LocalPlaylistScreen(
             },
             onOpenActions = { showSelectionSheet = true },
             modifier =
-                Modifier.background(mutedPaletteBg),
+                Modifier.background(MaterialTheme.colorScheme.surface),
         )
     }
     if (showSelectionSheet) {
@@ -1382,14 +1352,14 @@ fun LocalPlaylistScreen(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .background(mutedPaletteBg),
+                    .background(MaterialTheme.colorScheme.background),
         ) {
             // Same bar as the one on Playlist and Album: blurred over the content behind it,
             // back on the left, clear on the right.
             Box(
                 Modifier
                     .fillMaxWidth()
-                    .background(mutedPaletteBg),
+                    .background(MaterialTheme.colorScheme.background),
             ) {
                 Row(
                     modifier =
@@ -1510,10 +1480,8 @@ fun LocalPlaylistScreen(
             },
             colors =
                 TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
                 ),
-            modifier =
-                Modifier.background(mutedPaletteBg),
         )
     }
 
@@ -1535,4 +1503,5 @@ fun LocalPlaylistScreen(
             },
         )
     }
+    } // End of root Box
 }

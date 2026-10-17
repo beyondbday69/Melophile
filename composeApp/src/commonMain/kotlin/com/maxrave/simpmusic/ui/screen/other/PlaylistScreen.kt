@@ -42,6 +42,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.SearchBar
@@ -344,24 +345,28 @@ fun PlaylistScreen(
             showLoadingDialog.second,
         )
     }
-//    Box {
-    Crossfade(
-        targetState = uiState,
-    ) { state ->
-        Logger.w(tag, "State hash: ${state.hashCode()}")
-        when (state) {
-            is PlaylistUIState.Success -> {
-                val data = state.data
-                Logger.d(tag, "data: $data")
-                if (data == null) return@Crossfade
-                LazyColumn(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .background(mutedPaletteBg)
-                            ,
-                    state = lazyState,
-                ) {
+    Box(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+    ) {
+        Crossfade(
+            targetState = uiState,
+        ) { state ->
+            Logger.w(tag, "State hash: ${state.hashCode()}")
+            when (state) {
+                is PlaylistUIState.Success -> {
+                    val data = state.data
+                    Logger.d(tag, "data: $data")
+                    if (data == null) return@Crossfade
+                    LazyColumn(
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .background(mutedPaletteBg),
+                        state = lazyState,
+                    ) {
                     if (!showSearchBar) {
                         item(contentType = "header") {
                             Box(
@@ -1385,4 +1390,5 @@ fun PlaylistScreen(
             }
         }
     }
+    } // End of root Box
 }
