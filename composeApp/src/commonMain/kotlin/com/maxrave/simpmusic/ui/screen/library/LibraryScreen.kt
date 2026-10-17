@@ -72,7 +72,6 @@ import com.maxrave.simpmusic.ui.component.AddToPlaylistModalBottomSheet
 import com.maxrave.simpmusic.ui.component.ArtistFullWidthItems
 import com.maxrave.simpmusic.ui.component.NowPlayingBottomSheet
 import com.maxrave.simpmusic.ui.component.PlaylistFullWidthItems
-import com.maxrave.simpmusic.ui.component.SongFullWidthItems
 import com.maxrave.simpmusic.ui.component.ExpressiveLibraryButtonGroup
 import com.maxrave.simpmusic.ui.component.expressive.ExpressiveCarousel
 import com.maxrave.simpmusic.ui.component.expressive.ExpressiveCarouselItem
@@ -548,7 +547,9 @@ fun LibraryScreen(
 
             when (selectedTab) {
                 0 -> {
-                    val list = (recentlyAdded.data ?: emptyList()).filterIsInstance<RecentlyType>()
+                    val list = (recentlyAdded.data ?: emptyList())
+                        .filterIsInstance<RecentlyType>()
+                        .filter { it.objectType() != RecentlyType.Type.SONG }
                     if (list.isNotEmpty()) {
                         Column(
                             modifier = Modifier
@@ -557,45 +558,6 @@ fun LibraryScreen(
                         ) {
                             list.forEach { item ->
                                 when (item.objectType()) {
-                                    RecentlyType.Type.SONG -> {
-                                        val song = item as SongEntity
-                                        SongFullWidthItems(
-                                            songEntity = song,
-                                            isPlaying = song.videoId == nowPlaying && isMediaPlaying,
-                                            modifier = Modifier,
-                                            onMoreClickListener = {
-                                                songEntityForBottomSheet = song
-                                                showSongBottomSheet = true
-                                            },
-                                            onClickListener = {
-                                                activeHeroIndex = 0
-                                                viewModel.setQueueData(
-                                                    QueueData.Data(
-                                                        listTracks = arrayListOf(song.toTrack()),
-                                                        firstPlayedTrack = song.toTrack(),
-                                                        playlistId = "RDAMVM${song.videoId}",
-                                                        playlistName = song.title,
-                                                        playlistType = DomainPlaylistType.RADIO,
-                                                        continuation = null,
-                                                    ),
-                                                )
-                                                viewModel.loadMediaItem(
-                                                    song,
-                                                    type = Config.SONG_CLICK,
-                                                    index = 0,
-                                                )
-                                            },
-                                            selectionMode = selectionState.isActive,
-                                            isSelected = selectionState.isSelected(song.videoId),
-                                            onLongClick = { id -> selectionState.start(id) },
-                                            onSelectToggle = { id -> selectionState.toggle(id) },
-                                            onAddToQueue = {
-                                                sharedViewModel.addListToQueue(
-                                                    arrayListOf(song.toTrack()),
-                                                )
-                                            },
-                                        )
-                                    }
                                     RecentlyType.Type.ARTIST -> {
                                         val artist = item as ArtistEntity
                                         ArtistFullWidthItems(
@@ -633,53 +595,7 @@ fun LibraryScreen(
                     }
                 }
                 1 -> {
-                    val songs = recentSongs.data ?: emptyList()
-                    if (songs.isNotEmpty()) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 4.dp),
-                        ) {
-                            songs.forEach { song ->
-                                SongFullWidthItems(
-                                    songEntity = song,
-                                    isPlaying = song.videoId == nowPlaying && isMediaPlaying,
-                                    modifier = Modifier,
-                                    onMoreClickListener = {
-                                        songEntityForBottomSheet = song
-                                        showSongBottomSheet = true
-                                    },
-                                    onClickListener = {
-                                        activeHeroIndex = 0
-                                        viewModel.setQueueData(
-                                            QueueData.Data(
-                                                listTracks = arrayListOf(song.toTrack()),
-                                                firstPlayedTrack = song.toTrack(),
-                                                playlistId = "RDAMVM${song.videoId}",
-                                                playlistName = song.title,
-                                                playlistType = DomainPlaylistType.RADIO,
-                                                continuation = null,
-                                            ),
-                                        )
-                                        viewModel.loadMediaItem(
-                                            song,
-                                            type = Config.SONG_CLICK,
-                                            index = 0,
-                                        )
-                                    },
-                                    selectionMode = selectionState.isActive,
-                                    isSelected = selectionState.isSelected(song.videoId),
-                                    onLongClick = { id -> selectionState.start(id) },
-                                    onSelectToggle = { id -> selectionState.toggle(id) },
-                                    onAddToQueue = {
-                                        sharedViewModel.addListToQueue(
-                                            arrayListOf(song.toTrack()),
-                                        )
-                                    },
-                                )
-                            }
-                        }
-                    }
+                    // Recent songs are displayed in the carousel above; no duplicate list below
                 }
                 2 -> {
                     val localList = yourLocalPlaylist.data ?: emptyList()
