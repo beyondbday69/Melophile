@@ -581,7 +581,6 @@ fun LibraryScreen(
                 2 -> {
                     val localList = yourLocalPlaylist.data ?: emptyList()
                     val ytList = youTubePlaylist.data ?: emptyList()
-                    var playlistFilterIndex by rememberSaveable { mutableStateOf(0) }
 
                     Column(
                         modifier = Modifier
@@ -620,111 +619,82 @@ fun LibraryScreen(
                             }
                         }
 
-                        // Material 3 Filter Chips Row
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            FilterChip(
-                                selected = playlistFilterIndex == 0,
-                                onClick = { playlistFilterIndex = 0 },
-                                label = { Text("All (${localList.size + ytList.size})") },
-                                shape = RoundedCornerShape(12.dp),
-                            )
-                            FilterChip(
-                                selected = playlistFilterIndex == 1,
-                                onClick = { playlistFilterIndex = 1 },
-                                label = { Text("Local (${localList.size})") },
-                                shape = RoundedCornerShape(12.dp),
-                            )
-                            FilterChip(
-                                selected = playlistFilterIndex == 2,
-                                onClick = { playlistFilterIndex = 2 },
-                                label = { Text("YouTube (${ytList.size})") },
-                                shape = RoundedCornerShape(12.dp),
-                            )
-                        }
-
                         // Create Playlist Hero Card
                         ExpressiveCreatePlaylistCard(
                             onClick = { showAddSheet = true },
                         )
 
                         // Local Playlists with Material 3 Expressive Shapes
-                        if (playlistFilterIndex == 0 || playlistFilterIndex == 1) {
-                            localList.forEachIndexed { idx, pl ->
-                                val shapeIdFlow = remember(pl.id) { viewModel.getPlaylistShapeFlow(pl.id.toString()) }
-                                val colorHexFlow = remember(pl.id) { viewModel.getPlaylistColorFlow(pl.id.toString()) }
-                                val savedShapeId by shapeIdFlow.collectAsStateWithLifecycle(null)
-                                val savedColorHex by colorHexFlow.collectAsStateWithLifecycle(null)
+                        localList.forEachIndexed { idx, pl ->
+                            val shapeIdFlow = remember(pl.id) { viewModel.getPlaylistShapeFlow(pl.id.toString()) }
+                            val colorHexFlow = remember(pl.id) { viewModel.getPlaylistColorFlow(pl.id.toString()) }
+                            val savedShapeId by shapeIdFlow.collectAsStateWithLifecycle(null)
+                            val savedColorHex by colorHexFlow.collectAsStateWithLifecycle(null)
 
-                                val defaultShape = MaterialShapePreset.entries[idx % MaterialShapePreset.entries.size]
-                                val defaultColor = ExpressiveCoverColors[idx % ExpressiveCoverColors.size]
+                            val defaultShape = MaterialShapePreset.entries[idx % MaterialShapePreset.entries.size]
+                            val defaultColor = ExpressiveCoverColors[idx % ExpressiveCoverColors.size]
 
-                                val shapePreset = savedShapeId?.let { MaterialShapePreset.fromId(it) } ?: defaultShape
-                                val coverColor = savedColorHex?.let { hex ->
-                                    try { Color(hex.toLong(16).toULong()) } catch (_: Exception) { null }
-                                } ?: defaultColor
+                            val shapePreset = savedShapeId?.let { MaterialShapePreset.fromId(it) } ?: defaultShape
+                            val coverColor = savedColorHex?.let { hex ->
+                                try { Color(hex.toLong(16).toULong()) } catch (_: Exception) { null }
+                            } ?: defaultColor
 
-                                ExpressivePlaylistCard(
-                                    title = pl.title,
-                                    subtitle = "${pl.tracks?.size ?: 0} tracks",
-                                    tag = "Local",
-                                    thumbnailUrl = pl.thumbnail,
-                                    shapePreset = shapePreset,
-                                    containerColor = coverColor,
-                                    onClick = {
-                                        navController.navigate(LocalPlaylistDestination(pl.id))
-                                    },
-                                    onCustomize = {
-                                        customizingPlaylist = pl
-                                        showCoverCustomizer = true
-                                    },
-                                    onPlay = {
-                                        coroutineScope.launch {
-                                            val tracks = viewModel.getPlaylistTracks(pl.id)
-                                            if (tracks.isNotEmpty()) {
-                                                val firstSong = tracks.first()
-                                                viewModel.setQueueData(
-                                                    QueueData.Data(
-                                                        listTracks = ArrayList(tracks.map { it.toTrack() }),
-                                                        firstPlayedTrack = firstSong.toTrack(),
-                                                        playlistId = "local_${pl.id}",
-                                                        playlistName = pl.title,
-                                                        playlistType = DomainPlaylistType.PLAYLIST,
-                                                        continuation = null,
-                                                    ),
-                                                )
-                                                viewModel.loadMediaItem(firstSong, type = Config.SONG_CLICK, index = 0)
-                                            }
+                            ExpressivePlaylistCard(
+                                title = pl.title,
+                                subtitle = "${pl.tracks?.size ?: 0} tracks",
+                                tag = "Local",
+                                thumbnailUrl = pl.thumbnail,
+                                shapePreset = shapePreset,
+                                containerColor = coverColor,
+                                onClick = {
+                                    navController.navigate(LocalPlaylistDestination(pl.id))
+                                },
+                                onCustomize = {
+                                    customizingPlaylist = pl
+                                    showCoverCustomizer = true
+                                },
+                                onPlay = {
+                                    coroutineScope.launch {
+                                        val tracks = viewModel.getPlaylistTracks(pl.id)
+                                        if (tracks.isNotEmpty()) {
+                                            val firstSong = tracks.first()
+                                            viewModel.setQueueData(
+                                                QueueData.Data(
+                                                    listTracks = ArrayList(tracks.map { it.toTrack() }),
+                                                    firstPlayedTrack = firstSong.toTrack(),
+                                                    playlistId = "local_${pl.id}",
+                                                    playlistName = pl.title,
+                                                    playlistType = DomainPlaylistType.PLAYLIST,
+                                                    continuation = null,
+                                                ),
+                                            )
+                                            viewModel.loadMediaItem(firstSong, type = Config.SONG_CLICK, index = 0)
                                         }
-                                    },
-                                )
-                            }
+                                    }
+                                },
+                            )
                         }
 
                         // YouTube Playlists with Material 3 Expressive Shapes
-                        if (playlistFilterIndex == 0 || playlistFilterIndex == 2) {
-                            ytList.forEachIndexed { idx, yt ->
-                                val defaultShape = MaterialShapePreset.entries[(idx + localList.size) % MaterialShapePreset.entries.size]
-                                val defaultColor = ExpressiveCoverColors[(idx + localList.size) % ExpressiveCoverColors.size]
+                        ytList.forEachIndexed { idx, yt ->
+                            val defaultShape = MaterialShapePreset.entries[(idx + localList.size) % MaterialShapePreset.entries.size]
+                            val defaultColor = ExpressiveCoverColors[(idx + localList.size) % ExpressiveCoverColors.size]
 
-                                ExpressivePlaylistCard(
-                                    title = yt.title,
-                                    subtitle = yt.author ?: "YouTube Playlist",
-                                    tag = "YouTube",
-                                    thumbnailUrl = yt.thumbnails?.firstOrNull()?.url,
-                                    shapePreset = defaultShape,
-                                    containerColor = defaultColor,
-                                    onClick = {
-                                        navController.navigate(PlaylistDestination(yt.browseId))
-                                    },
-                                    onCustomize = null,
-                                    onPlay = {
-                                        navController.navigate(PlaylistDestination(yt.browseId))
-                                    },
-                                )
-                            }
+                            ExpressivePlaylistCard(
+                                title = yt.title,
+                                subtitle = yt.author ?: "YouTube Playlist",
+                                tag = "YouTube",
+                                thumbnailUrl = yt.thumbnails?.firstOrNull()?.url,
+                                shapePreset = defaultShape,
+                                containerColor = defaultColor,
+                                onClick = {
+                                    navController.navigate(PlaylistDestination(yt.browseId))
+                                },
+                                onCustomize = null,
+                                onPlay = {
+                                    navController.navigate(PlaylistDestination(yt.browseId))
+                                },
+                            )
                         }
                     }
                 }

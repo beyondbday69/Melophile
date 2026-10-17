@@ -1062,6 +1062,30 @@ class LocalPlaylistViewModel(
                 )
         }
     }
+
+    suspend fun getPlaylistTracks(playlistId: Long): List<SongEntity> {
+        return localPlaylistRepository.getFullPlaylistTracks(playlistId)
+    }
+
+    fun savePlaylistShape(playlistKey: String, shapeId: String) {
+        viewModelScope.launch {
+            dataStoreManager.putString("pl_shape_$playlistKey", shapeId)
+        }
+    }
+
+    fun getPlaylistShapeFlow(playlistKey: String): kotlinx.coroutines.flow.Flow<String?> {
+        return dataStoreManager.getString("pl_shape_$playlistKey")
+    }
+
+    fun savePlaylistColor(playlistKey: String, colorHex: String) {
+        viewModelScope.launch {
+            dataStoreManager.putString("pl_color_$playlistKey", colorHex)
+        }
+    }
+
+    fun getPlaylistColorFlow(playlistKey: String): kotlinx.coroutines.flow.Flow<String?> {
+        return dataStoreManager.getString("pl_color_$playlistKey")
+    }
 }
 
 sealed class LocalPlaylistUIEvent {
