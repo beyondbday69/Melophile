@@ -2,6 +2,10 @@ package com.maxrave.simpmusic.ui.component.expressive
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -98,28 +102,70 @@ enum class MaterialShapePreset(
     CIRCLE("circle", "Circle", "Round"),
     DIAMOND("diamond", "Diamond", "Cut corner");
 
-    fun getShape(sizeDp: Dp = 64.dp): Shape {
-        return when (this) {
-            COOKIE -> LobedShape(ShapeTables.CookieRadiusTable)
-            FLOWER -> LobedShape(ShapeTables.FlowerRadiusTable)
-            STAR -> LobedShape(ShapeTables.DownloadRadiusTable)
-            CLOVER -> LobedShape(4, 0.18f)
-            SUNBURST -> LobedShape(12, 0.08f)
-            SQUIRCLE -> RoundedCornerShape(22.dp)
-            ARCH -> RoundedCornerShape(
-                topStart = 32.dp,
-                topEnd = 32.dp,
-                bottomStart = 8.dp,
-                bottomEnd = 8.dp,
-            )
-            CIRCLE -> CircleShape
-            DIAMOND -> CutCornerShape(20.dp)
+    val radiusTable: FloatArray
+        get() = when (this) {
+            COOKIE -> ShapeTables.CookieRadiusTable
+            FLOWER -> ShapeTables.FlowerRadiusTable
+            STAR -> ShapeTables.StarRadiusTable
+            CLOVER -> ShapeTables.CloverRadiusTable
+            SUNBURST -> ShapeTables.SunburstRadiusTable
+            SQUIRCLE -> ShapeTables.SquircleRadiusTable
+            ARCH -> ShapeTables.ArchRadiusTable
+            CIRCLE -> ShapeTables.CircleRadiusTable
+            DIAMOND -> ShapeTables.DiamondRadiusTable
         }
+
+    fun getShape(sizeDp: Dp = 64.dp): Shape {
+        return LobedShape(radiusTable)
     }
 
     companion object {
         fun fromId(id: String?): MaterialShapePreset {
             return entries.firstOrNull { it.id == id } ?: COOKIE
+        }
+    }
+}
+
+/**
+ * Remembers a smooth, continuous morphing Shape that animates between Material 3 shape presets.
+ * When [targetPreset] changes, the shape vertices smoothly flow and morph into the new shape
+ * with spring physics rather than snapping instantly.
+ */
+@Composable
+fun rememberMorphingShape(
+    targetPreset: MaterialShapePreset,
+    animationSpec: AnimationSpec<Float> = spring(
+        dampingRatio = 0.72f,
+        stiffness = 380f,
+    ),
+): Shape {
+    var previousPreset by remember { mutableStateOf(targetPreset) }
+    var currentTable by remember { mutableStateOf(targetPreset.radiusTable) }
+    val progress = remember { Animatable(1f) }
+
+    LaunchedEffect(targetPreset) {
+        if (targetPreset != previousPreset) {
+            val inFlight = progress.value
+            val fromTable = if (inFlight < 1f) {
+                ShapeTables.lerpTables(currentTable, previousPreset.radiusTable, inFlight)
+            } else {
+                previousPreset.radiusTable
+            }
+            currentTable = fromTable
+            previousPreset = targetPreset
+            progress.snapTo(0f)
+            progress.animateTo(
+                targetValue = 1f,
+                animationSpec = animationSpec,
+            )
+        }
+    }
+
+    return remember(targetPreset, progress.value) {
+        if (progress.value >= 1f) {
+            LobedShape(targetPreset.radiusTable)
+        } else {
+            LobedShape(ShapeTables.lerpTables(currentTable, targetPreset.radiusTable, progress.value))
         }
     }
 }
@@ -143,6 +189,7 @@ val ExpressiveCoverColors = listOf(
 /**
  * Expressive Playlist Cover: dynamically clips artwork (from song or photo) into a
  * Material 3 shape with background color/gradient framing.
+ * Smoothly morphs shape and cross-fades container color when presets change.
  */
 @Composable
 fun ExpressivePlaylistCover(
@@ -153,10 +200,16 @@ fun ExpressivePlaylistCover(
     size: Dp = 64.dp,
     title: String = "",
 ) {
+    val animatedShape = rememberMorphingShape(targetPreset = shapePreset)
+    val animatedBgColor by animateColorAsState(
+        targetValue = containerColor,
+        animationSpec = tween(durationMillis = 300),
+        label = "coverContainerColor",
+    )
     ExpressivePlaylistCover(
         thumbnailUrl = thumbnailUrl,
-        shape = shapePreset.getShape(size),
-        containerColor = containerColor,
+        shape = animatedShape,
+        containerColor = animatedBgColor,
         modifier = modifier,
         size = size,
         title = title,
@@ -265,7 +318,7 @@ fun ExpressivePlaylistCard(
         ) {
             ExpressivePlaylistCover(
                 thumbnailUrl = thumbnailUrl,
-                shape = shapePreset.getShape(72.dp),
+                shapePreset = shapePreset,
                 containerColor = containerColor,
                 size = 72.dp,
                 title = title,
@@ -530,7 +583,7 @@ fun PlaylistCoverCustomizerSheet(
                 ) {
                     ExpressivePlaylistCover(
                         thumbnailUrl = selectedThumbnail,
-                        shape = selectedShape.getShape(120.dp),
+                        shapePreset = selectedShape,
                         containerColor = selectedColor,
                         size = 120.dp,
                         title = playlistTitle,
