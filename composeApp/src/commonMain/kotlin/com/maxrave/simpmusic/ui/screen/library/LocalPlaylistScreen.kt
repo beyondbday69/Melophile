@@ -65,18 +65,10 @@ import com.maxrave.simpmusic.ui.component.expressive.ExpressivePlaylistCover
 import com.maxrave.simpmusic.ui.component.expressive.MaterialShapePreset
 import com.maxrave.simpmusic.ui.component.expressive.PlaylistCoverCustomizerSheet
 import com.maxrave.simpmusic.ui.icon.Album
-import com.maxrave.simpmusic.ui.icon.ArrowBackIosNew
 import com.maxrave.simpmusic.ui.icon.Check
 import com.maxrave.simpmusic.ui.icon.Close
-import com.maxrave.simpmusic.ui.icon.DownloadForOffline
 import com.maxrave.simpmusic.ui.icon.DragHandle
-import com.maxrave.simpmusic.ui.icon.MoreVert
-import com.maxrave.simpmusic.ui.icon.Pause
-import com.maxrave.simpmusic.ui.icon.PlayArrow
 import com.maxrave.simpmusic.ui.icon.Search
-import com.maxrave.simpmusic.ui.icon.Shuffle
-import com.maxrave.simpmusic.ui.icon.SimpIcons
-import com.maxrave.simpmusic.ui.icon.Sort
 import com.maxrave.simpmusic.ui.icon.Sync
 import com.maxrave.simpmusic.ui.icon.Tune
 import androidx.compose.ui.text.TextStyle
@@ -1197,6 +1189,7 @@ fun LocalPlaylistScreen(
                         },
                     ) {
                         SongFullWidthItems(
+                            modifier = Modifier,
                             forceDark = false,
                             isPlaying = isThisSongPlaying,
                             shouldShowDragHandle = changingOrder,
