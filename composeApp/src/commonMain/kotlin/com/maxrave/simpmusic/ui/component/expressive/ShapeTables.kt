@@ -16,10 +16,13 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 object ShapeTables {
-    const val NUM_POINTS = 72
+    // 240 samples keeps the outline smooth on large covers (the old 72-point
+    // table produced visible chords at 196dp) while still being cheap to
+    // rebuild on every animation frame.
+    const val NUM_POINTS = 240
 
     /**
-     * Precomputes normalized radius table r(theta) for 72 points:
+     * Precomputes normalized radius table r(theta) for [NUM_POINTS] points:
      * r = (1 + a * cos(k * theta)) / (1 + a)
      */
     fun createRadiusTable(lobes: Int, depth: Float): FloatArray {
@@ -99,7 +102,7 @@ object ShapeTables {
 }
 
 /**
- * Parametric lobed shape evaluated at 72 points from precomputed or dynamically morphing radius tables.
+ * Parametric lobed shape evaluated at [ShapeTables.NUM_POINTS] points from precomputed or dynamically morphing radius tables.
  */
 class LobedShape(
     val radiusTable: FloatArray,

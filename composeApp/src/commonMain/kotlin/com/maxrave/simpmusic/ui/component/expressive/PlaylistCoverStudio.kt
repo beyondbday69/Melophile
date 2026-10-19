@@ -135,40 +135,74 @@ enum class MaterialShapePreset(
 fun rememberMorphingShape(
     targetPreset: MaterialShapePreset,
     animationSpec: AnimationSpec<Float> = spring(
-        dampingRatio = 0.72f,
+        // Critically damped: the shape settles into place without bouncing past
+        // the target outline, which reads as a snap on a small cover.
+        dampingRatio = 1f,
         stiffness = 380f,
     ),
 ): Shape {
-    var previousPreset by remember { mutableStateOf(targetPreset) }
-    var currentTable by remember { mutableStateOf(targetPreset.radiusTable) }
     val progress = remember { Animatable(1f) }
+    // The table we are morphing *from* and the preset we are morphing *to*.
+    // Keeping the destination in state (instead of reading targetPreset
+    // directly) means the frame in which the target changes still renders the
+    // old shape; the animation can then start from it without a one-frame pop.
+    var morphState by remember {
+        mutableStateOf(
+            ShapeMorphState(
+                fromTable = targetPreset.radiusTable,
+                toPreset = targetPreset,
+            ),
+        )
+    }
 
     LaunchedEffect(targetPreset) {
-        if (targetPreset != previousPreset) {
-            val inFlight = progress.value
-            val fromTable = if (inFlight < 1f) {
-                ShapeTables.lerpTables(currentTable, previousPreset.radiusTable, inFlight)
+        if (morphState.toPreset == targetPreset) return@LaunchedEffect
+
+        val inFlight = progress.value
+        // If another morph is already running, start the new one from the
+        // exact outline currently on screen instead of from its destination.
+        val fromTable =
+            if (inFlight >= 1f) {
+                morphState.toPreset.radiusTable
             } else {
-                previousPreset.radiusTable
+                ShapeTables.lerpTables(
+                    morphState.fromTable,
+                    morphState.toPreset.radiusTable,
+                    inFlight,
+                )
             }
-            currentTable = fromTable
-            previousPreset = targetPreset
-            progress.snapTo(0f)
-            progress.animateTo(
-                targetValue = 1f,
-                animationSpec = animationSpec,
+
+        // Both writes happen before animateTo suspends, so the first animated
+        // frame is the old outline at progress 0 — no visible jump.
+        progress.snapTo(0f)
+        morphState = ShapeMorphState(fromTable = fromTable, toPreset = targetPreset)
+        progress.animateTo(
+            targetValue = 1f,
+            animationSpec = animationSpec,
+        )
+    }
+
+    val state = morphState
+    val animationProgress = progress.value
+    return remember(state, animationProgress) {
+        if (animationProgress >= 1f) {
+            LobedShape(state.toPreset.radiusTable)
+        } else {
+            LobedShape(
+                ShapeTables.lerpTables(
+                    state.fromTable,
+                    state.toPreset.radiusTable,
+                    animationProgress,
+                ),
             )
         }
     }
-
-    return remember(targetPreset, progress.value) {
-        if (progress.value >= 1f) {
-            LobedShape(targetPreset.radiusTable)
-        } else {
-            LobedShape(ShapeTables.lerpTables(currentTable, targetPreset.radiusTable, progress.value))
-        }
-    }
 }
+
+private data class ShapeMorphState(
+    val fromTable: FloatArray,
+    val toPreset: MaterialShapePreset,
+)
 
 /**
  * Vibrant Material 3 Expressive color presets for playlist covers.
@@ -225,6 +259,17 @@ fun ExpressivePlaylistCover(
     size: Dp = 64.dp,
     title: String = "",
 ) {
+    val platformContext = LocalPlatformContext.current
+    // Rebuilding the request on every morph frame re-allocated it 60 times a
+    // second and could make Coil re-evaluate the load mid-animation.
+    val imageRequest =
+        remember(platformContext, thumbnailUrl) {
+            ImageRequest.Builder(platformContext)
+                .data(thumbnailUrl)
+                .diskCachePolicy(CachePolicy.ENABLED)
+                .crossfade(true)
+                .build()
+        }
     Box(
         modifier = modifier
             .size(size)
@@ -234,16 +279,13 @@ fun ExpressivePlaylistCover(
     ) {
         if (!thumbnailUrl.isNullOrEmpty()) {
             AsyncImage(
-                model = ImageRequest.Builder(LocalPlatformContext.current)
-                    .data(thumbnailUrl)
-                    .diskCachePolicy(CachePolicy.ENABLED)
-                    .crossfade(true)
-                    .build(),
+                model = imageRequest,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(shape),
+                // The parent Box already clips every child to the animated
+                // shape. Clipping again here created a second graphics layer
+                // that had to be rebuilt on every morph frame.
+                modifier = Modifier.fillMaxSize(),
             )
         } else {
             Box(
@@ -781,6 +823,14 @@ fun PlaylistCoverCustomizerSheet(
                             ) {
                                 items(playlistSongs) { song ->
                                     val isSelectedSong = song.thumbnails == selectedThumbnail
+                                    val platformContext = LocalPlatformContext.current
+                                    val songImageRequest =
+                                        remember(platformContext, song.thumbnails) {
+                                            ImageRequest.Builder(platformContext)
+                                                .data(song.thumbnails)
+                                                .diskCachePolicy(CachePolicy.ENABLED)
+                                                .build()
+                                        }
                                     Surface(
                                         modifier = Modifier
                                             .width(110.dp)
@@ -810,10 +860,7 @@ fun PlaylistCoverCustomizerSheet(
                                                 contentAlignment = Alignment.Center,
                                             ) {
                                                 AsyncImage(
-                                                    model = ImageRequest.Builder(LocalPlatformContext.current)
-                                                        .data(song.thumbnails)
-                                                        .diskCachePolicy(CachePolicy.ENABLED)
-                                                        .build(),
+                                                    model = songImageRequest,
                                                     contentDescription = null,
                                                     contentScale = ContentScale.Crop,
                                                     modifier = Modifier.fillMaxSize(),
