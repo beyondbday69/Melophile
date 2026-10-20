@@ -288,25 +288,47 @@ fun LibraryDynamicPlaylistScreen(
         parsed.topListRange()?.let { (start, end) -> analyticsViewModel.showRange(start, end) }
     }
 
-    LaunchedEffect(query) {
-        tempFavorite = favorite.filter { it.matches(query) }
-        tempFollowed = followed.filter { it.name.contains(query, ignoreCase = true) }
-        tempMostPlayed = mostPlayed.filter { it.matches(query) }
-        tempDownloaded = downloaded.filter { it.matches(query) }
-        tempMonthlyRecap = monthlyRecap.filter { it.matches(query) }
-        tempArtistLiked = artistLiked.filter { it.matches(query) }
-        tempTopTracks =
-            analyticsUIState.topTracks.data
-                ?.filter { it.second.matches(query) }
-                ?: emptyList()
-        tempTopArtists =
-            analyticsUIState.topArtists.data
-                ?.filter { it.second.name.contains(query, ignoreCase = true) }
-                ?: emptyList()
-        tempTopAlbums =
-            analyticsUIState.topAlbums.data
-                ?.filter { matchesQuery(it.second.title, it.second.artistName, query) }
-                ?: emptyList()
+    LaunchedEffect(query, playlistType) {
+        // Only the list on screen is ever read while typing. Filtering all nine library lists on
+        // every character made search slower as the local library grew, for no visible benefit.
+        if (query.isEmpty()) return@LaunchedEffect
+        when (playlistType) {
+            LibraryDynamicPlaylistType.Downloaded ->
+                tempDownloaded = downloaded.filter { it.matches(query) }
+
+            LibraryDynamicPlaylistType.Favorite ->
+                tempFavorite = favorite.filter { it.matches(query) }
+
+            LibraryDynamicPlaylistType.MostPlayed ->
+                tempMostPlayed = mostPlayed.filter { it.matches(query) }
+
+            LibraryDynamicPlaylistType.Followed ->
+                tempFollowed = followed.filter { it.name.contains(query, ignoreCase = true) }
+
+            is LibraryDynamicPlaylistType.TopTracks ->
+                tempTopTracks =
+                    analyticsUIState.topTracks.data
+                        ?.filter { it.second.matches(query) }
+                        ?: emptyList()
+
+            is LibraryDynamicPlaylistType.TopArtists ->
+                tempTopArtists =
+                    analyticsUIState.topArtists.data
+                        ?.filter { it.second.name.contains(query, ignoreCase = true) }
+                        ?: emptyList()
+
+            is LibraryDynamicPlaylistType.TopAlbums ->
+                tempTopAlbums =
+                    analyticsUIState.topAlbums.data
+                        ?.filter { matchesQuery(it.second.title, it.second.artistName, query) }
+                        ?: emptyList()
+
+            is LibraryDynamicPlaylistType.MonthlyRecap ->
+                tempMonthlyRecap = monthlyRecap.filter { it.matches(query) }
+
+            is LibraryDynamicPlaylistType.ArtistLiked ->
+                tempArtistLiked = artistLiked.filter { it.matches(query) }
+        }
     }
 
     LazyColumn(
@@ -567,7 +589,7 @@ fun LibraryDynamicPlaylistScreen(
                     )
                 }
             } else {
-                items(songs, key = { it.hashCode() }) { song ->
+                items(songs, key = { it.videoId }) { song ->
                     SongFullWidthItems(
                         songEntity = song,
                         isPlaying = song.videoId == nowPlayingVideoId,

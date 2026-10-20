@@ -1,7 +1,6 @@
 package com.maxrave.simpmusic.viewModel
 
 import androidx.lifecycle.viewModelScope
-import com.maxrave.common.SELECTED_LANGUAGE
 import com.maxrave.domain.data.entities.SearchHistory
 import com.maxrave.domain.data.model.searchResult.albums.AlbumsResult
 import com.maxrave.domain.data.model.searchResult.artists.ArtistsResult
@@ -10,7 +9,6 @@ import com.maxrave.domain.data.model.searchResult.songs.SongsResult
 import com.maxrave.domain.data.model.mood.Mood
 import com.maxrave.domain.data.model.searchResult.videos.VideosResult
 import com.maxrave.domain.data.type.SearchResultType
-import com.maxrave.domain.manager.DataStoreManager
 import com.maxrave.domain.repository.HomeRepository
 import com.maxrave.domain.repository.SearchRepository
 import com.maxrave.domain.utils.Resource
@@ -18,15 +16,14 @@ import com.maxrave.domain.utils.toQueryList
 import com.maxrave.logger.LogLevel
 import com.maxrave.logger.Logger
 import com.maxrave.simpmusic.viewModel.base.BaseViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import org.jetbrains.compose.resources.StringResource
 import simpmusic.composeapp.generated.resources.Res
 import simpmusic.composeapp.generated.resources.albums
@@ -89,7 +86,6 @@ sealed class SearchScreenUIState {
 }
 
 class SearchViewModel(
-    private val dataStoreManager: DataStoreManager,
     private val searchRepository: SearchRepository,
     private val homeRepository: HomeRepository,
 ) : BaseViewModel() {
@@ -111,13 +107,9 @@ class SearchViewModel(
     val moodArtwork: StateFlow<Map<String, String>> get() = _moodArtwork.asStateFlow()
 
     private val requestedArtwork = mutableSetOf<String>()
-
-    var regionCode: String? = null
-    var language: String? = null
+    private var suggestQueryJob: Job? = null
 
     init {
-        regionCode = runBlocking { dataStoreManager.location.first() }
-        language = runBlocking { dataStoreManager.getString(SELECTED_LANGUAGE).first() }
         getSearchHistory()
         getMoodAndGenres()
     }
@@ -337,27 +329,33 @@ class SearchViewModel(
     }
 
     fun suggestQuery(query: String) {
-        viewModelScope.launch {
-            searchRepository.getSuggestQuery(query).collect { values ->
-                when (values) {
-                    is Resource.Success -> {
-                        values.data?.let { suggestData ->
-                            _searchScreenState.update { state ->
-                                state.copy(
-                                    suggestQueries = suggestData.queries,
-                                    suggestYTItems = suggestData.recommendedItems,
-                                )
+        // Typing "abcdef" used to start six requests and let whichever finished last win. Cancel the
+        // previous one, wait for a short pause, then fetch only the query the user stopped on.
+        suggestQueryJob?.cancel()
+        if (query.isBlank()) return
+        suggestQueryJob =
+            viewModelScope.launch {
+                delay(250)
+                searchRepository.getSuggestQuery(query).collect { values ->
+                    when (values) {
+                        is Resource.Success -> {
+                            values.data?.let { suggestData ->
+                                _searchScreenState.update { state ->
+                                    state.copy(
+                                        suggestQueries = suggestData.queries,
+                                        suggestYTItems = suggestData.recommendedItems,
+                                    )
+                                }
                             }
                         }
-                    }
 
-                    is Resource.Error -> {
-                        // Không cần xử lý lỗi đặc biệt cho gợi ý
-                        log("Error fetching suggest queries: ${values.message}", LogLevel.ERROR)
+                        is Resource.Error -> {
+                            // Không cần xử lý lỗi đặc biệt cho gợi ý
+                            log("Error fetching suggest queries: ${values.message}", LogLevel.ERROR)
+                        }
                     }
                 }
             }
-        }
     }
 
     fun searchAlbums(query: String) {

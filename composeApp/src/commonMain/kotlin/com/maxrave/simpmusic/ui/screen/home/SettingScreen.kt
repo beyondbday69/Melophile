@@ -590,24 +590,19 @@ fun SettingScreen(
     val castState by viewModel.castState.collectAsStateWithLifecycle()
 
     val isCheckingUpdate by sharedViewModel.isCheckingUpdate.collectAsStateWithLifecycle()
-    val checkForUpdateSubtitle by remember {
-        derivedStateOf {
-            if (isCheckingUpdate) {
-                return@derivedStateOf runBlocking { getString(Res.string.checking) }
-            } else {
-                val lastCheckLong = lastCheckUpdate?.toLong() ?: 0L
-                return@derivedStateOf runBlocking {
-                    getString(
-                        Res.string.last_checked_at,
-                        DateTimeFormatter
-                            .ofPattern("yyyy-MM-dd HH:mm:ss")
-                            .withZone(ZoneId.systemDefault())
-                            .format(Instant.ofEpochMilli(lastCheckLong)),
-                    )
-                }
-            }
+    val lastCheckedAt =
+        remember(lastCheckUpdate) {
+            DateTimeFormatter
+                .ofPattern("yyyy-MM-dd HH:mm:ss")
+                .withZone(ZoneId.systemDefault())
+                .format(Instant.ofEpochMilli(lastCheckUpdate?.toLong() ?: 0L))
         }
-    }
+    val checkForUpdateSubtitle =
+        if (isCheckingUpdate) {
+            stringResource(Res.string.checking)
+        } else {
+            stringResource(Res.string.last_checked_at, lastCheckedAt)
+        }
     var showYouTubeAccountDialog by rememberSaveable {
         mutableStateOf(false)
     }
