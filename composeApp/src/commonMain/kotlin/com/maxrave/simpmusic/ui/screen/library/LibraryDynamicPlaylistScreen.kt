@@ -31,18 +31,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -69,7 +65,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -85,7 +80,6 @@ import com.maxrave.domain.utils.LocalResource
 import com.maxrave.domain.utils.toArrayListTrack
 import com.maxrave.domain.utils.toTrack
 import com.maxrave.simpmusic.extension.getStringBlocking
-import com.maxrave.simpmusic.extension.getScreenSizeInfo
 import com.maxrave.simpmusic.expect.BackHandler
 import com.maxrave.simpmusic.ui.component.SearchBarExit
 import com.maxrave.simpmusic.ui.component.SearchBarEnter
@@ -103,7 +97,6 @@ import com.maxrave.simpmusic.ui.component.selection.rememberSongSelectionState
 import com.maxrave.simpmusic.ui.icon.ArrowBack
 import com.maxrave.simpmusic.ui.icon.ArrowBackIosNew
 import com.maxrave.simpmusic.ui.icon.Close
-import com.maxrave.simpmusic.ui.icon.DownloadForOffline
 import com.maxrave.simpmusic.ui.icon.PlayArrow
 import com.maxrave.simpmusic.ui.icon.PlayCircle
 import com.maxrave.simpmusic.ui.icon.Search
@@ -200,8 +193,6 @@ fun LibraryDynamicPlaylistScreen(
     var tempTopAlbums by remember { mutableStateOf(analyticsUIState.topAlbums.data ?: emptyList()) }
     val playlistType = LibraryDynamicPlaylistType.toType(type)
     val isDownloaded = playlistType == LibraryDynamicPlaylistType.Downloaded
-    val screenInfo = getScreenSizeInfo()
-    val isPortrait = screenInfo.wDP < screenInfo.hDP
     // Downloaded songs have no artwork, so the page pastel comes from the app's primary role.
     // Other dynamic lists keep the plain theme background.
     val downloadedPageBg = rememberPlaylistBackgroundColor(MaterialTheme.colorScheme.primary)
@@ -333,7 +324,6 @@ fun LibraryDynamicPlaylistScreen(
                 contentType = "downloaded_header",
             ) {
                 DownloadedHeader(
-                    isPortrait = isPortrait,
                     count = downloaded.size,
                     isSearchActive = showSearchBar,
                     autoFocusSearch = shouldFocusDownloadedSearch,
@@ -888,37 +878,16 @@ fun LibraryDynamicPlaylistScreen(
                             )
                         },
                         navigationIcon = {
-                            FilledTonalIconButton(
-                                onClick = { navController.navigateUp() },
-                                modifier =
-                                    Modifier
-                                        .padding(start = 6.dp)
-                                        .size(40.dp),
-                                shape = RoundedCornerShape(14.dp),
-                                colors =
-                                    IconButtonDefaults.filledTonalIconButtonColors(
-                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                        contentColor = MaterialTheme.colorScheme.onSurface,
-                                    ),
-                            ) {
+                            IconButton(onClick = { navController.navigateUp() }) {
                                 Icon(
                                     imageVector = SimpIcons.ArrowBack,
                                     contentDescription = "Back",
-                                    modifier = Modifier.size(20.dp),
+                                    modifier = Modifier.size(24.dp),
                                 )
                             }
                         },
                         actions = {
-                            FilledTonalIconButton(
-                                onClick = toggleSearch,
-                                modifier = Modifier.size(40.dp),
-                                shape = RoundedCornerShape(14.dp),
-                                colors =
-                                    IconButtonDefaults.filledTonalIconButtonColors(
-                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                        contentColor = MaterialTheme.colorScheme.onSurface,
-                                    ),
-                            ) {
+                            IconButton(onClick = toggleSearch) {
                                 Icon(
                                     imageVector = if (showSearchBar) SimpIcons.Close else SimpIcons.Search,
                                     contentDescription =
@@ -927,10 +896,9 @@ fun LibraryDynamicPlaylistScreen(
                                         } else {
                                             stringResource(Res.string.search_downloaded_songs)
                                         },
-                                    modifier = Modifier.size(20.dp),
+                                    modifier = Modifier.size(24.dp),
                                 )
                             }
-                            Spacer(Modifier.size(4.dp))
                         },
                         colors =
                             TopAppBarDefaults.topAppBarColors(
@@ -948,15 +916,14 @@ fun LibraryDynamicPlaylistScreen(
 }
 
 /**
- * Material 3 Expressive header for the Downloaded library list.
+ * Compact Material 3 header for the Downloaded library list.
  *
- * The top row keeps navigation and search within thumb reach; below it the hero gives the list
- * one clear identity and its two primary actions. Search replaces the hero rather than opening a
- * second screen, so the results appear in the same scroll container and system back can close it.
+ * Downloaded songs have no artwork, so the header deliberately stays minimal: navigation, the
+ * title, the offline count and the two actions. Search replaces the title block in place so the
+ * results stay in the same scroll container and system back can close it.
  */
 @Composable
 private fun DownloadedHeader(
-    isPortrait: Boolean,
     count: Int,
     isSearchActive: Boolean,
     autoFocusSearch: Boolean,
@@ -970,45 +937,24 @@ private fun DownloadedHeader(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp),
+        modifier = modifier.fillMaxWidth(),
     ) {
         Row(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp),
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            FilledTonalIconButton(
-                onClick = onBack,
-                modifier = Modifier.size(48.dp),
-                shape = RoundedCornerShape(18.dp),
-                colors =
-                    IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        contentColor = MaterialTheme.colorScheme.onSurface,
-                    ),
-            ) {
+            IconButton(onClick = onBack) {
                 Icon(
                     imageVector = SimpIcons.ArrowBack,
                     contentDescription = "Back",
-                    modifier = Modifier.size(22.dp),
+                    modifier = Modifier.size(24.dp),
                 )
             }
-            FilledTonalIconButton(
-                onClick = onToggleSearch,
-                modifier = Modifier.size(48.dp),
-                shape = RoundedCornerShape(18.dp),
-                colors =
-                    IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        contentColor = MaterialTheme.colorScheme.onSurface,
-                    ),
-            ) {
+            IconButton(onClick = onToggleSearch) {
                 Icon(
                     imageVector = if (isSearchActive) SimpIcons.Close else SimpIcons.Search,
                     contentDescription =
@@ -1017,7 +963,7 @@ private fun DownloadedHeader(
                         } else {
                             stringResource(Res.string.search_downloaded_songs)
                         },
-                    modifier = Modifier.size(22.dp),
+                    modifier = Modifier.size(24.dp),
                 )
             }
         }
@@ -1027,16 +973,10 @@ private fun DownloadedHeader(
                 onQueryChange = onQueryChange,
                 autoFocus = autoFocusSearch,
                 onFocusHandled = onSearchFocusHandled,
-                modifier = Modifier.padding(bottom = 20.dp),
-            )
-        } else if (isPortrait) {
-            DownloadedHeroPortrait(
-                count = count,
-                onPlayAll = onPlayAll,
-                onShuffle = onShuffle,
+                modifier = Modifier.padding(horizontal = 20.dp, top = 4.dp, bottom = 20.dp),
             )
         } else {
-            DownloadedHeroLandscape(
+            DownloadedTitleBlock(
                 count = count,
                 onPlayAll = onPlayAll,
                 onShuffle = onShuffle,
@@ -1046,7 +986,7 @@ private fun DownloadedHeader(
 }
 
 @Composable
-private fun DownloadedHeroPortrait(
+private fun DownloadedTitleBlock(
     count: Int,
     onPlayAll: () -> Unit,
     onShuffle: () -> Unit,
@@ -1055,99 +995,26 @@ private fun DownloadedHeroPortrait(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .padding(top = 8.dp, bottom = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+                .padding(start = 20.dp, top = 8.dp, end = 20.dp, bottom = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        DownloadedHeroIcon(size = 132.dp)
-        Spacer(Modifier.height(20.dp))
         Text(
             text = stringResource(Res.string.downloaded),
             style =
-                MaterialTheme.typography.headlineLarge.copy(
+                MaterialTheme.typography.headlineMedium.copy(
                     fontWeight = FontWeight.Bold,
-                    letterSpacing = (-0.5).sp,
+                    letterSpacing = (-0.25).sp,
                 ),
             color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center,
-            maxLines = 2,
+            maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        Spacer(Modifier.height(12.dp))
         DownloadedMetaRow(count = count)
         if (count > 0) {
-            Spacer(Modifier.height(20.dp))
             DownloadedActionRow(
                 count = count,
                 onPlayAll = onPlayAll,
                 onShuffle = onShuffle,
-            )
-        }
-    }
-}
-
-@Composable
-private fun DownloadedHeroLandscape(
-    count: Int,
-    onPlayAll: () -> Unit,
-    onShuffle: () -> Unit,
-) {
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(vertical = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(28.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        DownloadedHeroIcon(size = 124.dp)
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Text(
-                text = stringResource(Res.string.downloaded),
-                style =
-                    MaterialTheme.typography.headlineLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = (-0.5).sp,
-                    ),
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            DownloadedMetaRow(count = count)
-            if (count > 0) {
-                DownloadedActionRow(
-                    count = count,
-                    onPlayAll = onPlayAll,
-                    onShuffle = onShuffle,
-                )
-            }
-        }
-    }
-}
-
-/**
- * The one expressive moment on this page: a large tonal squircle that gives the downloaded
- * library a recognisable mark without borrowing album art it does not have.
- */
-@Composable
-private fun DownloadedHeroIcon(size: Dp) {
-    Surface(
-        shape = RoundedCornerShape(size * 0.28f),
-        color = MaterialTheme.colorScheme.primary,
-        contentColor = MaterialTheme.colorScheme.onPrimary,
-        tonalElevation = 2.dp,
-        modifier = Modifier.size(size),
-    ) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = SimpIcons.DownloadForOffline,
-                contentDescription = null,
-                modifier = Modifier.size(size * 0.42f),
             )
         }
     }
@@ -1163,9 +1030,8 @@ private fun DownloadedMetaRow(count: Int) {
             } else {
                 countText
             },
-        style = MaterialTheme.typography.bodyLarge,
+        style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        textAlign = TextAlign.Center,
     )
 }
 
@@ -1176,47 +1042,41 @@ private fun DownloadedActionRow(
     onShuffle: () -> Unit,
 ) {
     Row(
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Button(
             onClick = onPlayAll,
             enabled = count > 0,
-            shape = RoundedCornerShape(28.dp),
-            colors =
-                ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                ),
-            contentPadding = PaddingValues(horizontal = 28.dp, vertical = 14.dp),
-            elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp, pressedElevation = 0.dp),
+            shape = RoundedCornerShape(24.dp),
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
         ) {
             Icon(
                 imageVector = SimpIcons.PlayArrow,
                 contentDescription = null,
-                modifier = Modifier.size(24.dp),
+                modifier = Modifier.size(20.dp),
             )
-            Spacer(Modifier.size(8.dp))
+            Spacer(Modifier.size(6.dp))
             Text(
                 text = "Play",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
             )
         }
-        FilledTonalIconButton(
+        FilledTonalButton(
             onClick = onShuffle,
             enabled = count > 0,
-            modifier = Modifier.size(52.dp),
-            shape = CircleShape,
-            colors =
-                IconButtonDefaults.filledTonalIconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    contentColor = MaterialTheme.colorScheme.onSurface,
-                ),
+            shape = RoundedCornerShape(24.dp),
+            contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp),
         ) {
             Icon(
                 imageVector = SimpIcons.Shuffle,
-                contentDescription = "Shuffle",
-                modifier = Modifier.size(22.dp),
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+            )
+            Spacer(Modifier.size(6.dp))
+            Text(
+                text = "Shuffle",
+                style = MaterialTheme.typography.titleSmall,
             )
         }
     }
@@ -1294,31 +1154,9 @@ private fun DownloadedEmptyState(
         modifier =
             modifier
                 .fillMaxWidth()
-                .padding(horizontal = 32.dp, vertical = 36.dp),
+                .padding(horizontal = 32.dp, vertical = 28.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        // The hero already supplies the large download mark in the empty-download case;
-        // only the search variant needs its own icon.
-        if (isSearching) {
-            Surface(
-                shape = RoundedCornerShape(28.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                modifier = Modifier.size(88.dp),
-            ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = SimpIcons.Search,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(40.dp),
-                    )
-                }
-            }
-            Spacer(Modifier.height(20.dp))
-        }
         Text(
             text =
                 stringResource(
