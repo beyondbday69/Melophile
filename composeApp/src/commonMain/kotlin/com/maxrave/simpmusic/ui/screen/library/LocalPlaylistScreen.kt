@@ -56,6 +56,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilterChip
@@ -80,10 +81,8 @@ import com.maxrave.simpmusic.ui.icon.Tune
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SearchBar
-import androidx.compose.material3.LocalTextStyle
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -108,6 +107,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
@@ -123,6 +124,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -170,7 +172,6 @@ import com.maxrave.simpmusic.ui.component.LiquidGlassIconButton
 import com.maxrave.simpmusic.ui.component.LoadingDialog
 import com.maxrave.simpmusic.ui.component.LocalPlaylistBottomSheet
 import com.maxrave.simpmusic.ui.component.NowPlayingBottomSheet
-import com.maxrave.simpmusic.ui.component.RippleIconButton
 import com.maxrave.simpmusic.ui.component.SongFullWidthItems
 import com.maxrave.simpmusic.ui.component.selection.SelectedSongsBottomSheet
 import com.maxrave.simpmusic.ui.component.selection.SongSelectionAction
@@ -225,6 +226,7 @@ import simpmusic.composeapp.generated.resources.cancel
 import simpmusic.composeapp.generated.resources.created_at
 import simpmusic.composeapp.generated.resources.downloaded
 import simpmusic.composeapp.generated.resources.downloading
+import simpmusic.composeapp.generated.resources.no_results_found
 import simpmusic.composeapp.generated.resources.reload
 import simpmusic.composeapp.generated.resources.remove_from_playlist
 import simpmusic.composeapp.generated.resources.sort_by
@@ -236,6 +238,7 @@ import simpmusic.composeapp.generated.resources.warning
 import simpmusic.composeapp.generated.resources.yes
 import simpmusic.composeapp.generated.resources.your_playlist
 import simpmusic.composeapp.generated.resources.search
+import simpmusic.composeapp.generated.resources.search_songs_in_playlist
 
 private const val TAG = "LocalPlaylistScreen"
 
@@ -1481,95 +1484,158 @@ fun LocalPlaylistScreen(
         enter = SearchBarEnter,
         exit = SearchBarExit,
     ) {
+        val searchFocusRequester = remember { FocusRequester() }
+        val keyboardController = LocalSoftwareKeyboardController.current
+        var searchSettled by remember { mutableStateOf(false) }
+
+        // The view model debounces queries by 250 ms. Wait a little longer before
+        // declaring "no results" so the empty state never flashes mid-query.
+        LaunchedEffect(searchQuery) {
+            val trimmed = searchQuery.trim()
+            searchSettled = trimmed.length < 2
+            if (trimmed.length >= 2) {
+                delay(500)
+                searchSettled = true
+            }
+        }
+        LaunchedEffect(Unit) {
+            delay(150)
+            searchFocusRequester.requestFocus()
+            keyboardController?.show()
+        }
+
         Column(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background),
+                    .background(MaterialTheme.colorScheme.surface),
         ) {
-            // Same bar as the one on Playlist and Album: blurred over the content behind it,
-            // back on the left, clear on the right.
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.background),
+            // Material 3 expressive search header: a tonal back action and a
+            // filled search field with in-field clear, instead of the old
+            // transparent bar and separate close button.
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 10.dp)
+                        .windowInsetsPadding(WindowInsets.statusBars),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Row(
+                ExpressiveTopBarIconButton(
+                    imageVector = SimpIcons.ArrowBack,
+                    contentDescription = "Close search",
+                    onClick = {
+                        showSearchBar = false
+                        keyboardController?.hide()
+                    },
+                )
+                SearchBar(
+                    inputField = {
+                        SearchBarDefaults.InputField(
+                            query = searchQuery,
+                            onQueryChange = { viewModel.setSearchQuery(it) },
+                            onSearch = {},
+                            expanded = false,
+                            onExpandedChange = {},
+                            placeholder = {
+                                Text(
+                                    text = stringResource(Res.string.search),
+                                    style = typo().bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = SimpIcons.Search,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            },
+                            trailingIcon = {
+                                AnimatedVisibility(visible = searchQuery.isNotEmpty()) {
+                                    IconButton(onClick = { viewModel.setSearchQuery("") }) {
+                                        Icon(
+                                            imageVector = SimpIcons.Close,
+                                            contentDescription = "Clear search",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
+                            },
+                        )
+                    },
+                    expanded = false,
+                    onExpandedChange = {},
                     modifier =
                         Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                            .windowInsetsPadding(WindowInsets.statusBars),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    RippleIconButton(
-                        imageVector = SimpIcons.ArrowBack,
-                    ) {
-                        navController.navigateUp()
-                    }
-                    SearchBar(
-                        modifier =
-                            Modifier
-                                .height(50.dp)
-                                .padding(horizontal = 12.dp)
-                                .weight(1f),
-                        colors =
-                            SearchBarDefaults.colors().copy(
-                                containerColor = Color.Transparent,
-                            ),
-                        inputField = {
-                            CompositionLocalProvider(LocalTextStyle provides typo().bodySmall) {
-                                SearchBarDefaults.InputField(
-                                    query = searchQuery,
-                                    onQueryChange = { viewModel.setSearchQuery(it) },
-                                    onSearch = {},
-                                    expanded = showSearchBar,
-                                    onExpandedChange = { showSearchBar = it },
-                                    placeholder = {
-                                        Text(
-                                            stringResource(Res.string.search),
-                                            style = typo().bodyMedium,
-                                        )
-                                    },
-                                )
-                            }
-                        },
-                        expanded = false,
-                        onExpandedChange = {},
-                        windowInsets = WindowInsets(0, 0, 0, 0),
-                    ) {
-                    }
-                    IconButton(
-                        onClick = {
-                            showSearchBar = false
-                            viewModel.setSearchQuery("")
-                        },
-                    ) {
-                        Icon(SimpIcons.Close, null, tint = MaterialTheme.colorScheme.onSurface)
-                    }
-                }
+                            .weight(1f)
+                            .height(56.dp)
+                            .focusRequester(searchFocusRequester),
+                    shape = RoundedCornerShape(28.dp),
+                    colors =
+                        SearchBarDefaults.colors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        ),
+                    windowInsets = WindowInsets(0, 0, 0, 0),
+                    content = {},
+                )
             }
-            LazyColumn(modifier = Modifier.weight(1f)) {
-                items(
-                    searchResults,
-                    key = { (song, pair) -> song.videoId + "_" + pair.position },
-                ) { (song, _) ->
-                    SongFullWidthItems(
-                        forceDark = false,
-                        isPlaying = playingTrack?.videoId == song.videoId && isPlaying,
-                        songEntity = song,
-                        onMoreClickListener = { onItemMoreClick(it) },
-                        onClickListener = { onPlaylistItemClick(it) },
-                        onAddToQueue = { sharedViewModel.addListToQueue(arrayListOf(song.toTrack())) },
-                        selectionMode = selectionState.isActive,
-                        isSelected = selectionState.isSelected(song.videoId),
-                        onLongClick = { selectionState.start(it) },
-                        onSelectToggle = { selectionState.toggle(it) },
-                        // Required, no default — the paged list passes it down through `mod`.
-                        modifier = Modifier,
+
+            val trimmedQuery = searchQuery.trim()
+            when {
+                trimmedQuery.length < 2 ->
+                    PlaylistSearchMessage(
+                        icon = SimpIcons.Search,
+                        title = stringResource(Res.string.search_songs_in_playlist),
+                        modifier = Modifier.weight(1f),
                     )
-                    HorizontalDivider(color = androidx.compose.ui.graphics.Color.Transparent, modifier = Modifier.padding(start = 72.dp, end = 16.dp))
-                }
+
+                searchResults.isNotEmpty() ->
+                    LazyColumn(modifier = Modifier.weight(1f)) {
+                        items(
+                            searchResults,
+                            key = { (song, pair) -> song.videoId + "_" + pair.position },
+                        ) { (song, _) ->
+                            SongFullWidthItems(
+                                forceDark = false,
+                                isPlaying = playingTrack?.videoId == song.videoId && isPlaying,
+                                songEntity = song,
+                                onMoreClickListener = { onItemMoreClick(it) },
+                                onClickListener = { onPlaylistItemClick(it) },
+                                onAddToQueue = { sharedViewModel.addListToQueue(arrayListOf(song.toTrack())) },
+                                selectionMode = selectionState.isActive,
+                                isSelected = selectionState.isSelected(song.videoId),
+                                onLongClick = { selectionState.start(it) },
+                                onSelectToggle = { selectionState.toggle(it) },
+                                // Required, no default — the paged list passes it down through `mod`.
+                                modifier = Modifier,
+                            )
+                            HorizontalDivider(
+                                color = Color.Transparent,
+                                modifier = Modifier.padding(start = 72.dp, end = 16.dp),
+                            )
+                        }
+                    }
+
+                !searchSettled ->
+                    Box(
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(36.dp),
+                            strokeWidth = 3.dp,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+
+                else ->
+                    PlaylistSearchMessage(
+                        icon = SimpIcons.Search,
+                        title = stringResource(Res.string.no_results_found),
+                        modifier = Modifier.weight(1f),
+                    )
             }
         }
     }
@@ -1790,6 +1856,48 @@ private fun ExpressiveTopBarGroupButton(
     ) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             content()
+        }
+    }
+}
+
+/**
+ * Centered M3 hint / empty state for the in-playlist search overlay.
+ */
+@Composable
+private fun PlaylistSearchMessage(
+    icon: ImageVector,
+    title: String,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(32.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Surface(
+                shape = RoundedCornerShape(28.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                modifier = Modifier.size(88.dp),
+            ) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        modifier = Modifier.size(36.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(18.dp))
+            Text(
+                text = title,
+                style = typo().titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
         }
     }
 }
