@@ -114,7 +114,6 @@ import com.maxrave.simpmusic.extension.artworkScrimBrush
 import com.maxrave.simpmusic.extension.getColorFromPalette
 import com.maxrave.simpmusic.extension.getScreenSizeInfo
 import com.maxrave.simpmusic.extension.getStringBlocking
-import com.maxrave.simpmusic.extension.toImmersiveBackground
 import com.maxrave.simpmusic.ui.component.AddToPlaylistModalBottomSheet
 import com.maxrave.simpmusic.ui.component.CenterLoadingBox
 import com.maxrave.simpmusic.ui.component.DescriptionView
@@ -125,6 +124,7 @@ import com.maxrave.simpmusic.ui.component.PlaylistBottomSheet
 import com.maxrave.simpmusic.ui.component.SongFullWidthItems
 import com.maxrave.simpmusic.ui.component.heartBurst
 import com.maxrave.simpmusic.ui.component.rememberHeartBurstState
+import com.maxrave.simpmusic.ui.component.expressive.playlistBackground
 import com.maxrave.simpmusic.ui.component.selection.SelectedSongsBottomSheet
 import com.maxrave.simpmusic.ui.component.selection.SongSelectionTopAppBar
 import com.maxrave.simpmusic.ui.component.selection.rememberSongSelectionState
@@ -139,7 +139,6 @@ import com.maxrave.simpmusic.ui.icon.Search
 import com.maxrave.simpmusic.ui.icon.Shuffle
 import com.maxrave.simpmusic.ui.icon.SimpIcons
 import com.maxrave.simpmusic.ui.navigation.destination.list.ArtistDestination
-import com.maxrave.simpmusic.ui.theme.LocalIsDarkTheme
 import com.maxrave.simpmusic.ui.theme.seed
 import com.maxrave.simpmusic.ui.theme.typo
 import com.maxrave.simpmusic.viewModel.ListState
@@ -339,16 +338,17 @@ fun PlaylistScreen(
             }
     }
 
-    // Apple Music-inspired immersive treatment. Which header is used depends on the window's
-    // aspect ratio alone, not on the platform: a portrait window (a phone held upright, or a
-    // narrow desktop window) gets the edge-to-edge artwork header, a landscape one gets the
-    // side-by-side header. Everything else on the page — the palette background, the row
-    // dividers, the blurred top bar — is shared by both.
+    // Material 3 playlist treatment. Which header is used depends on the window's aspect ratio
+    // alone, not on the platform: a portrait window (a phone held upright, or a narrow desktop
+    // window) gets the edge-to-edge artwork header, a landscape one gets the side-by-side
+    // header. Everything else on the page — the tonal surface background, the row dividers, the
+    // collapsed top bar — is shared by both.
     val screenInfo = getScreenSizeInfo()
     val isPortrait = screenInfo.wDP < screenInfo.hDP
-    val dominantColor = listColors.firstOrNull() ?: Color.Black
-    // Apple Music-style page background from the artwork's dominant tone (see UIExt.toImmersiveBackground).
-    val mutedPaletteBg = paletteState.palette.toImmersiveBackground()
+    // Material 3 playlist background: `surface` plus a low-alpha tonal glow tinted by the
+    // playlist artwork. The artwork still anchors the header, but the page no longer depends on
+    // a darkened palette color for contrast, so the shared M3 text tokens work in both themes.
+    val bgAccent = listColors.firstOrNull() ?: MaterialTheme.colorScheme.primary
 
     // Loading dialog
     val showLoadingDialog by viewModel.showLoadingDialog.collectAsStateWithLifecycle()
@@ -362,7 +362,7 @@ fun PlaylistScreen(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background),
+                .playlistBackground(bgAccent),
     ) {
         Crossfade(
             targetState = uiState,
@@ -376,8 +376,7 @@ fun PlaylistScreen(
                     LazyColumn(
                         modifier =
                             Modifier
-                                .fillMaxSize()
-                                .background(mutedPaletteBg),
+                                .fillMaxSize(),
                         state = lazyState,
                     ) {
                     if (!showSearchBar) {
@@ -437,7 +436,7 @@ fun PlaylistScreen(
                                                                 .fillMaxWidth()
                                                                 .height((screenInfo.hDP * 0.35f).dp)
                                                                 .align(Alignment.BottomCenter)
-                                                                .background(artworkScrimBrush(mutedPaletteBg)),
+                                                                .background(artworkScrimBrush(MaterialTheme.colorScheme.surface)),
                                                     )
                                                     Column(
                                                         modifier =
@@ -451,7 +450,7 @@ fun PlaylistScreen(
                                                         Text(
                                                             text = data.title,
                                                             style = typo().titleLarge,
-                                                            color = Color.White,
+                                                            color = MaterialTheme.colorScheme.onSurface,
                                                             maxLines = 2,
                                                             textAlign = TextAlign.Center,
                                                         )
@@ -478,7 +477,7 @@ fun PlaylistScreen(
                                                                 Text(
                                                                     text = data.author.name,
                                                                     style = typo().titleSmall,
-                                                                    color = Color.White,
+                                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                                     textAlign = TextAlign.Center,
                                                                 )
                                                             }
@@ -493,7 +492,7 @@ fun PlaylistScreen(
                                                                 }
                                                             } • ${data.year}",
                                                             style = typo().bodyMedium,
-                                                            color = Color(0xC4FFFFFF),
+                                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                             textAlign = TextAlign.Center,
                                                         )
                                                     }
@@ -605,7 +604,7 @@ fun PlaylistScreen(
                                                             Text(
                                                                 text = data.title,
                                                                 style = typo().headlineSmall,
-                                                                color = Color.White,
+                                                                color = MaterialTheme.colorScheme.onSurface,
                                                                 maxLines = 2,
                                                             )
                                                             Spacer(modifier = Modifier.height(4.dp))
@@ -636,7 +635,7 @@ fun PlaylistScreen(
                                                                     }
                                                                 } • ${data.year}",
                                                                 style = typo().labelMedium,
-                                                                color = Color(0xC4FFFFFF),
+                                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                             )
                                                             Spacer(modifier = Modifier.height(20.dp))
                                                             val isThisPlaying = isPlaying && playingPlaylistId == data.id
@@ -816,7 +815,7 @@ fun PlaylistScreen(
                                                                 "",
                                                             )
                                                         },
-                                                    color = Color.White,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                     style = typo().bodyMedium,
                                                     modifier = Modifier.padding(vertical = 8.dp),
                                                 )
@@ -845,7 +844,7 @@ fun PlaylistScreen(
                             Column(modifier = Modifier.animateItem()) {
                                 if (playingTrack?.videoId == item.videoId && isPlaying) {
                                     SongFullWidthItems(
-                                        forceDark = true,
+                                        forceDark = false,
                                         isPlaying = true,
                                         track = item,
                                         onMoreClickListener = { onItemMoreClick(it) },
@@ -866,7 +865,7 @@ fun PlaylistScreen(
                                     )
                                 } else {
                                     SongFullWidthItems(
-                                        forceDark = true,
+                                        forceDark = false,
                                         isPlaying = false,
                                         track = item,
                                         onMoreClickListener = { onItemMoreClick(it) },
@@ -958,7 +957,7 @@ fun PlaylistScreen(
                         Modifier
                             .fillMaxWidth()
                             .onGloballyPositioned { searchBarHeightPx = it.size.height }
-                            .background(mutedPaletteBg),
+                            .background(MaterialTheme.colorScheme.surface),
                     ) {
                         Row(
                             modifier =
@@ -1026,7 +1025,7 @@ fun PlaylistScreen(
                         },
                         onOpenActions = { showSelectionSheet = true },
                         modifier =
-                            Modifier.background(mutedPaletteBg),
+                            Modifier.background(MaterialTheme.colorScheme.surface),
                     )
                 }
                 if (showSelectionSheet) {
@@ -1151,7 +1150,7 @@ fun PlaylistScreen(
                                 containerColor = Color.Transparent,
                             ),
                         modifier =
-                            Modifier.background(mutedPaletteBg),
+                            Modifier.background(MaterialTheme.colorScheme.surface),
                     )
                 }
             }

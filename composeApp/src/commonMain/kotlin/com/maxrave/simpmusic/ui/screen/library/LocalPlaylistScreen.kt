@@ -71,6 +71,7 @@ import com.maxrave.simpmusic.ui.component.expressive.ExpressiveCoverColors
 import com.maxrave.simpmusic.ui.component.expressive.ExpressivePlaylistCover
 import com.maxrave.simpmusic.ui.component.expressive.MaterialShapePreset
 import com.maxrave.simpmusic.ui.component.expressive.PlaylistCoverCustomizerSheet
+import com.maxrave.simpmusic.ui.component.expressive.playlistBackground
 import com.maxrave.simpmusic.ui.icon.Album
 import com.maxrave.simpmusic.ui.icon.Check
 import com.maxrave.simpmusic.ui.icon.Close
@@ -106,7 +107,6 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -434,13 +434,6 @@ fun LocalPlaylistScreen(
     val screenInfo = getScreenSizeInfo()
     val isPortrait = screenInfo.wDP < screenInfo.hDP
 
-    // Smooth ambient background accent based on the playlist's Material 3 theme color
-    val animatedBgAccent by animateColorAsState(
-        targetValue = currentCoverColor,
-        animationSpec = tween(durationMillis = 350),
-        label = "playlistBgAccent",
-    )
-
     // Loading dialog
     val showLoadingDialog by viewModel.showLoadingDialog.collectAsStateWithLifecycle()
     if (showLoadingDialog.first) {
@@ -466,31 +459,11 @@ fun LocalPlaylistScreen(
         showSearchBar = false
         viewModel.setSearchQuery("")
     }
-    val screenBackground = MaterialTheme.colorScheme.surface
     Box(
         modifier =
             Modifier
                 .fillMaxSize()
-                .drawBehind {
-                    drawRect(screenBackground)
-                    // Screen-relative ambient glow. The old fixed 1200 px linear
-                    // ramp read as a hard band on tall phones and ran out early on
-                    // desktop; a radial glow anchored behind the hero behaves like
-                    // an M3 tonal surface at any window size.
-                    drawRect(
-                        brush =
-                            Brush.radialGradient(
-                                colors =
-                                    listOf(
-                                        animatedBgAccent.copy(alpha = 0.20f),
-                                        animatedBgAccent.copy(alpha = 0.06f),
-                                        Color.Transparent,
-                                    ),
-                                center = Offset(size.width / 2f, size.height * 0.16f),
-                                radius = size.width.coerceAtLeast(size.height * 0.55f) * 0.9f,
-                            ),
-                    )
-                },
+                .playlistBackground(currentCoverColor),
     ) {
         LazyColumn(
             modifier =
