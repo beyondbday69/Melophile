@@ -19,6 +19,12 @@
     <string name="hello_blank_fragment">Hello blank fragment</string>
     <string name="download">Download</string>
     <string name="downloaded">Downloaded</string>
+    <string name="available_offline">Available offline</string>
+    <string name="back_to_library">Back to library</string>
+    <string name="no_downloaded_songs">No downloaded songs yet</string>
+    <string name="no_downloaded_songs_description">Songs you download will appear here and play without a connection.</string>
+    <string name="search_downloaded_songs">Search downloaded songs</string>
+    <string name="no_songs_match_search_description">Try another title or artist.</string>
     <string name="downloading">Downloading</string>
     <string name="preparing">Preparing</string>
     <string name="hide">Hide</string>
