@@ -1,6 +1,5 @@
 package com.maxrave.simpmusic.ui.navigation.graph
 
-import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -29,7 +28,6 @@ import com.maxrave.simpmusic.ui.theme.ForceDarkContent
 fun NavGraphBuilder.listScreenGraph(
     innerPadding: PaddingValues,
     navController: NavController,
-    sharedTransitionScope: SharedTransitionScope,
 ) {
     composable<AlbumDestination> { entry ->
         val data = entry.toRoute<AlbumDestination>()
@@ -51,13 +49,10 @@ fun NavGraphBuilder.listScreenGraph(
     }
     composable<LocalPlaylistDestination> { entry ->
         val data = entry.toRoute<LocalPlaylistDestination>()
-        val animatedVisibilityScope = this
         ForceDarkContent {
             LocalPlaylistScreen(
                 id = data.id,
                 navController = navController,
-                sharedTransitionScope = sharedTransitionScope,
-                animatedVisibilityScope = animatedVisibilityScope,
             )
         }
     }

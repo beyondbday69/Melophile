@@ -335,7 +335,6 @@ fun ExpressivePlaylistCard(
     containerColor: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    coverModifier: Modifier = Modifier,
     tag: String? = null,
     onCustomize: (() -> Unit)? = null,
     onPlay: (() -> Unit)? = null,
@@ -363,7 +362,6 @@ fun ExpressivePlaylistCard(
                 thumbnailUrl = thumbnailUrl,
                 shapePreset = shapePreset,
                 containerColor = containerColor,
-                modifier = coverModifier,
                 size = 72.dp,
                 title = title,
             )
