@@ -7,9 +7,13 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -22,6 +26,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -100,6 +106,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -112,9 +119,12 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -172,7 +182,7 @@ import com.maxrave.simpmusic.ui.component.liquidGlass
 import com.maxrave.simpmusic.ui.component.painterPlaylistThumbnail
 import com.maxrave.simpmusic.ui.component.playlistTitleGradient
 import com.maxrave.simpmusic.ui.component.rememberDragDropState
-import com.maxrave.simpmusic.ui.icon.ArrowBackIosNew
+import com.maxrave.simpmusic.ui.icon.ArrowBack
 import com.maxrave.simpmusic.ui.icon.Delete
 import com.maxrave.simpmusic.ui.icon.DownloadForOffline
 import com.maxrave.simpmusic.ui.icon.MoreVert
@@ -435,23 +445,31 @@ fun LocalPlaylistScreen(
     var showSearchBar by rememberSaveable { mutableStateOf(false) }
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
+    val screenBackground = MaterialTheme.colorScheme.surface
     Box(
         modifier =
             Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .background(
-                    Brush.verticalGradient(
-                        colors =
-                            listOf(
-                                animatedBgAccent.copy(alpha = 0.22f),
-                                animatedBgAccent.copy(alpha = 0.05f),
-                                Color.Transparent,
+                .drawBehind {
+                    drawRect(screenBackground)
+                    // Screen-relative ambient glow. The old fixed 1200 px linear
+                    // ramp read as a hard band on tall phones and ran out early on
+                    // desktop; a radial glow anchored behind the hero behaves like
+                    // an M3 tonal surface at any window size.
+                    drawRect(
+                        brush =
+                            Brush.radialGradient(
+                                colors =
+                                    listOf(
+                                        animatedBgAccent.copy(alpha = 0.20f),
+                                        animatedBgAccent.copy(alpha = 0.06f),
+                                        Color.Transparent,
+                                    ),
+                                center = Offset(size.width / 2f, size.height * 0.16f),
+                                radius = size.width.coerceAtLeast(size.height * 0.55f) * 0.9f,
                             ),
-                        startY = 0f,
-                        endY = 1200f,
-                    ),
-                ),
+                    )
+                },
     ) {
         LazyColumn(
             modifier =
@@ -522,7 +540,10 @@ fun LocalPlaylistScreen(
                     .padding(horizontal = 20.dp)
                     .windowInsetsPadding(WindowInsets.statusBars),
             ) {
-                // 1. Material 3 Expressive Top Navigation Bar
+                // 1. Material 3 Expressive top bar: a tonal squircle back action
+                //    and a connected tonal action group for AI/search/overflow.
+                //    Separate floating circles read as unrelated controls; the
+                //    group gives the header one anchored M3 surface.
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -530,36 +551,27 @@ fun LocalPlaylistScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    FilledTonalIconButton(
+                    ExpressiveTopBarIconButton(
+                        imageVector = SimpIcons.ArrowBack,
+                        contentDescription = "Back",
                         onClick = { navController.navigateUp() },
-                        modifier = Modifier.size(42.dp),
-                        shape = CircleShape,
-                        colors = IconButtonDefaults.filledTonalIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f),
-                            contentColor = MaterialTheme.colorScheme.onSurface,
-                        ),
-                    ) {
-                        Icon(
-                            imageVector = SimpIcons.ArrowBackIosNew,
-                            contentDescription = "Back",
-                            modifier = Modifier.size(20.dp),
-                        )
-                    }
+                    )
 
+                    // Segmented tonal group, matching the expressive button groups
+                    // used on Home, Search and the Library tabs: outer caps at
+                    // 20.dp, inner corners at 8.dp, morphing to a standalone
+                    // 20.dp pill while pressed.
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         // AI Suggestion button (when synced with YouTube)
                         if (shouldShowSuggestButton) {
-                            FilledTonalIconButton(
+                            ExpressiveTopBarGroupButton(
+                                contentDescription = "AI suggestions",
                                 onClick = { shouldShowSuggestions = !shouldShowSuggestions },
-                                modifier = Modifier.size(42.dp),
-                                shape = CircleShape,
-                                colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f),
-                                    contentColor = MaterialTheme.colorScheme.onSurface,
-                                ),
+                                isFirst = true,
+                                isLast = false,
                             ) {
                                 Box(
                                     modifier = Modifier
@@ -582,36 +594,30 @@ fun LocalPlaylistScreen(
                         }
 
                         // Search in playlist
-                        FilledTonalIconButton(
+                        ExpressiveTopBarGroupButton(
+                            contentDescription = "Search in playlist",
                             onClick = { showSearchBar = true },
-                            modifier = Modifier.size(42.dp),
-                            shape = CircleShape,
-                            colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f),
-                                contentColor = MaterialTheme.colorScheme.onSurface,
-                            ),
+                            isFirst = !shouldShowSuggestButton,
+                            isLast = false,
                         ) {
                             Icon(
                                 imageVector = SimpIcons.Search,
-                                contentDescription = "Search in playlist",
-                                modifier = Modifier.size(20.dp),
+                                contentDescription = null,
+                                modifier = Modifier.size(22.dp),
                             )
                         }
 
                         // More options
-                        FilledTonalIconButton(
+                        ExpressiveTopBarGroupButton(
+                            contentDescription = "More",
                             onClick = onPlaylistMoreClick,
-                            modifier = Modifier.size(42.dp),
-                            shape = CircleShape,
-                            colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f),
-                                contentColor = MaterialTheme.colorScheme.onSurface,
-                            ),
+                            isFirst = false,
+                            isLast = true,
                         ) {
                             Icon(
                                 imageVector = SimpIcons.MoreVert,
-                                contentDescription = "More",
-                                modifier = Modifier.size(20.dp),
+                                contentDescription = null,
+                                modifier = Modifier.size(22.dp),
                             )
                         }
                     }
@@ -1497,7 +1503,7 @@ fun LocalPlaylistScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     RippleIconButton(
-                        imageVector = SimpIcons.ArrowBackIosNew,
+                        imageVector = SimpIcons.ArrowBack,
                     ) {
                         navController.navigateUp()
                     }
@@ -1590,24 +1596,51 @@ fun LocalPlaylistScreen(
             title = {
                 Text(
                     text = uiState.title,
-                    style = typo().titleMedium,
+                    style = typo().titleMedium.copy(fontWeight = FontWeight.Bold),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             },
             navigationIcon = {
-                Box(Modifier.padding(horizontal = 5.dp)) {
-                    RippleIconButton(
-                        SimpIcons.ArrowBackIosNew,
-                        Modifier
-                            .size(32.dp),
-                        true,
-                    ) {
-                        navController.navigateUp()
-                    }
+                FilledTonalIconButton(
+                    onClick = { navController.navigateUp() },
+                    modifier = Modifier
+                        .padding(start = 6.dp)
+                        .size(40.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                    ),
+                ) {
+                    Icon(
+                        imageVector = SimpIcons.ArrowBack,
+                        contentDescription = "Back",
+                        modifier = Modifier.size(20.dp),
+                    )
                 }
+            },
+            actions = {
+                IconButton(onClick = { showSearchBar = true }) {
+                    Icon(
+                        imageVector = SimpIcons.Search,
+                        contentDescription = "Search in playlist",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                IconButton(onClick = onPlaylistMoreClick) {
+                    Icon(
+                        imageVector = SimpIcons.MoreVert,
+                        contentDescription = "More",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Spacer(modifier = Modifier.width(4.dp))
             },
             colors =
                 TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
                 ),
         )
     }
@@ -1631,4 +1664,132 @@ fun LocalPlaylistScreen(
         )
     }
     } // End of root Box
+}
+
+/**
+ * Tonal squircle action used by the playlist header. The corner radius and scale
+ * react to press, matching the expressive controls on the artist screen.
+ */
+@Composable
+private fun ExpressiveTopBarIconButton(
+    imageVector: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.94f else 1f,
+        animationSpec =
+            spring(
+                dampingRatio = 0.62f,
+                stiffness = Spring.StiffnessMediumLow,
+            ),
+        label = "playlistTopBarBackScale",
+    )
+    Surface(
+        onClick = onClick,
+        interactionSource = interactionSource,
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        modifier =
+            modifier
+                .size(46.dp)
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                },
+    ) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = imageVector,
+                contentDescription = contentDescription,
+                modifier = Modifier.size(22.dp),
+            )
+        }
+    }
+}
+
+/**
+ * One segment of the connected tonal action group. Outer segments keep a 20.dp
+ * cap on their outer edge and an 8.dp inner corner; pressing morphs the segment
+ * into a standalone 20.dp pill, matching [ExpressiveLibraryButtonGroup].
+ */
+@Composable
+private fun ExpressiveTopBarGroupButton(
+    contentDescription: String,
+    onClick: () -> Unit,
+    isFirst: Boolean,
+    isLast: Boolean,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val restingStart = if (isFirst) 20.dp else 8.dp
+    val restingEnd = if (isLast) 20.dp else 8.dp
+    val startCorner by animateDpAsState(
+        targetValue = if (isPressed) 20.dp else restingStart,
+        animationSpec =
+            spring(
+                dampingRatio = 0.65f,
+                stiffness = Spring.StiffnessMedium,
+            ),
+        label = "playlistTopBarStartCorner",
+    )
+    val endCorner by animateDpAsState(
+        targetValue = if (isPressed) 20.dp else restingEnd,
+        animationSpec =
+            spring(
+                dampingRatio = 0.65f,
+                stiffness = Spring.StiffnessMedium,
+            ),
+        label = "playlistTopBarEndCorner",
+    )
+    val containerColor by animateColorAsState(
+        targetValue =
+            if (isPressed) {
+                MaterialTheme.colorScheme.surfaceContainerHighest
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerHigh
+            },
+        animationSpec = spring(stiffness = Spring.StiffnessMedium),
+        label = "playlistTopBarGroupColor",
+    )
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.94f else 1f,
+        animationSpec =
+            spring(
+                dampingRatio = 0.62f,
+                stiffness = Spring.StiffnessMediumLow,
+            ),
+        label = "playlistTopBarGroupScale",
+    )
+    Surface(
+        onClick = onClick,
+        interactionSource = interactionSource,
+        shape =
+            RoundedCornerShape(
+                topStart = startCorner,
+                bottomStart = startCorner,
+                topEnd = endCorner,
+                bottomEnd = endCorner,
+            ),
+        color = containerColor,
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier =
+            modifier
+                .size(46.dp)
+                .semantics { this.contentDescription = contentDescription }
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                },
+    ) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            content()
+        }
+    }
 }
