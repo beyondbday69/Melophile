@@ -131,6 +131,7 @@ import com.maxrave.simpmusic.ui.component.selection.rememberSongSelectionState
 import com.maxrave.simpmusic.ui.icon.ArrowBack
 import com.maxrave.simpmusic.ui.icon.Close
 import com.maxrave.simpmusic.ui.icon.DownloadForOffline
+import com.maxrave.simpmusic.ui.icon.FavoriteBorder
 import com.maxrave.simpmusic.ui.icon.MoreVert
 import com.maxrave.simpmusic.ui.icon.Pause
 import com.maxrave.simpmusic.ui.icon.PlayArrow
@@ -160,6 +161,7 @@ import org.koin.compose.viewmodel.koinViewModel
 import simpmusic.composeapp.generated.resources.Res
 import simpmusic.composeapp.generated.resources.album_length
 import simpmusic.composeapp.generated.resources.baseline_downloaded
+import simpmusic.composeapp.generated.resources.baseline_favorite_24
 import simpmusic.composeapp.generated.resources.downloaded
 import simpmusic.composeapp.generated.resources.downloading
 import simpmusic.composeapp.generated.resources.error
@@ -1355,7 +1357,7 @@ private fun PlaylistHeaderHeartButton(
 private fun PlaylistHeaderActions(
     isRadio: Boolean,
     isThisPlaying: Boolean,
-    downloadState: DownloadState,
+    downloadState: Int,
     onShuffle: () -> Unit,
     onPlay: () -> Unit,
     onDownload: () -> Unit,
