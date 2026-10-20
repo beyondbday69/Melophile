@@ -973,7 +973,7 @@ private fun DownloadedHeader(
                 onQueryChange = onQueryChange,
                 autoFocus = autoFocusSearch,
                 onFocusHandled = onSearchFocusHandled,
-                modifier = Modifier.padding(horizontal = 20.dp, top = 4.dp, bottom = 20.dp),
+                modifier = Modifier.padding(start = 20.dp, top = 4.dp, end = 20.dp, bottom = 20.dp),
             )
         } else {
             DownloadedTitleBlock(
