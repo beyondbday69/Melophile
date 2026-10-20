@@ -42,6 +42,8 @@
     <string name="restore_success">Restore Success</string>
     <string name="search">Search</string>
     <string name="search_songs_in_playlist">Search songs in this playlist</string>
+    <string name="search_min_characters">Type at least 2 characters to search</string>
+    <string name="no_songs_match_search">No songs match your search</string>
     <string name="songs">Songs</string>
     <string name="albums">Albums</string>
     <string name="playlists">Playlists</string>

@@ -40,6 +40,7 @@ import androidx.compose.foundation.layout.exclude
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -83,6 +84,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SearchBar
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -108,6 +110,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
@@ -151,6 +154,7 @@ import com.maxrave.domain.utils.FilterState
 import com.maxrave.domain.utils.toTrack
 import com.maxrave.logger.Logger
 import com.maxrave.simpmusic.Platform
+import com.maxrave.simpmusic.expect.BackHandler
 import com.maxrave.simpmusic.expect.ui.layerBackdrop
 import com.maxrave.simpmusic.expect.ui.rememberBackdrop
 import com.maxrave.simpmusic.expect.ui.toImageBitmap
@@ -237,7 +241,10 @@ import simpmusic.composeapp.generated.resources.warning
 import simpmusic.composeapp.generated.resources.yes
 import simpmusic.composeapp.generated.resources.your_playlist
 import simpmusic.composeapp.generated.resources.search
+import simpmusic.composeapp.generated.resources.search_min_characters
 import simpmusic.composeapp.generated.resources.search_songs_in_playlist
+import simpmusic.composeapp.generated.resources.no_songs_match_search
+import simpmusic.composeapp.generated.resources.songs
 
 private const val TAG = "LocalPlaylistScreen"
 
@@ -374,6 +381,9 @@ fun LocalPlaylistScreen(
         }
     }
 
+    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
+
     val onPlaylistItemClick: (videoId: String) -> Unit = { videoId ->
         viewModel.onUIEvent(
             LocalPlaylistUIEvent.ItemClick(
@@ -382,7 +392,12 @@ fun LocalPlaylistScreen(
         )
     }
     val onItemMoreClick: (videoId: String) -> Unit = { videoId ->
-        currentItem = trackPagingItems.itemSnapshotList.findLast { it?.first?.videoId == videoId }?.first
+        // Search results are a database query, not a slice of the paged list, so the
+        // searched song may not be in `itemSnapshotList` at all. Fall back to the
+        // search result itself or the overflow sheet would silently refuse to open.
+        currentItem =
+            trackPagingItems.itemSnapshotList.findLast { it?.first?.videoId == videoId }?.first
+                ?: searchResults.find { it.first.videoId == videoId }?.first
         if (currentItem != null) {
             itemBottomSheetShow = true
         }
@@ -445,8 +460,12 @@ fun LocalPlaylistScreen(
         }
     var overscrollJob by remember { mutableStateOf<Job?>(null) }
     var showSearchBar by rememberSaveable { mutableStateOf(false) }
-    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
-    val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
+    // Search is an overlay, not a destination: system back must close it before
+    // it can pop the playlist.
+    BackHandler(enabled = showSearchBar) {
+        showSearchBar = false
+        viewModel.setSearchQuery("")
+    }
     val screenBackground = MaterialTheme.colorScheme.surface
     Box(
         modifier =
@@ -1486,6 +1505,17 @@ fun LocalPlaylistScreen(
         val searchFocusRequester = remember { FocusRequester() }
         val keyboardController = LocalSoftwareKeyboardController.current
         var searchSettled by remember { mutableStateOf(false) }
+        var searchFocused by remember { mutableStateOf(false) }
+        val searchBarColor by animateColorAsState(
+            targetValue =
+                if (searchFocused) {
+                    MaterialTheme.colorScheme.surfaceContainerHighest
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerHigh
+                },
+            animationSpec = tween(durationMillis = 180),
+            label = "playlistSearchBarColor",
+        )
 
         // The view model debounces queries by 250 ms. Wait a little longer before
         // declaring "no results" so the empty state never flashes mid-query.
@@ -1507,79 +1537,72 @@ fun LocalPlaylistScreen(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.surface),
+                    .background(MaterialTheme.colorScheme.surface)
+                    .imePadding(),
         ) {
-            // Material 3 expressive search header: a tonal back action and a
-            // filled search field with in-field clear, instead of the old
-            // transparent bar and separate close button.
-            Row(
+            // Material 3 full-screen search: the back action sits inside the
+            // field, so the bar uses the whole window width instead of being
+            // squeezed next to a separate button.
+            SearchBar(
+                inputField = {
+                    SearchBarDefaults.InputField(
+                        query = searchQuery,
+                        onQueryChange = { viewModel.setSearchQuery(it) },
+                        onSearch = { keyboardController?.hide() },
+                        expanded = false,
+                        onExpandedChange = {},
+                        placeholder = {
+                            Text(
+                                text = stringResource(Res.string.search),
+                                style = typo().bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        },
+                        leadingIcon = {
+                            IconButton(
+                                onClick = {
+                                    showSearchBar = false
+                                    viewModel.setSearchQuery("")
+                                    keyboardController?.hide()
+                                },
+                            ) {
+                                Icon(
+                                    imageVector = SimpIcons.ArrowBack,
+                                    contentDescription = "Close search",
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
+                        },
+                        trailingIcon = {
+                            AnimatedVisibility(visible = searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { viewModel.setSearchQuery("") }) {
+                                    Icon(
+                                        imageVector = SimpIcons.Close,
+                                        contentDescription = "Clear search",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        },
+                    )
+                },
+                expanded = false,
+                onExpandedChange = {},
+                // No explicit height here: the collapsed M3 SearchBar is 64dp tall
+                // (a 56dp input field plus 8dp of internal top padding). Forcing
+                // 56dp clips the field.
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 10.dp)
-                        .windowInsetsPadding(WindowInsets.statusBars),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                ExpressiveTopBarIconButton(
-                    imageVector = SimpIcons.ArrowBack,
-                    contentDescription = "Close search",
-                    onClick = {
-                        showSearchBar = false
-                        keyboardController?.hide()
-                    },
-                )
-                SearchBar(
-                    inputField = {
-                        SearchBarDefaults.InputField(
-                            query = searchQuery,
-                            onQueryChange = { viewModel.setSearchQuery(it) },
-                            onSearch = {},
-                            expanded = false,
-                            onExpandedChange = {},
-                            placeholder = {
-                                Text(
-                                    text = stringResource(Res.string.search),
-                                    style = typo().bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = SimpIcons.Search,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            },
-                            trailingIcon = {
-                                AnimatedVisibility(visible = searchQuery.isNotEmpty()) {
-                                    IconButton(onClick = { viewModel.setSearchQuery("") }) {
-                                        Icon(
-                                            imageVector = SimpIcons.Close,
-                                            contentDescription = "Clear search",
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
-                                }
-                            },
-                        )
-                    },
-                    expanded = false,
-                    onExpandedChange = {},
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .height(56.dp)
-                            .focusRequester(searchFocusRequester),
-                    shape = RoundedCornerShape(28.dp),
-                    colors =
-                        SearchBarDefaults.colors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        ),
-                    windowInsets = WindowInsets(0, 0, 0, 0),
-                    content = {},
-                )
-            }
+                        .windowInsetsPadding(WindowInsets.statusBars)
+                        .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 10.dp)
+                        .focusRequester(searchFocusRequester)
+                        .onFocusChanged { searchFocused = it.isFocused },
+                shape = RoundedCornerShape(28.dp),
+                colors = SearchBarDefaults.colors(containerColor = searchBarColor),
+                windowInsets = WindowInsets(0, 0, 0, 0),
+                content = {},
+            )
 
             val trimmedQuery = searchQuery.trim()
             when {
@@ -1587,33 +1610,80 @@ fun LocalPlaylistScreen(
                     PlaylistSearchMessage(
                         icon = SimpIcons.Search,
                         title = stringResource(Res.string.search_songs_in_playlist),
+                        subtitle = stringResource(Res.string.search_min_characters),
                         modifier = Modifier.weight(1f),
                     )
 
                 searchResults.isNotEmpty() ->
-                    LazyColumn(modifier = Modifier.weight(1f)) {
-                        items(
+                    LazyColumn(
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(top = 4.dp, bottom = 24.dp),
+                    ) {
+                        item(key = "search-header", contentType = "header") {
+                            Text(
+                                text = stringResource(Res.string.songs),
+                                style = typo().labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier =
+                                    Modifier.padding(
+                                        start = 20.dp,
+                                        end = 20.dp,
+                                        top = 4.dp,
+                                        bottom = 6.dp,
+                                    ),
+                            )
+                        }
+                        itemsIndexed(
                             searchResults,
-                            key = { (song, pair) -> song.videoId + "_" + pair.position },
-                        ) { (song, _) ->
-                            SongFullWidthItems(
-                                forceDark = false,
-                                isPlaying = playingTrack?.videoId == song.videoId && isPlaying,
-                                songEntity = song,
-                                onMoreClickListener = { onItemMoreClick(it) },
-                                onClickListener = { onPlaylistItemClick(it) },
-                                onAddToQueue = { sharedViewModel.addListToQueue(arrayListOf(song.toTrack())) },
-                                selectionMode = selectionState.isActive,
-                                isSelected = selectionState.isSelected(song.videoId),
-                                onLongClick = { selectionState.start(it) },
-                                onSelectToggle = { selectionState.toggle(it) },
-                                // Required, no default — the paged list passes it down through `mod`.
-                                modifier = Modifier,
-                            )
-                            HorizontalDivider(
-                                color = Color.Transparent,
-                                modifier = Modifier.padding(start = 72.dp, end = 16.dp),
-                            )
+                            key = { _, (song, pair) -> song.videoId + "_" + pair.position },
+                            contentType = { _, _ -> "search-song" },
+                        ) { index, (song, _) ->
+                            val isThisSongPlaying = playingTrack?.videoId == song.videoId && isPlaying
+                            // Match the playlist list: tonal rounded row, with the
+                            // same now-playing tint and the same inset divider.
+                            Column {
+                                Surface(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 8.dp, vertical = 2.dp),
+                                    shape = RoundedCornerShape(16.dp),
+                                    color =
+                                        if (isThisSongPlaying) {
+                                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+                                        } else {
+                                            Color.Transparent
+                                        },
+                                ) {
+                                    SongFullWidthItems(
+                                        forceDark = false,
+                                        isPlaying = isThisSongPlaying,
+                                        songEntity = song,
+                                        onMoreClickListener = {
+                                            keyboardController?.hide()
+                                            onItemMoreClick(it)
+                                        },
+                                        onClickListener = {
+                                            keyboardController?.hide()
+                                            onPlaylistItemClick(it)
+                                        },
+                                        onAddToQueue = { sharedViewModel.addListToQueue(arrayListOf(song.toTrack())) },
+                                        selectionMode = selectionState.isActive,
+                                        isSelected = selectionState.isSelected(song.videoId),
+                                        onLongClick = { selectionState.start(it) },
+                                        onSelectToggle = { selectionState.toggle(it) },
+                                        // Required, no default — the paged list passes it down through `mod`.
+                                        modifier = Modifier,
+                                    )
+                                }
+                                if (index < searchResults.lastIndex) {
+                                    HorizontalDivider(
+                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f),
+                                        modifier = Modifier.padding(start = 72.dp, end = 20.dp),
+                                        thickness = 0.5.dp,
+                                    )
+                                }
+                            }
                         }
                     }
 
@@ -1633,6 +1703,7 @@ fun LocalPlaylistScreen(
                     PlaylistSearchMessage(
                         icon = SimpIcons.Search,
                         title = stringResource(Res.string.no_results_found),
+                        subtitle = stringResource(Res.string.no_songs_match_search),
                         modifier = Modifier.weight(1f),
                     )
             }
@@ -1851,36 +1922,47 @@ private fun PlaylistSearchMessage(
     icon: ImageVector,
     title: String,
     modifier: Modifier = Modifier,
+    subtitle: String? = null,
 ) {
     Box(
         modifier =
             modifier
                 .fillMaxWidth()
-                .padding(32.dp),
+                .padding(horizontal = 32.dp, vertical = 24.dp),
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Surface(
-                shape = RoundedCornerShape(28.dp),
+                shape = RoundedCornerShape(24.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                modifier = Modifier.size(88.dp),
+                modifier = Modifier.size(72.dp),
             ) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        modifier = Modifier.size(36.dp),
+                        modifier = Modifier.size(32.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = title,
                 style = typo().titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
             )
+            if (subtitle != null) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = subtitle,
+                    style = typo().bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.widthIn(max = 280.dp),
+                )
+            }
         }
     }
 }

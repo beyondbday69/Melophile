@@ -784,49 +784,85 @@ class LocalPlaylistViewModel(
             }
 
             is LocalPlaylistUIEvent.ItemClick -> {
-                val loadedList = lazyTrackPagingItems.value?.itemSnapshotList?.toList() ?: return
-                val clickedSong = loadedList.find { it?.first?.videoId == ev.videoId }?.first ?: return
+                val loadedList = lazyTrackPagingItems.value?.itemSnapshotList?.toList().orEmpty()
+                val loadedSong = loadedList.find { it?.first?.videoId == ev.videoId }?.first
+                if (loadedSong != null) {
+                    setQueueData(
+                        QueueData.Data(
+                            listTracks = loadedList.mapNotNull { it?.first }.toArrayListTrack(),
+                            firstPlayedTrack = loadedSong.toTrack(),
+                            playlistId = LOCAL_PLAYLIST_ID + uiState.value.id,
+                            playlistName = "${
+                                getString(
+                                    Res.string.playlist,
+                                )
+                            } \"${uiState.value.title}\"",
+                            playlistType = PlaylistType.LOCAL_PLAYLIST,
+                            continuation =
+                                if (offset.value > 0) {
+                                    when (uiState.value.filterState) {
+                                        FilterState.OlderFirst -> {
+                                            ASC + converter.dateToTimestamp(loadedList.lastOrNull()?.second?.inPlaylist)
+                                        }
 
-                setQueueData(
-                    QueueData.Data(
-                        listTracks = loadedList.mapNotNull { it?.first }.toArrayListTrack(),
-                        firstPlayedTrack = clickedSong.toTrack(),
-                        playlistId = LOCAL_PLAYLIST_ID + uiState.value.id,
-                        playlistName = "${
-                            getString(
-                                Res.string.playlist,
-                            )
-                        } \"${uiState.value.title}\"",
-                        playlistType = PlaylistType.LOCAL_PLAYLIST,
-                        continuation =
-                            if (offset.value > 0) {
-                                when (uiState.value.filterState) {
-                                    FilterState.OlderFirst -> {
-                                        ASC + converter.dateToTimestamp(loadedList.lastOrNull()?.second?.inPlaylist)
-                                    }
+                                        FilterState.NewerFirst -> {
+                                            DESC + converter.dateToTimestamp(loadedList.lastOrNull()?.second?.inPlaylist)
+                                        }
 
-                                    FilterState.NewerFirst -> {
-                                        DESC + converter.dateToTimestamp(loadedList.lastOrNull()?.second?.inPlaylist)
-                                    }
+                                        FilterState.CustomOrder -> {
+                                            CUSTOM_ORDER + offset.value.toString()
+                                        }
 
-                                    FilterState.CustomOrder -> {
-                                        CUSTOM_ORDER + offset.value.toString()
+                                        FilterState.Title -> {
+                                            TITLE + offset.value.toString()
+                                        }
                                     }
-
-                                    FilterState.Title -> {
-                                        TITLE + offset.value.toString()
-                                    }
-                                }
+                                } else {
+                                    null
+                                },
+                        ),
+                    )
+                    loadMediaItem(
+                        loadedSong,
+                        Config.PLAYLIST_CLICK,
+                        loadedList.map { it?.first }.indexOf(loadedSong),
+                    )
+                } else {
+                    // Search hits come from a database query, not from the paged
+                    // list, so a searched song can sit outside the pages loaded so
+                    // far. The old lookup returned here and the tap did nothing;
+                    // fall back to the full playlist so search results can play.
+                    viewModelScope.launch {
+                        val fullTracks = localPlaylistRepository.getFullPlaylistTracks(uiState.value.id)
+                        val fullSong = fullTracks.find { it.videoId == ev.videoId }
+                        val queueTracks =
+                            if (fullSong != null) {
+                                fullTracks
                             } else {
-                                null
-                            },
-                    ),
-                )
-                loadMediaItem(
-                    clickedSong,
-                    Config.PLAYLIST_CLICK,
-                    loadedList.map { it?.first }.indexOf(clickedSong),
-                )
+                                searchResults.value.map { it.first }
+                            }
+                        val clickedSong = fullSong ?: queueTracks.find { it.videoId == ev.videoId } ?: return@launch
+                        setQueueData(
+                            QueueData.Data(
+                                listTracks = queueTracks.toArrayListTrack(),
+                                firstPlayedTrack = clickedSong.toTrack(),
+                                playlistId = LOCAL_PLAYLIST_ID + uiState.value.id,
+                                playlistName = "${
+                                    getString(
+                                        Res.string.playlist,
+                                    )
+                                } \"${uiState.value.title}\"",
+                                playlistType = PlaylistType.LOCAL_PLAYLIST,
+                                continuation = null,
+                            ),
+                        )
+                        loadMediaItem(
+                            clickedSong,
+                            Config.PLAYLIST_CLICK,
+                            queueTracks.indexOf(clickedSong),
+                        )
+                    }
+                }
             }
 
             is LocalPlaylistUIEvent.SuggestionsItemClick -> {
