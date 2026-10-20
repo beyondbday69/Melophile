@@ -124,7 +124,7 @@ import com.maxrave.simpmusic.ui.component.PlaylistBottomSheet
 import com.maxrave.simpmusic.ui.component.SongFullWidthItems
 import com.maxrave.simpmusic.ui.component.heartBurst
 import com.maxrave.simpmusic.ui.component.rememberHeartBurstState
-import com.maxrave.simpmusic.ui.component.expressive.playlistBackground
+import com.maxrave.simpmusic.ui.component.expressive.rememberPlaylistBackgroundColor
 import com.maxrave.simpmusic.ui.component.selection.SelectedSongsBottomSheet
 import com.maxrave.simpmusic.ui.component.selection.SongSelectionTopAppBar
 import com.maxrave.simpmusic.ui.component.selection.rememberSongSelectionState
@@ -341,14 +341,13 @@ fun PlaylistScreen(
     // Material 3 playlist treatment. Which header is used depends on the window's aspect ratio
     // alone, not on the platform: a portrait window (a phone held upright, or a narrow desktop
     // window) gets the edge-to-edge artwork header, a landscape one gets the side-by-side
-    // header. Everything else on the page — the tonal surface background, the row dividers, the
+    // header. Everything else on the page — the solid pastel background, the row dividers, the
     // collapsed top bar — is shared by both.
     val screenInfo = getScreenSizeInfo()
     val isPortrait = screenInfo.wDP < screenInfo.hDP
-    // Material 3 playlist background: `surface` plus a low-alpha tonal glow tinted by the
-    // playlist artwork. The artwork still anchors the header, but the page no longer depends on
-    // a darkened palette color for contrast, so the shared M3 text tokens work in both themes.
+    // Solid Material 3 pastel page background, softened from the artwork's dominant colour.
     val bgAccent = listColors.firstOrNull() ?: MaterialTheme.colorScheme.primary
+    val playlistBg = rememberPlaylistBackgroundColor(bgAccent)
 
     // Loading dialog
     val showLoadingDialog by viewModel.showLoadingDialog.collectAsStateWithLifecycle()
@@ -362,7 +361,7 @@ fun PlaylistScreen(
         modifier =
             Modifier
                 .fillMaxSize()
-                .playlistBackground(bgAccent),
+                .background(playlistBg),
     ) {
         Crossfade(
             targetState = uiState,
@@ -436,7 +435,7 @@ fun PlaylistScreen(
                                                                 .fillMaxWidth()
                                                                 .height((screenInfo.hDP * 0.35f).dp)
                                                                 .align(Alignment.BottomCenter)
-                                                                .background(artworkScrimBrush(MaterialTheme.colorScheme.surface)),
+                                                                .background(artworkScrimBrush(playlistBg)),
                                                     )
                                                     Column(
                                                         modifier =
@@ -957,7 +956,7 @@ fun PlaylistScreen(
                         Modifier
                             .fillMaxWidth()
                             .onGloballyPositioned { searchBarHeightPx = it.size.height }
-                            .background(MaterialTheme.colorScheme.surface),
+                            .background(playlistBg),
                     ) {
                         Row(
                             modifier =
@@ -1025,7 +1024,7 @@ fun PlaylistScreen(
                         },
                         onOpenActions = { showSelectionSheet = true },
                         modifier =
-                            Modifier.background(MaterialTheme.colorScheme.surface),
+                            Modifier.background(playlistBg),
                     )
                 }
                 if (showSelectionSheet) {
@@ -1150,7 +1149,7 @@ fun PlaylistScreen(
                                 containerColor = Color.Transparent,
                             ),
                         modifier =
-                            Modifier.background(MaterialTheme.colorScheme.surface),
+                            Modifier.background(playlistBg),
                     )
                 }
             }

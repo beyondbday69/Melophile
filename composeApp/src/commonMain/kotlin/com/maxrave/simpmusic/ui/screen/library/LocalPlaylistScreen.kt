@@ -71,7 +71,7 @@ import com.maxrave.simpmusic.ui.component.expressive.ExpressiveCoverColors
 import com.maxrave.simpmusic.ui.component.expressive.ExpressivePlaylistCover
 import com.maxrave.simpmusic.ui.component.expressive.MaterialShapePreset
 import com.maxrave.simpmusic.ui.component.expressive.PlaylistCoverCustomizerSheet
-import com.maxrave.simpmusic.ui.component.expressive.playlistBackground
+import com.maxrave.simpmusic.ui.component.expressive.rememberPlaylistBackgroundColor
 import com.maxrave.simpmusic.ui.icon.Album
 import com.maxrave.simpmusic.ui.icon.Check
 import com.maxrave.simpmusic.ui.icon.Close
@@ -346,6 +346,9 @@ fun LocalPlaylistScreen(
         try { Color(hex.toLong(16).toULong()) } catch (_: Exception) { null }
     } ?: defaultColor
 
+    // Solid Material 3 pastel page background, softened from the playlist's cover accent.
+    val playlistBg = rememberPlaylistBackgroundColor(currentCoverColor)
+
     var currentItem by remember {
         mutableStateOf<SongEntity?>(null)
     }
@@ -463,7 +466,7 @@ fun LocalPlaylistScreen(
         modifier =
             Modifier
                 .fillMaxSize()
-                .playlistBackground(currentCoverColor),
+                .background(playlistBg),
     ) {
         LazyColumn(
             modifier =
@@ -1313,7 +1316,7 @@ fun LocalPlaylistScreen(
             },
             onOpenActions = { showSelectionSheet = true },
             modifier =
-                Modifier.background(MaterialTheme.colorScheme.surface),
+                Modifier.background(playlistBg),
         )
     }
     if (showSelectionSheet) {
@@ -1510,7 +1513,7 @@ fun LocalPlaylistScreen(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.surface)
+                    .background(playlistBg)
                     .imePadding(),
         ) {
             // Material 3 full-screen search: the back action sits inside the
@@ -1748,8 +1751,8 @@ fun LocalPlaylistScreen(
             },
             colors =
                 TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
-                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    containerColor = playlistBg.copy(alpha = 0.96f),
+                    scrolledContainerColor = playlistBg,
                 ),
         )
     }
