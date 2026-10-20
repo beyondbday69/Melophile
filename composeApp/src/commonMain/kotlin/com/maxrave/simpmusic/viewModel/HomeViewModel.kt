@@ -27,7 +27,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import simpmusic.composeapp.generated.resources.Res
 import simpmusic.composeapp.generated.resources.music_video
 import simpmusic.composeapp.generated.resources.new_release

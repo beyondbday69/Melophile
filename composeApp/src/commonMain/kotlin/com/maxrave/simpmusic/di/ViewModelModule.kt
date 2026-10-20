@@ -177,7 +177,6 @@ val viewModelModule =
         viewModel {
             MoodViewModel(
                 get(),
-                get(),
             )
         }
         viewModel {

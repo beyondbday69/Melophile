@@ -1,9 +1,7 @@
 package com.maxrave.simpmusic.viewModel
 
 import androidx.lifecycle.viewModelScope
-import com.maxrave.common.SELECTED_LANGUAGE
 import com.maxrave.domain.data.model.mood.moodmoments.MoodsMomentObject
-import com.maxrave.domain.manager.DataStoreManager
 import com.maxrave.domain.repository.HomeRepository
 import com.maxrave.domain.utils.Resource
 import com.maxrave.logger.Logger
@@ -15,7 +13,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class MoodViewModel(
-    dataStoreManager: DataStoreManager,
     private val homeRepository: HomeRepository,
 ) : BaseViewModel() {
     private val _moodsMomentObject: MutableStateFlow<MoodsMomentObject?> = MutableStateFlow(null)
