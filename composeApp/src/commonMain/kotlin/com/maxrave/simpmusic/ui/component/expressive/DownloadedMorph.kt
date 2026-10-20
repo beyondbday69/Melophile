@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -43,6 +44,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -624,6 +626,7 @@ private fun MorphActionSurface(
             label = "downloadedActionScale",
         )
     val shape = RoundedCornerShape(shapeRadius)
+    var focused by remember { mutableStateOf(false) }
 
     Row(
         modifier =
@@ -632,7 +635,14 @@ private fun MorphActionSurface(
                 .scale(scale)
                 .clip(shape)
                 .background(containerColor)
-                .morphPressable(
+                .onFocusChanged { focused = it.isFocused }
+                .then(
+                    if (focused) {
+                        Modifier.border(2.dp, MaterialTheme.colorScheme.outline, shape)
+                    } else {
+                        Modifier
+                    },
+                ).morphPressable(
                     onPress = onPress,
                     onRelease = onRelease,
                     onClick = onClick,
@@ -662,6 +672,7 @@ private fun MorphIconButton(
     pressedContentColor: Color = MaterialTheme.colorScheme.onPrimaryContainer,
 ) {
     var pressed by remember { mutableStateOf(false) }
+    var focused by remember { mutableStateOf(false) }
     val radius by
         animateDpAsState(
             targetValue = if (pressed) 12.dp else size / 2f,
@@ -694,7 +705,14 @@ private fun MorphIconButton(
                 .scale(scale)
                 .clip(RoundedCornerShape(radius))
                 .background(background)
-                .morphPressable(
+                .onFocusChanged { focused = it.isFocused }
+                .then(
+                    if (focused) {
+                        Modifier.border(2.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(radius))
+                    } else {
+                        Modifier
+                    },
+                ).morphPressable(
                     onPress = { pressed = true },
                     onRelease = { pressed = false },
                     onClick = onClick,
