@@ -2,6 +2,11 @@ package com.maxrave.simpmusic.ui.screen.other
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -12,6 +17,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,7 +38,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
@@ -39,14 +45,18 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -66,13 +76,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -84,7 +100,6 @@ import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import coil3.toBitmap
-import com.kyant.backdrop.highlight.Highlight
 import com.kmpalette.rememberPaletteState
 import com.maxrave.simpmusic.ui.component.DownloadingIndicator
 import com.maxrave.domain.data.entities.DownloadState
@@ -94,8 +109,6 @@ import com.maxrave.logger.Logger
 import com.maxrave.simpmusic.ui.component.SearchBarExit
 import com.maxrave.simpmusic.ui.component.SearchBarEnter
 import com.maxrave.simpmusic.ui.component.rememberHolderPainter
-import com.maxrave.simpmusic.expect.ui.layerBackdrop
-import com.maxrave.simpmusic.expect.ui.rememberBackdrop
 import com.maxrave.simpmusic.expect.ui.toImageBitmap
 import com.maxrave.simpmusic.extension.artworkScrimBrush
 import com.maxrave.simpmusic.extension.getColorFromPalette
@@ -106,18 +119,16 @@ import com.maxrave.simpmusic.ui.component.AddToPlaylistModalBottomSheet
 import com.maxrave.simpmusic.ui.component.CenterLoadingBox
 import com.maxrave.simpmusic.ui.component.DescriptionView
 import com.maxrave.simpmusic.ui.component.EndOfPage
-import com.maxrave.simpmusic.ui.component.HeartCheckBox
-import com.maxrave.simpmusic.ui.component.LiquidGlassIconButton
 import com.maxrave.simpmusic.ui.component.LoadingDialog
 import com.maxrave.simpmusic.ui.component.NowPlayingBottomSheet
 import com.maxrave.simpmusic.ui.component.PlaylistBottomSheet
-import com.maxrave.simpmusic.ui.component.RippleIconButton
 import com.maxrave.simpmusic.ui.component.SongFullWidthItems
-import com.maxrave.simpmusic.ui.component.liquidGlass
+import com.maxrave.simpmusic.ui.component.heartBurst
+import com.maxrave.simpmusic.ui.component.rememberHeartBurstState
 import com.maxrave.simpmusic.ui.component.selection.SelectedSongsBottomSheet
 import com.maxrave.simpmusic.ui.component.selection.SongSelectionTopAppBar
 import com.maxrave.simpmusic.ui.component.selection.rememberSongSelectionState
-import com.maxrave.simpmusic.ui.icon.ArrowBackIosNew
+import com.maxrave.simpmusic.ui.icon.ArrowBack
 import com.maxrave.simpmusic.ui.icon.Close
 import com.maxrave.simpmusic.ui.icon.DownloadForOffline
 import com.maxrave.simpmusic.ui.icon.MoreVert
@@ -385,18 +396,15 @@ fun PlaylistScreen(
                                         horizontalAlignment = Alignment.Start,
                                     ) {
                                         if (isPortrait) {
-                                            // Apple Music-style: edge-to-edge artwork + liquid glass buttons.
-                                            // Glass buttons MUST be siblings of the backdrop source (not children)
-                                            // to avoid render feedback loop / RuntimeShader crash.
-                                            val artworkBackdrop = rememberBackdrop(Color.Black)
+                                            // Edge-to-edge artwork with a Material 3 tonal control row.
                                             Box(
                                                 modifier =
                                                     Modifier
                                                         .fillMaxWidth()
                                                         .height((screenInfo.hDP / 2).dp),
                                             ) {
-                                                // Inner Box — backdrop SOURCE (artwork + overlays only, NO glass)
-                                                Box(modifier = Modifier.fillMaxSize().layerBackdrop(artworkBackdrop)) {
+                                                // Inner Box — artwork + overlays.
+                                                Box(modifier = Modifier.fillMaxSize()) {
                                                     AsyncImage(
                                                         model =
                                                             ImageRequest
@@ -488,86 +496,77 @@ fun PlaylistScreen(
                                                         )
                                                     }
                                                 }
-                                                // Back + Heart + Search button overlays on artwork top — liquid glass
+                                                // Material 3 Expressive overlay controls: a tonal
+                                                // squircle back action and a connected action group.
                                                 Row(
                                                     modifier =
                                                         Modifier
                                                             .align(Alignment.TopCenter)
                                                             .fillMaxWidth()
-                                                            .padding(horizontal = 12.dp, vertical = 4.dp)
+                                                            .padding(horizontal = 20.dp, vertical = 4.dp)
                                                             .windowInsetsPadding(WindowInsets.statusBars),
                                                     verticalAlignment = Alignment.CenterVertically,
                                                 ) {
-                                                    LiquidGlassIconButton(
-                                                        backdrop = artworkBackdrop,
-                                                        imageVector = SimpIcons.ArrowBackIosNew,
-                                                        modifier =
-                                                            Modifier
-                                                                .size(48.dp),
-                                                    ) {
-                                                        navController.navigateUp()
-                                                    }
+                                                    PlaylistHeaderIconButton(
+                                                        imageVector = SimpIcons.ArrowBack,
+                                                        contentDescription = "Back",
+                                                        onClick = { navController.navigateUp() },
+                                                    )
                                                     Spacer(Modifier.weight(1f))
                                                     Row(
-                                                        modifier =
-                                                            Modifier
-                                                                .height(48.dp)
-                                                                .liquidGlass(artworkBackdrop, RoundedCornerShape(24.dp)),
+                                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                                                         verticalAlignment = Alignment.CenterVertically,
                                                     ) {
                                                         if (!data.isRadio) {
-                                                            Box(
-                                                                modifier = Modifier.size(48.dp),
-                                                                contentAlignment = Alignment.Center,
-                                                            ) {
-                                                                HeartCheckBox(
-                                                                    size = 28,
-                                                                    checked = liked,
-                                                                    onStateChange = {
-                                                                        viewModel.onUIEvent(PlaylistUIEvent.Favorite)
-                                                                    },
-                                                                )
-                                                            }
+                                                            PlaylistHeaderHeartButton(
+                                                                checked = liked,
+                                                                onClick = {
+                                                                    viewModel.onUIEvent(PlaylistUIEvent.Favorite)
+                                                                },
+                                                                isFirst = true,
+                                                                isLast = false,
+                                                            )
                                                         }
-                                                        IconButton(
-                                                            onClick = {
-                                                                showSearchBar = !showSearchBar
-                                                            },
+                                                        PlaylistHeaderGroupButton(
+                                                            contentDescription = "Search in playlist",
+                                                            onClick = { showSearchBar = !showSearchBar },
+                                                            isFirst = data.isRadio,
+                                                            isLast = false,
                                                         ) {
-                                                            Icon(SimpIcons.Search, null, tint = Color.White)
+                                                            Icon(
+                                                                imageVector = SimpIcons.Search,
+                                                                contentDescription = null,
+                                                                modifier = Modifier.size(22.dp),
+                                                            )
                                                         }
-                                                        IconButton(
+                                                        PlaylistHeaderGroupButton(
+                                                            contentDescription = "More",
                                                             onClick = onPlaylistMoreClick,
+                                                            isFirst = false,
+                                                            isLast = true,
                                                         ) {
                                                             Icon(
                                                                 imageVector = SimpIcons.MoreVert,
-                                                                contentDescription = "More",
-                                                                tint = Color.White,
+                                                                contentDescription = null,
+                                                                modifier = Modifier.size(22.dp),
                                                             )
                                                         }
                                                     }
                                                 }
                                             }
                                         } else {
-                                            // Apple Music desktop header: back and the overlay actions on
-                                            // their own top row, then a square artwork with the text column
-                                            // and the action cluster laid out beside it rather than under it.
-                                            // Built exactly like the portrait branch, which renders correctly on both
-                                            // platforms: the backdrop SOURCE is the content column — artwork included,
-                                            // so the recorded layer holds something to refract — and the glass buttons
-                                            // are SIBLINGS placed with align(), never children of the source (that
-                                            // nesting is the render-feedback loop that kills the RuntimeShader).
-                                            val headerBackdrop = rememberBackdrop(mutedPaletteBg)
+                                            // Landscape header: Material 3 controls on their own top
+                                            // row, then a square artwork with the text column and the
+                                            // action cluster laid out beside it rather than under it.
                                             Box(modifier = Modifier.fillMaxWidth()) {
                                                 Column(
                                                     modifier =
                                                         Modifier
                                                             .fillMaxWidth()
-                                                            .layerBackdrop(headerBackdrop)
                                                             .windowInsetsPadding(WindowInsets.statusBars)
                                                             .padding(horizontal = 32.dp, vertical = 16.dp),
                                                 ) {
-                                                    // Reserves the strip the sibling glass buttons are drawn over.
+                                                    // Reserves the strip the sibling header controls are drawn over.
                                                     Spacer(modifier = Modifier.height(48.dp))
                                                     Spacer(modifier = Modifier.height(16.dp))
                                                     Row(
@@ -638,208 +637,99 @@ fun PlaylistScreen(
                                                                 color = Color(0xC4FFFFFF),
                                                             )
                                                             Spacer(modifier = Modifier.height(20.dp))
-                                                            // Apple Music-style action row:
-                                                            // [Shuffle][Play pill][Download/More] (cluster centered, all 48dp matching size)
                                                             val isThisPlaying = isPlaying && playingPlaylistId == data.id
-                                                            Row(
+                                                            PlaylistHeaderActions(
+                                                                isRadio = data.isRadio,
+                                                                isThisPlaying = isThisPlaying,
+                                                                downloadState = downloadState,
+                                                                onShuffle = { viewModel.onUIEvent(PlaylistUIEvent.Shuffle) },
+                                                                onPlay = {
+                                                                    if (isThisPlaying) {
+                                                                        sharedViewModel.onUIEvent(UIEvent.PlayPause)
+                                                                    } else {
+                                                                        viewModel.onUIEvent(PlaylistUIEvent.PlayAll)
+                                                                    }
+                                                                },
+                                                                onDownload = {
+                                                                    when (downloadState) {
+                                                                        DownloadState.STATE_DOWNLOADED ->
+                                                                            viewModel.makeToast(
+                                                                                getStringBlocking(Res.string.downloaded),
+                                                                            )
+                                                                        DownloadState.STATE_DOWNLOADING ->
+                                                                            viewModel.makeToast(
+                                                                                getStringBlocking(Res.string.downloading),
+                                                                            )
+                                                                        else -> {
+                                                                            Logger.w(
+                                                                                "PlaylistScreen",
+                                                                                "downloadState: $downloadState",
+                                                                            )
+                                                                            viewModel.onUIEvent(PlaylistUIEvent.Download)
+                                                                        }
+                                                                    }
+                                                                },
                                                                 modifier =
                                                                     Modifier
                                                                         .fillMaxWidth()
                                                                         .padding(vertical = 8.dp),
-                                                                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.Start),
-                                                                verticalAlignment = Alignment.CenterVertically,
-                                                            ) {
-                                                                if (!data.isRadio) {
-                                                                    Box(
-                                                                        modifier =
-                                                                            Modifier
-                                                                                .size(48.dp)
-                                                                                .clip(CircleShape)
-                                                                                .background(Color.White.copy(alpha = 0.12f))
-                                                                                .clickable {
-                                                                                    viewModel.onUIEvent(PlaylistUIEvent.Shuffle)
-                                                                                },
-                                                                        contentAlignment = Alignment.Center,
-                                                                    ) {
-                                                                        Icon(
-                                                                            imageVector = SimpIcons.Shuffle,
-                                                                            contentDescription = "Shuffle",
-                                                                            tint = Color.White,
-                                                                            modifier = Modifier.size(22.dp),
-                                                                        )
-                                                                    }
-                                                                }
-                                                                Box(
-                                                                    modifier =
-                                                                        Modifier
-                                                                            .height(48.dp)
-                                                                            .widthIn(min = 110.dp)
-                                                                            .clip(CircleShape)
-                                                                            .background(Color.White)
-                                                                            .clickable {
-                                                                                if (isThisPlaying) {
-                                                                                    sharedViewModel.onUIEvent(UIEvent.PlayPause)
-                                                                                } else {
-                                                                                    viewModel.onUIEvent(PlaylistUIEvent.PlayAll)
-                                                                                }
-                                                                            }.padding(horizontal = 20.dp),
-                                                                    contentAlignment = Alignment.Center,
-                                                                ) {
-                                                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                                                        Icon(
-                                                                            imageVector =
-                                                                                if (isThisPlaying) SimpIcons.Pause else SimpIcons.PlayArrow,
-                                                                            contentDescription = null,
-                                                                            tint = Color.Black,
-                                                                            modifier = Modifier.size(22.dp),
-                                                                        )
-                                                                        Spacer(modifier = Modifier.width(4.dp))
-                                                                        Text(
-                                                                            text = if (isThisPlaying) "Pause" else "Play",
-                                                                            color = Color.Black,
-                                                                            style = typo().labelLarge,
-                                                                        )
-                                                                    }
-                                                                }
-                                                                if (!data.isRadio) {
-                                                                    Box(
-                                                                        modifier =
-                                                                            Modifier
-                                                                                .size(48.dp)
-                                                                                .clip(CircleShape)
-                                                                                .background(Color.White.copy(alpha = 0.12f)),
-                                                                        contentAlignment = Alignment.Center,
-                                                                    ) {
-                                                                        Crossfade(targetState = downloadState) { state ->
-                                                                            when (state) {
-                                                                                DownloadState.STATE_DOWNLOADED -> {
-                                                                                    Box(
-                                                                                        modifier =
-                                                                                            Modifier
-                                                                                                .fillMaxSize()
-                                                                                                .clickable {
-                                                                                                    viewModel.makeToast(
-                                                                                                        getStringBlocking(Res.string.downloaded),
-                                                                                                    )
-                                                                                                },
-                                                                                        contentAlignment = Alignment.Center,
-                                                                                    ) {
-                                                                                        Icon(
-                                                                                            painter = painterResource(Res.drawable.baseline_downloaded),
-                                                                                            tint = Color(0xFF00A0CB),
-                                                                                            contentDescription = "",
-                                                                                            modifier = Modifier.size(22.dp),
-                                                                                        )
-                                                                                    }
-                                                                                }
-
-                                                                                DownloadState.STATE_DOWNLOADING -> {
-                                                                                    Box(
-                                                                                        modifier =
-                                                                                            Modifier
-                                                                                                .fillMaxSize()
-                                                                                                .clickable {
-                                                                                                    viewModel.makeToast(
-                                                                                                        getStringBlocking(Res.string.downloading),
-                                                                                                    )
-                                                                                                },
-                                                                                        contentAlignment = Alignment.Center,
-                                                                                    ) {
-                                                                                        DownloadingIndicator(
-                                                                                            modifier = Modifier.size(28.dp),
-                                                                                        )
-                                                                                    }
-                                                                                }
-
-                                                                                else -> {
-                                                                                    Box(
-                                                                                        modifier =
-                                                                                            Modifier
-                                                                                                .fillMaxSize()
-                                                                                                .clickable {
-                                                                                                    Logger.w(
-                                                                                                        "PlaylistScreen",
-                                                                                                        "downloadState: $downloadState",
-                                                                                                    )
-                                                                                                    viewModel.onUIEvent(PlaylistUIEvent.Download)
-                                                                                                },
-                                                                                        contentAlignment = Alignment.Center,
-                                                                                    ) {
-                                                                                        Icon(
-                                                                                            imageVector = SimpIcons.DownloadForOffline,
-                                                                                            tint = Color.White,
-                                                                                            contentDescription = "Download",
-                                                                                            modifier = Modifier.size(22.dp),
-                                                                                        )
-                                                                                    }
-                                                                                }
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                }
-                                                            }
+                                                            )
                                                         }
                                                     }
                                                 }
-                                                // Glass overlays — siblings of the source, over the strip the column reserved.
-                                                Box(Modifier.padding(start = 12.dp)) {
-                                                    LiquidGlassIconButton(
-                                                        backdrop = headerBackdrop,
-                                                        imageVector = SimpIcons.ArrowBackIosNew,
-                                                        shape = RoundedCornerShape(24.dp),
-                                                        // Same directional style as the like/⋯ pill, a touch thicker. The default
-                                                        // width of 0.5.dp becomes a ~2px stroke (HighlightModifier: ceil(width.toPx()) * 2),
-                                                        // which reads along the pill's long edge but vanishes around a 48dp circle. 1.dp
-                                                        // is the smallest step up that stays visible without looking like a border.
-                                                        highlight = Highlight(width = 1.dp),
-                                                        modifier =
-                                                            Modifier
-                                                                .align(Alignment.TopStart)
-                                                                .padding(12.dp)
-                                                                .windowInsetsPadding(WindowInsets.statusBars)
-                                                                .size(48.dp),
-                                                    ) {
-                                                        navController.navigateUp()
-                                                    }
-                                                }
+                                                // Material 3 Expressive header controls — siblings of the
+                                                // content column, drawn over the strip it reserved.
+                                                PlaylistHeaderIconButton(
+                                                    imageVector = SimpIcons.ArrowBack,
+                                                    contentDescription = "Back",
+                                                    onClick = { navController.navigateUp() },
+                                                    modifier =
+                                                        Modifier
+                                                            .align(Alignment.TopStart)
+                                                            .padding(12.dp)
+                                                            .windowInsetsPadding(WindowInsets.statusBars),
+                                                )
                                                 Row(
                                                     modifier =
                                                         Modifier
                                                             .align(Alignment.TopEnd)
                                                             .windowInsetsPadding(WindowInsets.statusBars)
-                                                            .padding(end = 32.dp, top = 16.dp)
-                                                            .height(48.dp)
-                                                            .liquidGlass(headerBackdrop, RoundedCornerShape(24.dp)),
+                                                            .padding(end = 32.dp, top = 16.dp),
+                                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                                                     verticalAlignment = Alignment.CenterVertically,
                                                 ) {
                                                     if (!data.isRadio) {
-                                                        Box(
-                                                            modifier = Modifier.size(48.dp),
-                                                            contentAlignment = Alignment.Center,
-                                                        ) {
-                                                            HeartCheckBox(
-                                                                size = 28,
-                                                                checked = liked,
-                                                                onStateChange = {
-                                                                    viewModel.onUIEvent(PlaylistUIEvent.Favorite)
-                                                                },
-                                                            )
-                                                        }
+                                                        PlaylistHeaderHeartButton(
+                                                            checked = liked,
+                                                            onClick = {
+                                                                viewModel.onUIEvent(PlaylistUIEvent.Favorite)
+                                                            },
+                                                            isFirst = true,
+                                                            isLast = false,
+                                                        )
                                                     }
-                                                    IconButton(
-                                                        onClick = {
-                                                            showSearchBar = !showSearchBar
-                                                        },
+                                                    PlaylistHeaderGroupButton(
+                                                        contentDescription = "Search in playlist",
+                                                        onClick = { showSearchBar = !showSearchBar },
+                                                        isFirst = data.isRadio,
+                                                        isLast = false,
                                                     ) {
-                                                        Icon(SimpIcons.Search, null, tint = Color.White)
+                                                        Icon(
+                                                            imageVector = SimpIcons.Search,
+                                                            contentDescription = null,
+                                                            modifier = Modifier.size(22.dp),
+                                                        )
                                                     }
-                                                    IconButton(
+                                                    PlaylistHeaderGroupButton(
+                                                        contentDescription = "More",
                                                         onClick = onPlaylistMoreClick,
+                                                        isFirst = false,
+                                                        isLast = true,
                                                     ) {
                                                         Icon(
                                                             imageVector = SimpIcons.MoreVert,
-                                                            contentDescription = "More",
-                                                            tint = Color.White,
+                                                            contentDescription = null,
+                                                            modifier = Modifier.size(22.dp),
                                                         )
                                                     }
                                                 }
@@ -853,146 +743,44 @@ fun PlaylistScreen(
                                         ) {
                                             Column(Modifier.padding(horizontal = 32.dp)) {
                                                 if (isPortrait) {
-                                                    // Apple Music-style action row:
-                                                    // [Shuffle][Play pill][Download/More] (cluster centered, all 48dp matching size)
                                                     val isThisPlaying = isPlaying && playingPlaylistId == data.id
-                                                    Row(
+                                                    PlaylistHeaderActions(
+                                                        isRadio = data.isRadio,
+                                                        isThisPlaying = isThisPlaying,
+                                                        downloadState = downloadState,
+                                                        onShuffle = { viewModel.onUIEvent(PlaylistUIEvent.Shuffle) },
+                                                        onPlay = {
+                                                            if (isThisPlaying) {
+                                                                sharedViewModel.onUIEvent(UIEvent.PlayPause)
+                                                            } else {
+                                                                viewModel.onUIEvent(PlaylistUIEvent.PlayAll)
+                                                            }
+                                                        },
+                                                        onDownload = {
+                                                            when (downloadState) {
+                                                                DownloadState.STATE_DOWNLOADED ->
+                                                                    viewModel.makeToast(
+                                                                        getStringBlocking(Res.string.downloaded),
+                                                                    )
+                                                                DownloadState.STATE_DOWNLOADING ->
+                                                                    viewModel.makeToast(
+                                                                        getStringBlocking(Res.string.downloading),
+                                                                    )
+                                                                else -> {
+                                                                    Logger.w(
+                                                                        "PlaylistScreen",
+                                                                        "downloadState: $downloadState",
+                                                                    )
+                                                                    viewModel.onUIEvent(PlaylistUIEvent.Download)
+                                                                }
+                                                            }
+                                                        },
                                                         modifier =
                                                             Modifier
                                                                 .fillMaxWidth()
                                                                 .padding(vertical = 8.dp),
                                                         horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
-                                                        verticalAlignment = Alignment.CenterVertically,
-                                                    ) {
-                                                        if (!data.isRadio) {
-                                                            Box(
-                                                                modifier =
-                                                                    Modifier
-                                                                        .size(48.dp)
-                                                                        .clip(CircleShape)
-                                                                        .background(Color.White.copy(alpha = 0.12f))
-                                                                        .clickable {
-                                                                            viewModel.onUIEvent(PlaylistUIEvent.Shuffle)
-                                                                        },
-                                                                contentAlignment = Alignment.Center,
-                                                            ) {
-                                                                Icon(
-                                                                    imageVector = SimpIcons.Shuffle,
-                                                                    contentDescription = "Shuffle",
-                                                                    tint = Color.White,
-                                                                    modifier = Modifier.size(22.dp),
-                                                                )
-                                                            }
-                                                        }
-                                                        Box(
-                                                            modifier =
-                                                                Modifier
-                                                                    .height(48.dp)
-                                                                    .widthIn(min = 110.dp)
-                                                                    .clip(CircleShape)
-                                                                    .background(Color.White)
-                                                                    .clickable {
-                                                                        if (isThisPlaying) {
-                                                                            sharedViewModel.onUIEvent(UIEvent.PlayPause)
-                                                                        } else {
-                                                                            viewModel.onUIEvent(PlaylistUIEvent.PlayAll)
-                                                                        }
-                                                                    }.padding(horizontal = 20.dp),
-                                                            contentAlignment = Alignment.Center,
-                                                        ) {
-                                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                                Icon(
-                                                                    imageVector =
-                                                                        if (isThisPlaying) SimpIcons.Pause else SimpIcons.PlayArrow,
-                                                                    contentDescription = null,
-                                                                    tint = Color.Black,
-                                                                    modifier = Modifier.size(22.dp),
-                                                                )
-                                                                Spacer(modifier = Modifier.width(4.dp))
-                                                                Text(
-                                                                    text = if (isThisPlaying) "Pause" else "Play",
-                                                                    color = Color.Black,
-                                                                    style = typo().labelLarge,
-                                                                )
-                                                            }
-                                                        }
-                                                        if (!data.isRadio) {
-                                                            Box(
-                                                                modifier =
-                                                                    Modifier
-                                                                        .size(48.dp)
-                                                                        .clip(CircleShape)
-                                                                        .background(Color.White.copy(alpha = 0.12f)),
-                                                                contentAlignment = Alignment.Center,
-                                                            ) {
-                                                                Crossfade(targetState = downloadState) { state ->
-                                                                    when (state) {
-                                                                        DownloadState.STATE_DOWNLOADED -> {
-                                                                            Box(
-                                                                                modifier =
-                                                                                    Modifier
-                                                                                        .fillMaxSize()
-                                                                                        .clickable {
-                                                                                            viewModel.makeToast(
-                                                                                                getStringBlocking(Res.string.downloaded),
-                                                                                            )
-                                                                                        },
-                                                                                contentAlignment = Alignment.Center,
-                                                                            ) {
-                                                                                Icon(
-                                                                                    painter = painterResource(Res.drawable.baseline_downloaded),
-                                                                                    tint = Color(0xFF00A0CB),
-                                                                                    contentDescription = "",
-                                                                                    modifier = Modifier.size(22.dp),
-                                                                                )
-                                                                            }
-                                                                        }
-
-                                                                        DownloadState.STATE_DOWNLOADING -> {
-                                                                            Box(
-                                                                                modifier =
-                                                                                    Modifier
-                                                                                        .fillMaxSize()
-                                                                                        .clickable {
-                                                                                            viewModel.makeToast(
-                                                                                                getStringBlocking(Res.string.downloading),
-                                                                                            )
-                                                                                        },
-                                                                                contentAlignment = Alignment.Center,
-                                                                            ) {
-                                                                                DownloadingIndicator(
-                                                                                    modifier = Modifier.size(28.dp),
-                                                                                )
-                                                                            }
-                                                                        }
-
-                                                                        else -> {
-                                                                            Box(
-                                                                                modifier =
-                                                                                    Modifier
-                                                                                        .fillMaxSize()
-                                                                                        .clickable {
-                                                                                            Logger.w(
-                                                                                                "PlaylistScreen",
-                                                                                                "downloadState: $downloadState",
-                                                                                            )
-                                                                                            viewModel.onUIEvent(PlaylistUIEvent.Download)
-                                                                                        },
-                                                                                contentAlignment = Alignment.Center,
-                                                                            ) {
-                                                                                Icon(
-                                                                                    imageVector = SimpIcons.DownloadForOffline,
-                                                                                    tint = Color.White,
-                                                                                    contentDescription = "Download",
-                                                                                    modifier = Modifier.size(22.dp),
-                                                                                )
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
-                                                    }
+                                                    )
                                                 }
                                                 val uriHandler = LocalUriHandler.current
                                                 DescriptionView(
@@ -1178,11 +966,11 @@ fun PlaylistScreen(
                                     .windowInsetsPadding(WindowInsets.statusBars),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            RippleIconButton(
-                                imageVector = SimpIcons.ArrowBackIosNew,
-                            ) {
-                                navController.navigateUp()
-                            }
+                            PlaylistHeaderIconButton(
+                                imageVector = SimpIcons.ArrowBack,
+                                contentDescription = "Back",
+                                onClick = { navController.navigateUp() },
+                            )
                             SearchBar(
                                 modifier =
                                     Modifier
@@ -1215,13 +1003,11 @@ fun PlaylistScreen(
                                 windowInsets = WindowInsets(0, 0, 0, 0),
                             ) {
                             }
-                            IconButton(
-                                onClick = {
-                                    showSearchBar = !showSearchBar
-                                },
-                            ) {
-                                Icon(SimpIcons.Close, null, tint = Color.White)
-                            }
+                            PlaylistHeaderIconButton(
+                                imageVector = SimpIcons.Close,
+                                contentDescription = "Close search",
+                                onClick = { showSearchBar = !showSearchBar },
+                            )
                         }
                     }
                 }
@@ -1343,25 +1129,20 @@ fun PlaylistScreen(
                             )
                         },
                         navigationIcon = {
-                            Box(Modifier.padding(horizontal = 5.dp)) {
-                                RippleIconButton(
-                                    SimpIcons.ArrowBackIosNew,
-                                    Modifier
-                                        .size(32.dp),
-                                    true,
-                                ) {
-                                    navController.navigateUp()
-                                }
-                            }
+                            PlaylistHeaderIconButton(
+                                imageVector = SimpIcons.ArrowBack,
+                                contentDescription = "Back",
+                                onClick = { navController.navigateUp() },
+                                modifier = Modifier.padding(horizontal = 5.dp),
+                            )
                         },
                         actions = {
-                            IconButton(
-                                onClick = {
-                                    showSearchBar = !showSearchBar
-                                },
-                            ) {
-                                Icon(SimpIcons.Search, null, tint = Color.White)
-                            }
+                            PlaylistHeaderIconButton(
+                                imageVector = SimpIcons.Search,
+                                contentDescription = "Search in playlist",
+                                onClick = { showSearchBar = !showSearchBar },
+                                modifier = Modifier.padding(end = 12.dp),
+                            )
                         },
                         colors =
                             TopAppBarDefaults.topAppBarColors(
@@ -1391,4 +1172,277 @@ fun PlaylistScreen(
         }
     }
     } // End of root Box
+}
+
+/**
+ * Tonal squircle action used by the YouTube playlist header, matching the Material 3
+ * Expressive controls on the local playlist and artist screens. Press feedback is a short
+ * tween — deliberately not a spring, so the button never overshoots or bounces.
+ */
+@Composable
+private fun PlaylistHeaderIconButton(
+    imageVector: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.96f else 1f,
+        animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing),
+        label = "playlistHeaderIconScale",
+    )
+    val containerColor by animateColorAsState(
+        targetValue =
+            if (isPressed) {
+                MaterialTheme.colorScheme.surfaceContainerHighest
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerHigh
+            },
+        animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing),
+        label = "playlistHeaderIconColor",
+    )
+    Surface(
+        onClick = onClick,
+        interactionSource = interactionSource,
+        shape = RoundedCornerShape(20.dp),
+        color = containerColor,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        modifier =
+            modifier
+                .size(46.dp)
+                .semantics { this.contentDescription = contentDescription }
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                },
+    ) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = imageVector,
+                contentDescription = null,
+                modifier = Modifier.size(22.dp),
+            )
+        }
+    }
+}
+
+/**
+ * One segment of the connected tonal action group. Outer segments keep a 20.dp cap on their
+ * outer edge and an 8.dp inner corner; pressing morphs the segment into a standalone 20.dp
+ * pill. All motion is tweened — no spring overshoot.
+ */
+@Composable
+private fun PlaylistHeaderGroupButton(
+    contentDescription: String,
+    onClick: () -> Unit,
+    isFirst: Boolean,
+    isLast: Boolean,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val restingStart = if (isFirst) 20.dp else 8.dp
+    val restingEnd = if (isLast) 20.dp else 8.dp
+    val startCorner by animateDpAsState(
+        targetValue = if (isPressed) 20.dp else restingStart,
+        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+        label = "playlistHeaderGroupStartCorner",
+    )
+    val endCorner by animateDpAsState(
+        targetValue = if (isPressed) 20.dp else restingEnd,
+        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+        label = "playlistHeaderGroupEndCorner",
+    )
+    val containerColor by animateColorAsState(
+        targetValue =
+            if (isPressed) {
+                MaterialTheme.colorScheme.surfaceContainerHighest
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerHigh
+            },
+        animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing),
+        label = "playlistHeaderGroupColor",
+    )
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.96f else 1f,
+        animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing),
+        label = "playlistHeaderGroupScale",
+    )
+    Surface(
+        onClick = onClick,
+        interactionSource = interactionSource,
+        shape =
+            RoundedCornerShape(
+                topStart = startCorner,
+                bottomStart = startCorner,
+                topEnd = endCorner,
+                bottomEnd = endCorner,
+            ),
+        color = containerColor,
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier =
+            modifier
+                .size(46.dp)
+                .semantics { this.contentDescription = contentDescription }
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                },
+    ) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            content()
+        }
+    }
+}
+
+/**
+ * Favorite segment for the connected header group. The like glyph keeps the existing
+ * burst pulse on tap; only the glyph scales, not the tonal container.
+ */
+@Composable
+private fun PlaylistHeaderHeartButton(
+    checked: Boolean,
+    onClick: () -> Unit,
+    isFirst: Boolean,
+    isLast: Boolean,
+) {
+    val burstState = rememberHeartBurstState()
+    PlaylistHeaderGroupButton(
+        contentDescription = if (checked) "Remove from favorites" else "Add to favorites",
+        onClick = {
+            if (!checked) burstState.fire()
+            onClick()
+        },
+        isFirst = isFirst,
+        isLast = isLast,
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .size(24.dp)
+                    .heartBurst(burstState),
+        ) {
+            Crossfade(targetState = checked, label = "playlistHeaderFavorite") { isChecked ->
+                if (isChecked) {
+                    Image(
+                        painter = painterResource(Res.drawable.baseline_favorite_24),
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.primary),
+                    )
+                } else {
+                    Image(
+                        imageVector = SimpIcons.FavoriteBorder,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurfaceVariant),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Material 3 Expressive action row for the YouTube playlist header: a filled play pill
+ * flanked by tonal shuffle/download circles. The actions keep their existing behaviour;
+ * only the presentation changes.
+ */
+@Composable
+private fun PlaylistHeaderActions(
+    isRadio: Boolean,
+    isThisPlaying: Boolean,
+    downloadState: DownloadState,
+    onShuffle: () -> Unit,
+    onPlay: () -> Unit,
+    onDownload: () -> Unit,
+    modifier: Modifier = Modifier,
+    horizontalArrangement: Arrangement.Horizontal = Arrangement.spacedBy(12.dp),
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = horizontalArrangement,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (!isRadio) {
+            FilledTonalIconButton(
+                onClick = onShuffle,
+                modifier = Modifier.size(50.dp),
+                shape = CircleShape,
+                colors =
+                    IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                    ),
+            ) {
+                Icon(
+                    imageVector = SimpIcons.Shuffle,
+                    contentDescription = "Shuffle",
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+        }
+
+        Button(
+            onClick = onPlay,
+            modifier = Modifier.height(50.dp),
+            shape = RoundedCornerShape(25.dp),
+            colors =
+                ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ),
+            contentPadding = PaddingValues(horizontal = 24.dp),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp, pressedElevation = 0.dp),
+        ) {
+            Icon(
+                imageVector = if (isThisPlaying) SimpIcons.Pause else SimpIcons.PlayArrow,
+                contentDescription = null,
+                modifier = Modifier.size(22.dp),
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = if (isThisPlaying) "Pause" else "Play",
+                style = typo().titleSmall.copy(fontWeight = FontWeight.Bold),
+            )
+        }
+
+        if (!isRadio) {
+            FilledTonalIconButton(
+                onClick = onDownload,
+                modifier = Modifier.size(50.dp),
+                shape = CircleShape,
+                colors =
+                    IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                    ),
+            ) {
+                Crossfade(targetState = downloadState, label = "playlistHeaderDownload") { state ->
+                    when (state) {
+                        DownloadState.STATE_DOWNLOADED ->
+                            Icon(
+                                painter = painterResource(Res.drawable.baseline_downloaded),
+                                contentDescription = "Downloaded",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(22.dp),
+                            )
+
+                        DownloadState.STATE_DOWNLOADING ->
+                            DownloadingIndicator(modifier = Modifier.size(28.dp))
+
+                        else ->
+                            Icon(
+                                imageVector = SimpIcons.DownloadForOffline,
+                                contentDescription = "Download",
+                                modifier = Modifier.size(22.dp),
+                            )
+                    }
+                }
+            }
+        }
+    }
 }
