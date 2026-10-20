@@ -5,15 +5,14 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -1746,12 +1745,8 @@ private fun ExpressiveTopBarIconButton(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.94f else 1f,
-        animationSpec =
-            spring(
-                dampingRatio = 0.62f,
-                stiffness = Spring.StiffnessMediumLow,
-            ),
+        targetValue = if (isPressed) 0.96f else 1f,
+        animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing),
         label = "playlistTopBarBackScale",
     )
     Surface(
@@ -1798,20 +1793,12 @@ private fun ExpressiveTopBarGroupButton(
     val restingEnd = if (isLast) 20.dp else 8.dp
     val startCorner by animateDpAsState(
         targetValue = if (isPressed) 20.dp else restingStart,
-        animationSpec =
-            spring(
-                dampingRatio = 0.65f,
-                stiffness = Spring.StiffnessMedium,
-            ),
+        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
         label = "playlistTopBarStartCorner",
     )
     val endCorner by animateDpAsState(
         targetValue = if (isPressed) 20.dp else restingEnd,
-        animationSpec =
-            spring(
-                dampingRatio = 0.65f,
-                stiffness = Spring.StiffnessMedium,
-            ),
+        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
         label = "playlistTopBarEndCorner",
     )
     val containerColor by animateColorAsState(
@@ -1821,16 +1808,12 @@ private fun ExpressiveTopBarGroupButton(
             } else {
                 MaterialTheme.colorScheme.surfaceContainerHigh
             },
-        animationSpec = spring(stiffness = Spring.StiffnessMedium),
+        animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing),
         label = "playlistTopBarGroupColor",
     )
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.94f else 1f,
-        animationSpec =
-            spring(
-                dampingRatio = 0.62f,
-                stiffness = Spring.StiffnessMediumLow,
-            ),
+        targetValue = if (isPressed) 0.96f else 1f,
+        animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing),
         label = "playlistTopBarGroupScale",
     )
     Surface(
