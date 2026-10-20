@@ -172,6 +172,9 @@ fun LibraryDynamicPlaylistScreen(
     var showBottomSheet by rememberSaveable { mutableStateOf(false) }
     var showSearchBar by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
+    // One-shot so scrolling the search field out of and back into the lazy list does not pop
+    // the keyboard again; the request is consumed by the field when it is first composed.
+    var shouldFocusDownloadedSearch by remember { mutableStateOf(false) }
 
     val selectionState = rememberSongSelectionState()
     val selectionViewModel: SongSelectionViewModel = koinViewModel()
@@ -221,10 +224,12 @@ fun LibraryDynamicPlaylistScreen(
         if (showSearchBar) {
             showSearchBar = false
             query = ""
+            shouldFocusDownloadedSearch = false
             keyboardController?.hide()
             coroutineScope.launch { lazyState.animateScrollToItem(0) }
         } else {
             showSearchBar = true
+            shouldFocusDownloadedSearch = true
         }
     }
     val selectAllVisible: () -> Unit = {
@@ -264,6 +269,7 @@ fun LibraryDynamicPlaylistScreen(
     BackHandler(enabled = isDownloaded && showSearchBar) {
         showSearchBar = false
         query = ""
+        shouldFocusDownloadedSearch = false
         keyboardController?.hide()
     }
     // Opening search from the collapsed bar has to return to the header first, otherwise the
@@ -330,6 +336,8 @@ fun LibraryDynamicPlaylistScreen(
                     isPortrait = isPortrait,
                     count = downloaded.size,
                     isSearchActive = showSearchBar,
+                    autoFocusSearch = shouldFocusDownloadedSearch,
+                    onSearchFocusHandled = { shouldFocusDownloadedSearch = false },
                     query = query,
                     onQueryChange = { query = it },
                     onToggleSearch = toggleSearch,
@@ -951,6 +959,8 @@ private fun DownloadedHeader(
     isPortrait: Boolean,
     count: Int,
     isSearchActive: Boolean,
+    autoFocusSearch: Boolean,
+    onSearchFocusHandled: () -> Unit,
     query: String,
     onQueryChange: (String) -> Unit,
     onToggleSearch: () -> Unit,
@@ -1015,6 +1025,8 @@ private fun DownloadedHeader(
             DownloadedSearchField(
                 query = query,
                 onQueryChange = onQueryChange,
+                autoFocus = autoFocusSearch,
+                onFocusHandled = onSearchFocusHandled,
                 modifier = Modifier.padding(bottom = 20.dp),
             )
         } else if (isPortrait) {
@@ -1214,13 +1226,18 @@ private fun DownloadedActionRow(
 private fun DownloadedSearchField(
     query: String,
     onQueryChange: (String) -> Unit,
+    autoFocus: Boolean,
+    onFocusHandled: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
-    LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
-        keyboard?.show()
+    LaunchedEffect(autoFocus) {
+        if (autoFocus) {
+            focusRequester.requestFocus()
+            keyboard?.show()
+            onFocusHandled()
+        }
     }
     TextField(
         value = query,
