@@ -1,7 +1,11 @@
 package com.maxrave.simpmusic.ui.screen.library
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -134,10 +138,12 @@ private val gradientPresets = listOf(
 @Composable
 fun LibraryScreen(
     innerPadding: PaddingValues,
+    navController: NavController,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     viewModel: LibraryViewModel = koinViewModel(),
     dynamicPlaylistViewModel: LibraryDynamicPlaylistViewModel = koinViewModel(),
     sharedViewModel: SharedViewModel = koinInject(),
-    navController: NavController,
     onScrolling: (onTop: Boolean) -> Unit = {},
 ) {
     val coroutineScope = rememberCoroutineScope()
@@ -625,19 +631,34 @@ fun LibraryScreen(
                         )
 
                         // Local Playlists with Material 3 Expressive Shapes
-                        localList.forEachIndexed { idx, pl ->
+                        localList.forEach { pl ->
                             val shapeIdFlow = remember(pl.id) { viewModel.getPlaylistShapeFlow(pl.id.toString()) }
                             val colorHexFlow = remember(pl.id) { viewModel.getPlaylistColorFlow(pl.id.toString()) }
                             val savedShapeId by shapeIdFlow.collectAsStateWithLifecycle(null)
                             val savedColorHex by colorHexFlow.collectAsStateWithLifecycle(null)
 
-                            val defaultShape = MaterialShapePreset.entries[idx % MaterialShapePreset.entries.size]
-                            val defaultColor = ExpressiveCoverColors[idx % ExpressiveCoverColors.size]
+                            // Use the playlist id so the card and the detail header pick the same
+                            // default shape/color, which keeps the shared cover from morphing twice.
+                            val defaultShapeIndex = (pl.id % MaterialShapePreset.entries.size).toInt().coerceAtLeast(0)
+                            val defaultColorIndex = (pl.id % ExpressiveCoverColors.size).toInt().coerceAtLeast(0)
+                            val defaultShape = MaterialShapePreset.entries[defaultShapeIndex]
+                            val defaultColor = ExpressiveCoverColors[defaultColorIndex]
 
                             val shapePreset = savedShapeId?.let { MaterialShapePreset.fromId(it) } ?: defaultShape
                             val coverColor = savedColorHex?.let { hex ->
                                 try { Color(hex.toLong(16).toULong()) } catch (_: Exception) { null }
                             } ?: defaultColor
+
+                            val sharedCoverModifier =
+                                with(sharedTransitionScope) {
+                                    Modifier.sharedElement(
+                                        sharedContentState = rememberSharedContentState("local-playlist-cover-${pl.id}"),
+                                        animatedVisibilityScope = animatedVisibilityScope,
+                                        boundsTransform = { _, _ ->
+                                            tween(durationMillis = 260, easing = FastOutSlowInEasing)
+                                        },
+                                    )
+                                }
 
                             ExpressivePlaylistCard(
                                 title = pl.title,
@@ -646,6 +667,7 @@ fun LibraryScreen(
                                 thumbnailUrl = pl.thumbnail,
                                 shapePreset = shapePreset,
                                 containerColor = coverColor,
+                                coverModifier = sharedCoverModifier,
                                 onClick = {
                                     navController.navigate(LocalPlaylistDestination(pl.id))
                                 },

@@ -1,7 +1,9 @@
 package com.maxrave.simpmusic.ui.screen.library
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutLinearInEasing
@@ -256,9 +258,11 @@ private const val TAG = "LocalPlaylistScreen"
 @Composable
 fun LocalPlaylistScreen(
     id: Long,
+    navController: NavController,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     sharedViewModel: SharedViewModel = koinInject(),
     viewModel: LocalPlaylistViewModel = koinViewModel(),
-    navController: NavController,
 ) {
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -328,17 +332,17 @@ fun LocalPlaylistScreen(
     }
 
     var showCoverCustomizer by rememberSaveable { mutableStateOf(false) }
-    val shapeIdFlow = remember(uiState.id) { viewModel.getPlaylistShapeFlow(uiState.id.toString()) }
-    val colorHexFlow = remember(uiState.id) { viewModel.getPlaylistColorFlow(uiState.id.toString()) }
+    val shapeIdFlow = remember(id) { viewModel.getPlaylistShapeFlow(id.toString()) }
+    val colorHexFlow = remember(id) { viewModel.getPlaylistColorFlow(id.toString()) }
     val savedShapeId by shapeIdFlow.collectAsStateWithLifecycle(null)
     val savedColorHex by colorHexFlow.collectAsStateWithLifecycle(null)
 
-    val defaultShape = remember(uiState.id) {
-        val idx = (uiState.id % MaterialShapePreset.entries.size).toInt().coerceAtLeast(0)
+    val defaultShape = remember(id) {
+        val idx = (id % MaterialShapePreset.entries.size).toInt().coerceAtLeast(0)
         MaterialShapePreset.entries[idx]
     }
-    val defaultColor = remember(uiState.id) {
-        val idx = (uiState.id % ExpressiveCoverColors.size).toInt().coerceAtLeast(0)
+    val defaultColor = remember(id) {
+        val idx = (id % ExpressiveCoverColors.size).toInt().coerceAtLeast(0)
         ExpressiveCoverColors[idx]
     }
     val currentShape = savedShapeId?.let { MaterialShapePreset.fromId(it) } ?: defaultShape
@@ -348,6 +352,17 @@ fun LocalPlaylistScreen(
 
     // Solid Material 3 pastel page background, softened from the playlist's cover accent.
     val playlistBg = rememberPlaylistBackgroundColor(currentCoverColor)
+
+    val sharedCoverModifier =
+        with(sharedTransitionScope) {
+            Modifier.sharedElement(
+                sharedContentState = rememberSharedContentState("local-playlist-cover-$id"),
+                animatedVisibilityScope = animatedVisibilityScope,
+                boundsTransform = { _, _ ->
+                    tween(durationMillis = 260, easing = FastOutSlowInEasing)
+                },
+            )
+        }
 
     var currentItem by remember {
         mutableStateOf<SongEntity?>(null)
@@ -638,6 +653,7 @@ fun LocalPlaylistScreen(
                                 title = uiState.title,
                                 shapePreset = currentShape,
                                 containerColor = currentCoverColor,
+                                modifier = sharedCoverModifier,
                                 size = 196.dp,
                             )
                             // Elegant Expressive Edit Style Chip Badge
@@ -855,6 +871,7 @@ fun LocalPlaylistScreen(
                                 title = uiState.title,
                                 shapePreset = currentShape,
                                 containerColor = currentCoverColor,
+                                modifier = sharedCoverModifier,
                                 size = 196.dp,
                             )
                             Surface(

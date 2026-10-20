@@ -63,169 +63,175 @@ fun AppNavigationGraph(
 
 
 
-    NavHost(
-        navController,
-        startDestination = startDestination,
-        enterTransition = {
-            val initialTab = getTopLevelTabIndex(initialState.destination)
-            val targetTab = getTopLevelTabIndex(targetState.destination)
-            if (initialTab != -1 && targetTab != -1) {
-                if (targetTab > initialTab) {
-                    slideInHorizontally(animationSpec = tween(260, easing = FastOutSlowInEasing)) { it / 3 } +
-                        fadeIn(animationSpec = tween(260, easing = FastOutSlowInEasing))
+    SharedTransitionLayout(modifier = Modifier.fillMaxSize()) {
+        val sharedTransitionScope = this
+        NavHost(
+            navController,
+            startDestination = startDestination,
+            enterTransition = {
+                val initialTab = getTopLevelTabIndex(initialState.destination)
+                val targetTab = getTopLevelTabIndex(targetState.destination)
+                if (initialTab != -1 && targetTab != -1) {
+                    if (targetTab > initialTab) {
+                        slideInHorizontally(animationSpec = tween(260, easing = FastOutSlowInEasing)) { it / 3 } +
+                            fadeIn(animationSpec = tween(260, easing = FastOutSlowInEasing))
+                    } else {
+                        slideInHorizontally(animationSpec = tween(260, easing = FastOutSlowInEasing)) { -it / 3 } +
+                            fadeIn(animationSpec = tween(260, easing = FastOutSlowInEasing))
+                    }
                 } else {
-                    slideInHorizontally(animationSpec = tween(260, easing = FastOutSlowInEasing)) { -it / 3 } +
-                        fadeIn(animationSpec = tween(260, easing = FastOutSlowInEasing))
+                    fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing))
                 }
-            } else {
-                fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing))
-            }
-        },
-        exitTransition = {
-            val initialTab = getTopLevelTabIndex(initialState.destination)
-            val targetTab = getTopLevelTabIndex(targetState.destination)
-            if (initialTab != -1 && targetTab != -1) {
-                if (targetTab > initialTab) {
-                    slideOutHorizontally(animationSpec = tween(260, easing = FastOutSlowInEasing)) { -it / 3 } +
-                        fadeOut(animationSpec = tween(200, easing = FastOutSlowInEasing))
+            },
+            exitTransition = {
+                val initialTab = getTopLevelTabIndex(initialState.destination)
+                val targetTab = getTopLevelTabIndex(targetState.destination)
+                if (initialTab != -1 && targetTab != -1) {
+                    if (targetTab > initialTab) {
+                        slideOutHorizontally(animationSpec = tween(260, easing = FastOutSlowInEasing)) { -it / 3 } +
+                            fadeOut(animationSpec = tween(200, easing = FastOutSlowInEasing))
+                    } else {
+                        slideOutHorizontally(animationSpec = tween(260, easing = FastOutSlowInEasing)) { it / 3 } +
+                            fadeOut(animationSpec = tween(200, easing = FastOutSlowInEasing))
+                    }
                 } else {
-                    slideOutHorizontally(animationSpec = tween(260, easing = FastOutSlowInEasing)) { it / 3 } +
-                        fadeOut(animationSpec = tween(200, easing = FastOutSlowInEasing))
+                    fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing))
                 }
-            } else {
-                fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing))
-            }
-        },
-        popEnterTransition = {
-            val initialTab = getTopLevelTabIndex(initialState.destination)
-            val targetTab = getTopLevelTabIndex(targetState.destination)
-            if (initialTab != -1 && targetTab != -1) {
-                if (targetTab > initialTab) {
-                    slideInHorizontally(animationSpec = tween(260, easing = FastOutSlowInEasing)) { it / 3 } +
-                        fadeIn(animationSpec = tween(260, easing = FastOutSlowInEasing))
+            },
+            popEnterTransition = {
+                val initialTab = getTopLevelTabIndex(initialState.destination)
+                val targetTab = getTopLevelTabIndex(targetState.destination)
+                if (initialTab != -1 && targetTab != -1) {
+                    if (targetTab > initialTab) {
+                        slideInHorizontally(animationSpec = tween(260, easing = FastOutSlowInEasing)) { it / 3 } +
+                            fadeIn(animationSpec = tween(260, easing = FastOutSlowInEasing))
+                    } else {
+                        slideInHorizontally(animationSpec = tween(260, easing = FastOutSlowInEasing)) { -it / 3 } +
+                            fadeIn(animationSpec = tween(260, easing = FastOutSlowInEasing))
+                    }
                 } else {
-                    slideInHorizontally(animationSpec = tween(260, easing = FastOutSlowInEasing)) { -it / 3 } +
-                        fadeIn(animationSpec = tween(260, easing = FastOutSlowInEasing))
+                    fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing))
                 }
-            } else {
-                fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing))
-            }
-        },
-        popExitTransition = {
-            val initialTab = getTopLevelTabIndex(initialState.destination)
-            val targetTab = getTopLevelTabIndex(targetState.destination)
-            if (initialTab != -1 && targetTab != -1) {
-                if (targetTab > initialTab) {
-                    slideOutHorizontally(animationSpec = tween(260, easing = FastOutSlowInEasing)) { -it / 3 } +
-                        fadeOut(animationSpec = tween(200, easing = FastOutSlowInEasing))
+            },
+            popExitTransition = {
+                val initialTab = getTopLevelTabIndex(initialState.destination)
+                val targetTab = getTopLevelTabIndex(targetState.destination)
+                if (initialTab != -1 && targetTab != -1) {
+                    if (targetTab > initialTab) {
+                        slideOutHorizontally(animationSpec = tween(260, easing = FastOutSlowInEasing)) { -it / 3 } +
+                            fadeOut(animationSpec = tween(200, easing = FastOutSlowInEasing))
+                    } else {
+                        slideOutHorizontally(animationSpec = tween(260, easing = FastOutSlowInEasing)) { it / 3 } +
+                            fadeOut(animationSpec = tween(200, easing = FastOutSlowInEasing))
+                    }
                 } else {
-                    slideOutHorizontally(animationSpec = tween(260, easing = FastOutSlowInEasing)) { it / 3 } +
-                        fadeOut(animationSpec = tween(200, easing = FastOutSlowInEasing))
+                    fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing))
                 }
-            } else {
-                fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing))
+            },
+        ) {
+            // Bottom bar destinations with snappy, lightweight fade transitions
+            composable<HomeDestination>(
+            ) {
+                HomeScreen(
+                    onScrolling = onScrolling,
+                    navController = navController,
+                )
             }
-        },
-    ) {
-        // Bottom bar destinations with snappy, lightweight fade transitions
-        composable<HomeDestination>(
-        ) {
-            HomeScreen(
-                onScrolling = onScrolling,
-                navController = navController,
-            )
-        }
-        composable<SearchDestination>(
-        ) {
-            SearchScreen(
-                navController = navController,
-            )
-        }
-        composable<LibraryDestination>(
-        ) {
-            LibraryScreen(
-                innerPadding = innerPadding,
-                navController = navController,
-                onScrolling = onScrolling,
-            )
-        }
-        // Only reachable as a tab while signed in to YouTube
-        composable<MixForYouDestination>(
-        ) {
-            MixForYouScreen(
-                innerPadding = innerPadding,
-                navController = navController,
-                onScrolling = onScrolling,
-            )
-        }
-        // Only reachable as a tab while local tracking is enabled.
-        composable<AnalyticsDestination>(
-        ) {
-            ForceDarkContent {
-                AnalyticsScreen(
+            composable<SearchDestination>(
+            ) {
+                SearchScreen(
+                    navController = navController,
+                )
+            }
+            composable<LibraryDestination>(
+            ) {
+                LibraryScreen(
+                    innerPadding = innerPadding,
+                    navController = navController,
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = this,
+                    onScrolling = onScrolling,
+                )
+            }
+            // Only reachable as a tab while signed in to YouTube
+            composable<MixForYouDestination>(
+            ) {
+                MixForYouScreen(
+                    innerPadding = innerPadding,
+                    navController = navController,
+                    onScrolling = onScrolling,
+                )
+            }
+            // Only reachable as a tab while local tracking is enabled.
+            composable<AnalyticsDestination>(
+            ) {
+                ForceDarkContent {
+                    AnalyticsScreen(
+                        navController = navController,
+                        innerPadding = innerPadding,
+                    )
+                }
+            }
+            composable<SettingsDestination>(
+            ) {
+                SettingScreen(
                     navController = navController,
                     innerPadding = innerPadding,
                 )
             }
-        }
-        composable<SettingsDestination>(
-        ) {
-            SettingScreen(
-                navController = navController,
+            // Reached only from the Analytics screen's entry banner, so it inherits that screen's
+            // gate on local tracking. ForceDarkContent for a different reason than Analytics: the reel
+            // is drawn on its own near-black ground whatever the user's theme is, because it is an
+            // event and because every card is also a share image that has to survive leaving the app.
+            composable<WrappedDestination> {
+                ForceDarkContent {
+                    WrappedScreen(
+                        navController = navController,
+                        hideNavBar = hideNavBar,
+                        // Deliberately not the fullscreen player's `showNavBar(true)` + open sheet:
+                        // leaving the reel goes back to Analytics, and raising the Now Playing sheet
+                        // over it would be a screen the user never asked for.
+                        showNavBar = { showNavBar(false) },
+                    )
+                }
+            }
+            composable<FullscreenDestination> {
+                ForceDarkContent {
+                    FullscreenPlayer(
+                        navController,
+                        hideNavBar = hideNavBar,
+                        showNavBar = {
+                            showNavBar.invoke(true)
+                            showNowPlayingSheet.invoke()
+                        },
+                    )
+                }
+            }
+            // Home screen graph
+            homeScreenGraph(
                 innerPadding = innerPadding,
+                navController = navController,
+            )
+            // Library screen graph
+            libraryScreenGraph(
+                innerPadding = innerPadding,
+                navController = navController,
+            )
+            // List screen graph
+            listScreenGraph(
+                innerPadding = innerPadding,
+                navController = navController,
+                sharedTransitionScope = sharedTransitionScope,
+            )
+            // Login screen graph
+            loginScreenGraph(
+                innerPadding = innerPadding,
+                navController = navController,
+                hideBottomBar = hideNavBar,
+                showBottomBar = {
+                    showNavBar(false)
+                },
             )
         }
-        // Reached only from the Analytics screen's entry banner, so it inherits that screen's
-        // gate on local tracking. ForceDarkContent for a different reason than Analytics: the reel
-        // is drawn on its own near-black ground whatever the user's theme is, because it is an
-        // event and because every card is also a share image that has to survive leaving the app.
-        composable<WrappedDestination> {
-            ForceDarkContent {
-                WrappedScreen(
-                    navController = navController,
-                    hideNavBar = hideNavBar,
-                    // Deliberately not the fullscreen player's `showNavBar(true)` + open sheet:
-                    // leaving the reel goes back to Analytics, and raising the Now Playing sheet
-                    // over it would be a screen the user never asked for.
-                    showNavBar = { showNavBar(false) },
-                )
-            }
-        }
-        composable<FullscreenDestination> {
-            ForceDarkContent {
-                FullscreenPlayer(
-                    navController,
-                    hideNavBar = hideNavBar,
-                    showNavBar = {
-                        showNavBar.invoke(true)
-                        showNowPlayingSheet.invoke()
-                    },
-                )
-            }
-        }
-        // Home screen graph
-        homeScreenGraph(
-            innerPadding = innerPadding,
-            navController = navController,
-        )
-        // Library screen graph
-        libraryScreenGraph(
-            innerPadding = innerPadding,
-            navController = navController,
-        )
-        // List screen graph
-        listScreenGraph(
-            innerPadding = innerPadding,
-            navController = navController,
-        )
-        // Login screen graph
-        loginScreenGraph(
-            innerPadding = innerPadding,
-            navController = navController,
-            hideBottomBar = hideNavBar,
-            showBottomBar = {
-                showNavBar(false)
-            },
-        )
     }
 }
