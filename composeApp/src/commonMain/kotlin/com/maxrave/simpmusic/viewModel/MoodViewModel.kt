@@ -11,9 +11,7 @@ import com.maxrave.simpmusic.viewModel.base.BaseViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 
 class MoodViewModel(
@@ -24,20 +22,12 @@ class MoodViewModel(
     var moodsMomentObject: StateFlow<MoodsMomentObject?> = _moodsMomentObject
     var loading = MutableStateFlow<Boolean>(false)
 
-    private var regionCode: String? = null
-    private var language: String? = null
-
     /**
      * Params whose result is already in [_moodsMomentObject]. MoodScreen calls [getMood] from a
      * `LaunchedEffect(params)`, which fires again every time the screen re-enters composition —
      * i.e. on every back navigation — so without this the shelf was refetched each time.
      */
     private var loadedParams: String? = null
-
-    init {
-        regionCode = runBlocking { dataStoreManager.location.first() }
-        language = runBlocking { dataStoreManager.getString(SELECTED_LANGUAGE).first() }
-    }
 
     fun getMood(params: String) {
         if (params == loadedParams && _moodsMomentObject.value != null) return

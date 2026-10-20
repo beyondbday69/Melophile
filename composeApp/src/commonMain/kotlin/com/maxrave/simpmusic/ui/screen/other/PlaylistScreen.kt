@@ -270,8 +270,8 @@ fun PlaylistScreen(
     val playingTrack by sharedViewModel.nowPlayingState
         .mapLatest {
             it?.songEntity
-        }.collectAsState(initial = null)
-    val isPlaying by sharedViewModel.controllerState.map { it.isPlaying }.collectAsState(initial = false)
+        }.collectAsStateWithLifecycle(initialValue = null)
+    val isPlaying by sharedViewModel.controllerState.map { it.isPlaying }.collectAsStateWithLifecycle(initialValue = false)
 
     var currentItem by remember {
         mutableStateOf<Track?>(null)
@@ -834,10 +834,11 @@ fun PlaylistScreen(
                             )
                         }
                     }
-                    items(count = filteredTrack.size, key = { index ->
-                        val item = filteredTrack.getOrNull(index)
-                        (item?.videoId ?: "") + "item_$index"
-                    }) { index ->
+                    items(
+                        count = filteredTrack.size,
+                        key = { index -> filteredTrack.getOrNull(index)?.videoId ?: "placeholder_$index" },
+                        contentType = { "song_row" },
+                    ) { index ->
                         val item = filteredTrack.getOrNull(index)
                         if (item != null) {
                             Column(modifier = Modifier.animateItem()) {

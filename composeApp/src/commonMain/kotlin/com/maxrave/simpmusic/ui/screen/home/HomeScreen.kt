@@ -467,8 +467,8 @@ fun HomeScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         itemsIndexed(homeData, key = { _, item ->
-                            item.hashCode().toString() + (mainHomeThumbnail ?: "nothumb")
-                        }) { index, item ->
+                            item.title + (item.channelId ?: "")
+                        }, contentType = { _, _ -> "home_shelf" }) { index, item ->
                             Box {
                                 if (index == 0) {
                                     Box(
@@ -578,7 +578,7 @@ fun HomeScreen(
                             }
                         }
                         if (homeListState == ListState.PAGINATION_EXHAUST) {
-                            items(newRelease, key = { it.hashCode() }) {
+                            items(newRelease, key = { it.title + (it.channelId ?: "") }) {
                                 AnimatedVisibility(
                                     visible = newRelease.isNotEmpty(),
                                 ) {
@@ -933,7 +933,7 @@ fun QuickPicks(
             state = lazyListState,
             flingBehavior = snapperFlingBehavior,
         ) {
-            items(homeItem.contents, key = { it.hashCode() }) {
+            items(homeItem.contents, key = { it?.title + (it?.browseId ?: "") + (it?.videoId ?: "") }) {
                 if (it != null) {
                     QuickPicksItem(
                         onClick = {
@@ -1086,7 +1086,7 @@ fun ChartData(
             LazyRow(flingBehavior = snapperFlingBehavior) {
                 items(item.playlists.size, key = { index ->
                     val data = item.playlists[index]
-                    data.id + data.title + index
+                    data.id + data.title
                 }) {
                     HomeItemContentPlaylist(
                         onClick = {
@@ -1120,7 +1120,7 @@ fun ChartData(
         ) {
             items(chart.artists.itemArtists.size, key = { index ->
                 val item = chart.artists.itemArtists[index]
-                item.title + item.browseId + index
+                item.title + item.browseId
             }) {
                 val data = chart.artists.itemArtists[it]
                 ItemArtistChart(

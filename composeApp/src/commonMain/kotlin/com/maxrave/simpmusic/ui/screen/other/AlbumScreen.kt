@@ -843,10 +843,11 @@ fun AlbumScreen(
                             }
                         }
                     }
-                    items(count = uiState.trackCount, key = { index ->
-                        val item = uiState.listTrack.getOrNull(index)
-                        item?.videoId + "item_$index"
-                    }) { index ->
+                    items(
+                        count = uiState.trackCount,
+                        key = { index -> uiState.listTrack.getOrNull(index)?.videoId ?: "placeholder_$index" },
+                        contentType = { "song_row" },
+                    ) { index ->
                         val item = uiState.listTrack.getOrNull(index)
                         if (item != null) {
                             Column(modifier = Modifier.animateItem()) {
@@ -900,7 +901,7 @@ fun AlbumScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.padding(horizontal = 12.dp),
                                 ) {
-                                    items(uiState.otherVersion) { album ->
+                                    items(uiState.otherVersion, key = { album -> album.browseId }, contentType = { "other_version_card" }) { album ->
                                         HomeItemContentPlaylist(
                                             forceDark = true,
                                             onClick = {
@@ -918,7 +919,7 @@ fun AlbumScreen(
                             }
                         }
                     }
-                    item {
+                    item(contentType = "end_of_page") {
                         EndOfPage()
                     }
                 }

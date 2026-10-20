@@ -77,8 +77,8 @@ fun RecentlySongsScreen(
     var showSelectionAddToPlaylist by rememberSaveable { mutableStateOf(false) }
 
     val recentlyItems = viewModel.recentlySongs.collectAsLazyPagingItems()
-    val playingTrack by sharedViewModel.nowPlayingState.map { it?.songEntity }.collectAsState(initial = null)
-    val isPlaying by sharedViewModel.controllerState.map { it.isPlaying }.collectAsState(initial = false)
+    val playingTrack by sharedViewModel.nowPlayingState.map { it?.songEntity }.collectAsStateWithLifecycle(initialValue = null)
+    val isPlaying by sharedViewModel.controllerState.map { it.isPlaying }.collectAsStateWithLifecycle(initialValue = false)
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
@@ -100,11 +100,11 @@ fun RecentlySongsScreen(
                 key = { index ->
                     val item = recentlyItems[index]
                     when (item) {
-                        is SongEntity -> "song_${item.videoId}_$index"
-                        is AlbumEntity -> "album_${item.browseId}_$index"
-                        is PlaylistEntity -> "playlist_${item.id}_$index"
-                        is ArtistEntity -> "artist_${item.channelId}_$index"
-                        else -> index.toString()
+                        is SongEntity -> "song_${item.videoId}"
+                        is AlbumEntity -> "album_${item.browseId}"
+                        is PlaylistEntity -> "playlist_${item.id}"
+                        is ArtistEntity -> "artist_${item.channelId}"
+                        else -> "recent_$index"
                     }
                 },
             ) { index ->

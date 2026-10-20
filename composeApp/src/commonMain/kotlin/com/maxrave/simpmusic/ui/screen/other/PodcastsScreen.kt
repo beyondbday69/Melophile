@@ -392,10 +392,11 @@ fun PodcastScreen(
                     }
 
                     // Podcast episodes
-                    items(count = data.listEpisode.size, key = { index ->
-                        val item = data.listEpisode.getOrNull(index)
-                        (item?.videoId ?: "") + "item_$index"
-                    }) { index ->
+                    items(
+                        count = data.listEpisode.size,
+                        key = { index -> data.listEpisode.getOrNull(index)?.videoId ?: "placeholder_$index" },
+                        contentType = { "podcast_episode_row" },
+                    ) { index ->
                         val episode = data.listEpisode.getOrNull(index)
                         if (episode != null) {
                             PodcastEpisodeFullWidthItem(
@@ -416,7 +417,7 @@ fun PodcastScreen(
                         }
                     }
 
-                    item {
+                    item(contentType = "end_of_page") {
                         EndOfPage()
                     }
                 }

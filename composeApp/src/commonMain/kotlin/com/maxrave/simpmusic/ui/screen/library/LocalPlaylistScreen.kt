@@ -294,7 +294,7 @@ fun LocalPlaylistScreen(
             lazyState.firstVisibleItemIndex == 0
         }
     }
-    val downloadState by viewModel.uiState.map { it.downloadState }.collectAsState(
+    val downloadState by viewModel.uiState.map { it.downloadState }.collectAsStateWithLifecycle(
         initial = DownloadState.STATE_NOT_DOWNLOADED,
     )
     var shouldHideTopBar by rememberSaveable { mutableStateOf(false) }
@@ -309,8 +309,8 @@ fun LocalPlaylistScreen(
     val playingTrack by sharedViewModel.nowPlayingState
         .mapLatest {
             it?.songEntity
-        }.collectAsState(initial = null)
-    val isPlaying by sharedViewModel.controllerState.map { it.isPlaying }.collectAsState(initial = false)
+        }.collectAsStateWithLifecycle(initialValue = null)
+    val isPlaying by sharedViewModel.controllerState.map { it.isPlaying }.collectAsStateWithLifecycle(initialValue = false)
 
     val queueData by sharedViewModel.getQueueDataState().collectAsStateWithLifecycle()
     val playingPlaylistId by remember {
@@ -319,7 +319,7 @@ fun LocalPlaylistScreen(
         }
     }
 
-    val suggestedTracks by viewModel.uiState.map { it.suggestions?.songs ?: emptyList() }.collectAsState(initial = emptyList())
+    val suggestedTracks by viewModel.uiState.map { it.suggestions?.songs ?: emptyList() }.collectAsStateWithLifecycle(initialValue = emptyList())
     val suggestionsLoading by viewModel.loading.collectAsStateWithLifecycle()
     var showSyncAlertDialog by rememberSaveable { mutableStateOf(false) }
     var showUnsyncAlertDialog by rememberSaveable { mutableStateOf(false) }
@@ -410,7 +410,10 @@ fun LocalPlaylistScreen(
     }
 
     LaunchedEffect(key1 = shouldShowSuggestions) {
-        if (suggestedTracks.isEmpty() && uiState.syncState != LocalPlaylistEntity.YouTubeSyncState.NotSynced) {
+        // Only fetch suggestions when the panel is actually expanded/visible.
+        if (shouldShowSuggestions && suggestedTracks.isEmpty() &&
+            uiState.syncState != LocalPlaylistEntity.YouTubeSyncState.NotSynced
+        ) {
             viewModel.getSuggestions(uiState.id)
         }
     }
@@ -1174,10 +1177,11 @@ fun LocalPlaylistScreen(
                 Spacer(modifier = Modifier.height(4.dp))
             }
         }
-        items(count = trackPagingItems.itemCount, key = { index ->
-            val item = trackPagingItems[index]
-            (item?.first?.videoId ?: "") + "item_$index" + item?.second?.inPlaylist + item?.second?.position
-        }) { index ->
+        items(
+            count = trackPagingItems.itemCount,
+            key = { index -> trackPagingItems[index]?.second?.id ?: "placeholder_$index" },
+            contentType = { "song_row" },
+        ) { index ->
             val item = trackPagingItems[index]?.first
             if (item != null) {
                 val isThisSongPlaying = playingTrack?.videoId == item.videoId && isPlaying

@@ -446,15 +446,14 @@ fun SearchScreen(
                             }
                             itemsIndexed(
                                 items = suggestSongs,
-                                key = { index, item ->
-                                    val baseKey =
-                                        when (item) {
-                                            is SongsResult -> "song_${item.videoId}"
-                                            is VideosResult -> "video_${item.videoId}"
-                                            else -> item.hashCode().toString()
-                                        }
-                                    "${baseKey}_$index"
+                                key = { _, item ->
+                                    when (item) {
+                                        is SongsResult -> "song_${item.videoId}"
+                                        is VideosResult -> "video_${item.videoId}"
+                                        else -> "suggest_${item.hashCode()}"
+                                    }
                                 },
+                                contentType = { _, _ -> "suggest_entity_row" },
                             ) { _, item ->
                                 SuggestItemRow(
                                     searchResult = item,
@@ -592,16 +591,15 @@ fun SearchScreen(
                             }
                             itemsIndexed(
                                 items = suggestOtherEntities,
-                                key = { index, item ->
-                                    val baseKey =
-                                        when (item) {
-                                            is ArtistsResult -> "artist_${item.browseId}"
-                                            is AlbumsResult -> "album_${item.browseId}"
-                                            is PlaylistsResult -> "playlist_${item.browseId}"
-                                            else -> item.hashCode().toString()
-                                        }
-                                    "${baseKey}_$index"
+                                key = { _, item ->
+                                    when (item) {
+                                        is ArtistsResult -> "artist_${item.browseId}"
+                                        is AlbumsResult -> "album_${item.browseId}"
+                                        is PlaylistsResult -> "playlist_${item.browseId}"
+                                        else -> "entity_${item.hashCode()}"
+                                    }
                                 },
+                                contentType = { _, _ -> "suggest_entity_row" },
                             ) { _, item ->
                                 SuggestItemRow(
                                     searchResult = item,
@@ -939,7 +937,7 @@ fun SearchScreen(
                                                 ),
                                             verticalArrangement = Arrangement.spacedBy(8.dp),
                                         ) {
-                                            items(10) { index ->
+                                            items(10, contentType = { "shimmer_row" }) { index ->
                                                 Box(
                                                     modifier =
                                                         Modifier.animateItem(
@@ -988,18 +986,17 @@ fun SearchScreen(
                                                     ) {
                                                         itemsIndexed(
                                                             items = currentResults,
-                                                            key = { index, result ->
-                                                                val baseKey =
-                                                                    when (result) {
-                                                                        is SongsResult -> "song_${result.videoId}"
-                                                                        is VideosResult -> "video_${result.videoId}"
-                                                                        is AlbumsResult -> "album_${result.browseId}"
-                                                                        is ArtistsResult -> "artist_${result.browseId}"
-                                                                        is PlaylistsResult -> "playlist_${result.browseId}"
-                                                                        else -> result.hashCode().toString()
-                                                                    }
-                                                                "${baseKey}_$index"
+                                                            key = { _, result ->
+                                                                when (result) {
+                                                                    is SongsResult -> "song_${result.videoId}"
+                                                                    is VideosResult -> "video_${result.videoId}"
+                                                                    is AlbumsResult -> "album_${result.browseId}"
+                                                                    is ArtistsResult -> "artist_${result.browseId}"
+                                                                    is PlaylistsResult -> "playlist_${result.browseId}"
+                                                                    else -> "result_${result.hashCode()}"
+                                                                }
                                                             },
+                                                            contentType = { _, _ -> "search_result_row" },
                                                         ) { _, result ->
                                                             SearchResultItemRow(
                                                                 searchResult = result,
