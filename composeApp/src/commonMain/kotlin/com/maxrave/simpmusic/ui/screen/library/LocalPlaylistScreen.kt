@@ -295,7 +295,7 @@ fun LocalPlaylistScreen(
         }
     }
     val downloadState by viewModel.uiState.map { it.downloadState }.collectAsStateWithLifecycle(
-        initial = DownloadState.STATE_NOT_DOWNLOADED,
+        initialValue = DownloadState.STATE_NOT_DOWNLOADED,
     )
     var shouldHideTopBar by rememberSaveable { mutableStateOf(false) }
     var shouldShowSuggestions by rememberSaveable { mutableStateOf(false) }
