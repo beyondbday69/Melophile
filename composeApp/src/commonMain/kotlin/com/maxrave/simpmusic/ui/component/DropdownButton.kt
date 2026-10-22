@@ -48,7 +48,7 @@ fun DropdownButton(
                 onValueChange = {},
                 maxLines = 1,
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                shape = RoundedCornerShape(40),
+                shape = RoundedCornerShape(20.dp),
                 colors =
                     ExposedDropdownMenuDefaults.textFieldColors(
                         focusedIndicatorColor = Gray,

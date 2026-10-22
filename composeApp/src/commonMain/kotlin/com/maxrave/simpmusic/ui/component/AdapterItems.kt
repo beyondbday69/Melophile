@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -396,7 +397,7 @@ fun HomeItemContentPlaylist(
         Modifier
             .wrapContentSize()
             .focusable(true)
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(16.dp))
             .clickable {
                 onClick()
             },
@@ -516,7 +517,7 @@ fun HomeItemContentPlaylist(
                     (if (fillMaxWidth) Modifier.fillMaxWidth() else Modifier.size(thumbSize))
                         .aspectRatio(1f)
                         .clip(
-                            RoundedCornerShape(10.dp),
+                            RoundedCornerShape(16.dp),
                         ),
             )
             Text(
@@ -655,7 +656,7 @@ fun QuickPicksItem(
                 .wrapContentHeight()
                 .width(widthDp - 30.dp)
                 .focusable(true)
-                .clip(RoundedCornerShape(8.dp))
+                .clip(RoundedCornerShape(14.dp))
                 .combinedClickable(
                     onClick = onClick,
                     onLongClick = onLongClick,
@@ -665,7 +666,7 @@ fun QuickPicksItem(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(10.dp),
+                    .padding(8.dp),
         ) {
             AsyncImage(
                 model =
@@ -684,7 +685,7 @@ fun QuickPicksItem(
                         .align(Alignment.CenterVertically)
                         .size(44.dp)
                         .clip(
-                            RoundedCornerShape(10),
+                            RoundedCornerShape(12.dp),
                         ),
             )
             Column(
@@ -806,7 +807,7 @@ fun HomeItemSong(
                         .align(Alignment.CenterHorizontally)
                         .then(if (fillMaxWidth) Modifier.fillMaxWidth().aspectRatio(1f) else Modifier.size(160.dp))
                         .clip(
-                            RoundedCornerShape(10.dp),
+                            RoundedCornerShape(16.dp),
                         ),
             )
             Text(
@@ -906,7 +907,7 @@ fun HomeItemVideo(
                         .then(if (fillMaxWidth) Modifier.fillMaxWidth() else Modifier.height(160.dp))
                         .aspectRatio(16f / 9f)
                         .clip(
-                            RoundedCornerShape(10.dp),
+                            RoundedCornerShape(16.dp),
                         ),
             )
             Text(
@@ -1041,31 +1042,38 @@ fun MoodMomentAndGenreHomeItem(
                 defaultElevation = 0.dp,
             ),
         onClick = onClick,
-        shape = RoundedCornerShape(5.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            ),
         modifier =
             (if (fillMaxWidth) Modifier.fillMaxWidth() else Modifier.width(160.dp))
-                .height(50.dp)
-                .padding(8.dp),
+                .height(52.dp)
+                .padding(4.dp),
     ) {
-        Row {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxSize(),
+        ) {
             Box(
-                // `solid.leftStripeColor` straight from the API (full ARGB). This used to be
-                // generateRandomColor(), which — being outside remember — rolled a new colour on
-                // every recomposition, so the stripes flickered while scrolling.
                 Modifier
-                    .width(10.dp)
-                    .height(64.dp)
+                    .width(6.dp)
+                    .fillMaxHeight()
                     .background(Color(stripeColor)),
             )
+            Spacer(modifier = Modifier.width(10.dp))
             Text(
                 text = title,
                 style = typo().titleSmall,
-                textAlign = TextAlign.Center,
+                textAlign = TextAlign.Start,
                 color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 modifier =
                     Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.CenterVertically),
+                        .weight(1f)
+                        .padding(end = 8.dp),
             )
         }
     }
@@ -1081,7 +1089,7 @@ fun ItemVideoChart(
         Modifier
             .wrapContentSize()
             .focusable(true)
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(16.dp))
             .clickable {
                 onClick()
             },
@@ -1179,7 +1187,7 @@ fun ItemArtistChart(
         Modifier
             .wrapContentSize()
             .focusable(true)
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(16.dp))
             .clickable {
                 onClick()
             },

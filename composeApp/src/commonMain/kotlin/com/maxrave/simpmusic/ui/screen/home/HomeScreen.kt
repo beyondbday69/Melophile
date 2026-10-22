@@ -601,54 +601,62 @@ fun HomeScreen(
                                 }
                             }
                             item {
-                                Column(
-                                    Modifier
-                                        .padding(vertical = 10.dp)
-                                        .padding(horizontal = 15.dp),
-                                    verticalArrangement = Arrangement.SpaceBetween,
+                                Surface(
+                                    shape = RoundedCornerShape(24.dp),
+                                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 15.dp, vertical = 6.dp),
                                 ) {
-                                    ChartTitle()
-                                    Spacer(modifier = Modifier.height(5.dp))
-                                    Crossfade(targetState = regionChart) {
-                                        Logger.w("HomeScreen", "regionChart: $it")
-                                        if (it != null) {
-                                            DropdownButton(
-                                                items = CHART_SUPPORTED_COUNTRY.itemsData.toList(),
-                                                defaultSelected =
-                                                    CHART_SUPPORTED_COUNTRY.itemsData.getOrNull(
-                                                        CHART_SUPPORTED_COUNTRY.items.indexOf(it),
+                                    Column(
+                                        Modifier
+                                            .padding(horizontal = 14.dp, vertical = 14.dp),
+                                        verticalArrangement = Arrangement.SpaceBetween,
+                                    ) {
+                                        ChartTitle()
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Crossfade(targetState = regionChart) {
+                                            Logger.w("HomeScreen", "regionChart: $it")
+                                            if (it != null) {
+                                                DropdownButton(
+                                                    items = CHART_SUPPORTED_COUNTRY.itemsData.toList(),
+                                                    defaultSelected =
+                                                        CHART_SUPPORTED_COUNTRY.itemsData.getOrNull(
+                                                            CHART_SUPPORTED_COUNTRY.items.indexOf(it),
+                                                        )
+                                                            ?: CHART_SUPPORTED_COUNTRY.itemsData[1],
+                                                ) {
+                                                    viewModel.exploreChart(
+                                                        CHART_SUPPORTED_COUNTRY.items[
+                                                            CHART_SUPPORTED_COUNTRY.itemsData.indexOf(
+                                                                it,
+                                                            ),
+                                                        ],
                                                     )
-                                                        ?: CHART_SUPPORTED_COUNTRY.itemsData[1],
-                                            ) {
-                                                viewModel.exploreChart(
-                                                    CHART_SUPPORTED_COUNTRY.items[
-                                                        CHART_SUPPORTED_COUNTRY.itemsData.indexOf(
-                                                            it,
-                                                        ),
-                                                    ],
-                                                )
+                                                }
                                             }
                                         }
-                                    }
-                                    Spacer(modifier = Modifier.height(5.dp))
-                                    Crossfade(
-                                        targetState = chartLoading,
-                                        label = "Chart",
-                                    ) { loading ->
-                                        if (!loading) {
-                                            chart?.let {
-                                                ChartData(
-                                                    chart = it,
-                                                    navController = navController,
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Crossfade(
+                                            targetState = chartLoading,
+                                            label = "Chart",
+                                        ) { loading ->
+                                            if (!loading) {
+                                                chart?.let {
+                                                    ChartData(
+                                                        chart = it,
+                                                        navController = navController,
+                                                    )
+                                                }
+                                            } else {
+                                                CenterLoadingBox(
+                                                    modifier =
+                                                        Modifier
+                                                            .fillMaxWidth()
+                                                            .height(400.dp),
                                                 )
                                             }
-                                        } else {
-                                            CenterLoadingBox(
-                                                modifier =
-                                                    Modifier
-                                                        .fillMaxWidth()
-                                                        .height(400.dp),
-                                            )
                                         }
                                     }
                                 }
@@ -759,18 +767,41 @@ fun HomeTopAppBar(navController: NavController) {
         )
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            RippleIconButton(imageVector = SimpIcons.Notifications, tint = MaterialTheme.colorScheme.onBackground) {
-                navController.navigate(NotificationDestination)
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.7f),
+                modifier = Modifier.size(38.dp),
+            ) {
+                RippleIconButton(imageVector = SimpIcons.Notifications, tint = MaterialTheme.colorScheme.onBackground) {
+                    navController.navigate(NotificationDestination)
+                }
             }
-            RippleIconButton(imageVector = SimpIcons.History, tint = MaterialTheme.colorScheme.onBackground) {
-                navController.navigate(RecentlySongsDestination)
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.7f),
+                modifier = Modifier.size(38.dp),
+            ) {
+                RippleIconButton(imageVector = SimpIcons.History, tint = MaterialTheme.colorScheme.onBackground) {
+                    navController.navigate(RecentlySongsDestination)
+                }
             }
-            // Fourth button, immediately before Settings — the position the design canvas fixes.
-            ListenTogetherIconButton { navController.navigate(ListenTogetherDestination) }
-            RippleIconButton(imageVector = SimpIcons.Settings, tint = MaterialTheme.colorScheme.onBackground) {
-                navController.navigate(SettingsDestination)
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.7f),
+                modifier = Modifier.size(38.dp),
+            ) {
+                ListenTogetherIconButton { navController.navigate(ListenTogetherDestination) }
+            }
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.7f),
+                modifier = Modifier.size(38.dp),
+            ) {
+                RippleIconButton(imageVector = SimpIcons.Settings, tint = MaterialTheme.colorScheme.onBackground) {
+                    navController.navigate(SettingsDestination)
+                }
             }
         }
     }
@@ -860,80 +891,89 @@ fun QuickPicks(
         )
     }
 
-    Column(
-        Modifier
-            .padding(vertical = 8.dp)
-            .onGloballyPositioned { coordinates ->
-                with(density) {
-                    widthDp = (coordinates.size.width).toDp()
-                }
-            },
+    Surface(
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
     ) {
-        Text(
-            text = stringResource(Res.string.let_s_start_with_a_radio).uppercase(),
-            style =
-                typo().labelMedium.copy(
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 1.sp,
-                ),
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(bottom = 2.dp),
-        )
-        Text(
-            text = stringResource(Res.string.quick_picks),
-            style =
-                typo().headlineMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = (-0.5).sp,
-                ),
-            color = MaterialTheme.colorScheme.onBackground,
-            maxLines = 1,
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 6.dp),
-        )
-        LazyHorizontalGrid(
-            rows = GridCells.Fixed(4),
-            modifier = Modifier.height(256.dp),
-            state = lazyListState,
-            flingBehavior = snapperFlingBehavior,
+        Column(
+            Modifier
+                .padding(horizontal = 14.dp, vertical = 14.dp)
+                .onGloballyPositioned { coordinates ->
+                    with(density) {
+                        widthDp = (coordinates.size.width).toDp()
+                    }
+                },
         ) {
-            items(homeItem.contents, key = { it?.title + (it?.browseId ?: "") + (it?.videoId ?: "") }) {
-                if (it != null) {
-                    QuickPicksItem(
-                        onClick = {
-                            val firstQueue: Track = it.toTrack()
-                            viewModel.setQueueData(
-                                QueueData.Data(
-                                    listTracks = arrayListOf(firstQueue),
-                                    firstPlayedTrack = firstQueue,
-                                    playlistId = "RDAMVM${it.videoId}",
-                                    playlistName = "\"${it.title}\" Radio",
-                                    playlistType = PlaylistType.RADIO,
-                                    continuation = null,
-                                ),
-                            )
-                            viewModel.loadMediaItem(
-                                firstQueue,
-                                type = Config.SONG_CLICK,
-                            )
-                        },
-                        onLongClick = {
-                            track = it.toTrack()
-                            bottomSheetShow = true
-                        },
-                        data = it,
-                        widthDp = if (isPortrait) widthDp else minOf(widthDp, LandscapeGridItemMaxWidth + 30.dp),
-                    )
+            Text(
+                text = stringResource(Res.string.let_s_start_with_a_radio).uppercase(),
+                style =
+                    typo().labelMedium.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = 1.sp,
+                    ),
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(bottom = 2.dp),
+            )
+            Text(
+                text = stringResource(Res.string.quick_picks),
+                style =
+                    typo().headlineMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.5).sp,
+                    ),
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 1,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 6.dp),
+            )
+            LazyHorizontalGrid(
+                rows = GridCells.Fixed(4),
+                modifier = Modifier.height(256.dp),
+                state = lazyListState,
+                flingBehavior = snapperFlingBehavior,
+            ) {
+                items(homeItem.contents, key = { it?.title + (it?.browseId ?: "") + (it?.videoId ?: "") }) {
+                    if (it != null) {
+                        QuickPicksItem(
+                            onClick = {
+                                val firstQueue: Track = it.toTrack()
+                                viewModel.setQueueData(
+                                    QueueData.Data(
+                                        listTracks = arrayListOf(firstQueue),
+                                        firstPlayedTrack = firstQueue,
+                                        playlistId = "RDAMVM${it.videoId}",
+                                        playlistName = "\"${it.title}\" Radio",
+                                        playlistType = PlaylistType.RADIO,
+                                        continuation = null,
+                                    ),
+                                )
+                                viewModel.loadMediaItem(
+                                    firstQueue,
+                                    type = Config.SONG_CLICK,
+                                )
+                            },
+                            onLongClick = {
+                                track = it.toTrack()
+                                bottomSheetShow = true
+                            },
+                            data = it,
+                            widthDp = if (isPortrait) widthDp else minOf(widthDp, LandscapeGridItemMaxWidth + 30.dp),
+                        )
+                    }
                 }
             }
+            HorizontalScrollBar(
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                scrollState = lazyListState,
+                flingBehavior = snapperFlingBehavior,
+            )
         }
-        HorizontalScrollBar(
-            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-            scrollState = lazyListState,
-            flingBehavior = snapperFlingBehavior,
-        )
     }
 }
 
