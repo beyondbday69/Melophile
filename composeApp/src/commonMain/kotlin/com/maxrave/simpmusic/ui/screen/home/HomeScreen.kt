@@ -49,6 +49,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -70,6 +71,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
@@ -95,7 +97,6 @@ import com.maxrave.domain.data.model.browse.album.Track
 import com.maxrave.domain.data.model.home.HomeItem
 import com.maxrave.domain.data.model.home.chart.Chart
 import com.maxrave.domain.data.model.mood.Mood
-import com.maxrave.domain.extension.now
 import com.maxrave.domain.mediaservice.handler.PlaylistType
 import com.maxrave.domain.mediaservice.handler.QueueData
 import com.maxrave.domain.utils.toSongEntity
@@ -103,8 +104,6 @@ import com.maxrave.domain.utils.toTrack
 import com.maxrave.logger.Logger
 import com.maxrave.simpmusic.Platform
 import com.maxrave.simpmusic.expect.ui.HorizontalScrollBar
-import com.maxrave.simpmusic.extension.angledGradientBackground
-import com.maxrave.simpmusic.extension.artworkScrimBrush
 import com.maxrave.simpmusic.extension.getScreenSizeInfo
 import com.maxrave.simpmusic.extension.isScrollingUp
 import com.maxrave.simpmusic.extension.rgbFactor
@@ -168,10 +167,7 @@ import simpmusic.composeapp.generated.resources.energize
 import simpmusic.composeapp.generated.resources.feel_good
 import simpmusic.composeapp.generated.resources.focus
 import simpmusic.composeapp.generated.resources.go_to_log_in_page
-import simpmusic.composeapp.generated.resources.good_afternoon
-import simpmusic.composeapp.generated.resources.good_evening
-import simpmusic.composeapp.generated.resources.good_morning
-import simpmusic.composeapp.generated.resources.good_night
+import simpmusic.composeapp.generated.resources.home
 import simpmusic.composeapp.generated.resources.let_s_pick_a_playlist_for_you
 import simpmusic.composeapp.generated.resources.let_s_start_with_a_radio
 import simpmusic.composeapp.generated.resources.log_in_warning
@@ -183,9 +179,9 @@ import simpmusic.composeapp.generated.resources.sad
 import simpmusic.composeapp.generated.resources.sleep
 import simpmusic.composeapp.generated.resources.top_artists
 import simpmusic.composeapp.generated.resources.warning
-import simpmusic.composeapp.generated.resources.welcome_back
 import simpmusic.composeapp.generated.resources.what_is_best_choice_today
 import simpmusic.composeapp.generated.resources.workout
+import simpmusic.composeapp.generated.resources.you
 
 @OptIn(ExperimentalMaterial3Api::class)
 @ExperimentalFoundationApi
@@ -474,25 +470,17 @@ fun HomeScreen(
                                     Box(
                                         modifier =
                                             Modifier
-                                                // matchParentSize, not height(300.dp): 300 is the
-                                                // height of this shelf ON A PHONE. On a desktop
-                                                // window the first item is taller, the gradient
-                                                // stopped mid-item and everything below it fell
-                                                // back to the flat background — a hard colour seam
-                                                // straight across Home. Sized by the item, the
-                                                // bottom scrim always lands on the item's edge.
                                                 .matchParentSize()
-                                                .angledGradientBackground(listOf(animatedColor, pageBackground), 25f),
-                                    ) {
-                                        Box(
-                                            modifier =
-                                                Modifier
-                                                    .fillMaxWidth()
-                                                    .height(180.dp)
-                                                    .align(Alignment.BottomCenter)
-                                                    .background(artworkScrimBrush(pageBackground)),
-                                        )
-                                    }
+                                                .background(
+                                                    Brush.verticalGradient(
+                                                        colors =
+                                                            listOf(
+                                                                animatedColor.copy(alpha = 0.45f),
+                                                                pageBackground,
+                                                            ),
+                                                    ),
+                                                ),
+                                    )
                                 }
                                 Column(
                                     modifier =
@@ -698,7 +686,7 @@ fun HomeScreen(
                             if (target) {
                                 Modifier.background(Color.Transparent)
                             } else {
-                                Modifier.background(MaterialTheme.colorScheme.background)
+                                Modifier.background(pageBackground)
                             },
                         ).onGloballyPositioned { coordinates ->
                             topAppBarHeightPx = coordinates.size.height
@@ -742,11 +730,6 @@ fun HomeScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeTopAppBar(navController: NavController) {
-    val hour =
-        remember {
-            val date = now().time
-            date.hour
-        }
     val googleSans = googleSansFlexFamily()
 
     Row(
@@ -758,59 +741,25 @@ fun HomeTopAppBar(navController: NavController) {
                         TopAppBarDefaults.windowInsets.only(WindowInsetsSides.Start),
                     ),
                 )
-                .padding(start = 16.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+                .padding(start = 16.dp, end = 6.dp, top = 8.dp, bottom = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(
-            modifier =
-                Modifier
-                    .weight(1f)
-                    .padding(vertical = 2.dp),
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Text(
-                text = stringResource(Res.string.app_name),
-                style =
-                    TextStyle(
-                        fontFamily = googleSans,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 26.sp,
-                        letterSpacing = (-0.4).sp,
-                        color = MaterialTheme.colorScheme.onBackground,
-                    ),
-                modifier = Modifier.padding(bottom = 2.dp),
-            )
-            Text(
-                text =
-                    when (hour) {
-                        in 6..12 -> {
-                            stringResource(Res.string.good_morning)
-                        }
-
-                        in 13..17 -> {
-                            stringResource(Res.string.good_afternoon)
-                        }
-
-                        in 18..23 -> {
-                            stringResource(Res.string.good_evening)
-                        }
-
-                        else -> {
-                            stringResource(Res.string.good_night)
-                        }
-                    },
-                style =
-                    typo().bodySmall.copy(
-                        fontFamily = googleSans,
-                        fontWeight = FontWeight.Medium,
-                        letterSpacing = 0.2.sp,
-                    ),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        Text(
+            text = stringResource(Res.string.home),
+            style =
+                TextStyle(
+                    fontFamily = googleSans,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 32.sp,
+                    letterSpacing = (-0.8).sp,
+                    color = MaterialTheme.colorScheme.onBackground,
+                ),
+            modifier = Modifier.padding(vertical = 4.dp),
+        )
         Row(
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             RippleIconButton(imageVector = SimpIcons.Notifications, tint = MaterialTheme.colorScheme.onBackground) {
                 navController.navigate(NotificationDestination)
@@ -832,16 +781,14 @@ fun AccountLayout(
     accountName: String,
     url: String,
 ) {
-    Column {
-        Text(
-            text = stringResource(Res.string.welcome_back),
-            style = typo().bodyMedium,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(bottom = 3.dp),
-        )
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+    ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 5.dp, vertical = 5.dp),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
         ) {
             AsyncImage(
                 model =
@@ -850,7 +797,6 @@ fun AccountLayout(
                         .data(url)
                         .diskCachePolicy(CachePolicy.ENABLED)
                         .diskCacheKey(url)
-                        
                         .build(),
                 placeholder = rememberHolderPainter(),
                 error = rememberHolderPainter(),
@@ -858,19 +804,29 @@ fun AccountLayout(
                 contentScale = ContentScale.Crop,
                 modifier =
                     Modifier
-                        .size(40.dp)
-                        .clip(
-                            CircleShape,
+                        .size(44.dp)
+                        .clip(CircleShape),
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text(
+                    text = accountName,
+                    style =
+                        typo().titleMedium.copy(
+                            fontWeight = FontWeight.SemiBold,
                         ),
-            )
-            Text(
-                text = accountName,
-                style = typo().headlineMedium,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier =
-                    Modifier
-                        .padding(start = 8.dp),
-            )
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                )
+                Text(
+                    text = stringResource(Res.string.you),
+                    style = typo().bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
@@ -914,18 +870,28 @@ fun QuickPicks(
             },
     ) {
         Text(
-            text = stringResource(Res.string.let_s_start_with_a_radio),
-            style = typo().bodySmall,
+            text = stringResource(Res.string.let_s_start_with_a_radio).uppercase(),
+            style =
+                typo().labelMedium.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 1.sp,
+                ),
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(bottom = 2.dp),
         )
         Text(
             text = stringResource(Res.string.quick_picks),
-            style = typo().headlineMedium,
+            style =
+                typo().headlineMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = (-0.5).sp,
+                ),
             color = MaterialTheme.colorScheme.onBackground,
             maxLines = 1,
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 5.dp),
+                    .padding(bottom = 6.dp),
         )
         LazyHorizontalGrid(
             rows = GridCells.Fixed(4),
@@ -981,8 +947,14 @@ fun MoodMomentAndGenre(
             .padding(vertical = 8.dp),
     ) {
         Text(
-            text = stringResource(Res.string.let_s_pick_a_playlist_for_you),
-            style = typo().bodyMedium,
+            text = stringResource(Res.string.let_s_pick_a_playlist_for_you).uppercase(),
+            style =
+                typo().labelMedium.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 1.sp,
+                ),
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(bottom = 2.dp),
         )
         // One block per section YouTube returned, headed by ITS OWN title. Hard-coding
         // "Moods & moment" / "Genre" here (and reading mood.moodsMoments / mood.genres by
@@ -993,13 +965,17 @@ fun MoodMomentAndGenre(
             val flingBehavior = rememberSnapFlingBehavior(SnapLayoutInfoProvider(lazyGridState = gridState))
             Text(
                 text = section.title,
-                style = typo().headlineMedium,
+                style =
+                    typo().headlineMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.5).sp,
+                    ),
                 color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 1,
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 5.dp),
+                        .padding(vertical = 6.dp),
             )
             LazyHorizontalGrid(
                 rows = GridCells.Fixed(3),
@@ -1033,18 +1009,28 @@ fun MoodMomentAndGenre(
 fun ChartTitle() {
     Column {
         Text(
-            text = stringResource(Res.string.what_is_best_choice_today),
-            style = typo().bodyMedium,
+            text = stringResource(Res.string.what_is_best_choice_today).uppercase(),
+            style =
+                typo().labelMedium.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 1.sp,
+                ),
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(bottom = 2.dp),
         )
         Text(
             text = stringResource(Res.string.chart),
-            style = typo().headlineMedium,
+            style =
+                typo().headlineMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = (-0.5).sp,
+                ),
             color = MaterialTheme.colorScheme.onBackground,
             maxLines = 1,
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 5.dp),
+                    .padding(bottom = 6.dp),
         )
     }
 }
@@ -1073,13 +1059,17 @@ fun ChartData(
         chart.listChartItem.forEach { item ->
             Text(
                 text = item.title,
-                style = typo().headlineMedium,
+                style =
+                    typo().headlineMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.5).sp,
+                    ),
                 color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 1,
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 10.dp),
+                        .padding(vertical = 8.dp),
             )
             val lazyListState = rememberLazyListState()
             val snapperFlingBehavior = rememberSnapFlingBehavior(SnapLayoutInfoProvider(lazyListState = lazyListState))
@@ -1104,13 +1094,17 @@ fun ChartData(
         }
         Text(
             text = stringResource(Res.string.top_artists),
-            style = typo().headlineMedium,
+            style =
+                typo().headlineMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = (-0.5).sp,
+                ),
             color = MaterialTheme.colorScheme.onBackground,
             maxLines = 1,
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 10.dp),
+                    .padding(vertical = 8.dp),
         )
         LazyHorizontalGrid(
             rows = GridCells.Fixed(3),
