@@ -136,7 +136,6 @@ import com.maxrave.simpmusic.ui.component.MoodCategoryCardShimmer
 import com.maxrave.simpmusic.ui.component.NowPlayingBottomSheet
 import com.maxrave.simpmusic.ui.component.PlaylistFullWidthItems
 import com.maxrave.simpmusic.ui.component.ShimmerSearchItem
-import com.maxrave.simpmusic.ui.component.SimpMusicChartButton
 import com.maxrave.simpmusic.ui.component.SongFullWidthItems
 import com.maxrave.simpmusic.ui.component.selection.SelectedSongsBottomSheet
 import com.maxrave.simpmusic.ui.component.selection.SongSelectionTopAppBar
@@ -176,7 +175,6 @@ import simpmusic.composeapp.generated.resources.albums
 import simpmusic.composeapp.generated.resources.artists
 import simpmusic.composeapp.generated.resources.clear_search_history
 import simpmusic.composeapp.generated.resources.error_occurred
-import simpmusic.composeapp.generated.resources.everything_you_need
 import simpmusic.composeapp.generated.resources.in_search
 import simpmusic.composeapp.generated.resources.no_results_found
 import simpmusic.composeapp.generated.resources.playlist
@@ -185,7 +183,6 @@ import simpmusic.composeapp.generated.resources.podcasts
 import simpmusic.composeapp.generated.resources.popular
 import simpmusic.composeapp.generated.resources.retry
 import simpmusic.composeapp.generated.resources.search_for
-import simpmusic.composeapp.generated.resources.search_for_songs_artists_albums_playlists_and_more
 import simpmusic.composeapp.generated.resources.song
 import simpmusic.composeapp.generated.resources.suggest
 import simpmusic.composeapp.generated.resources.videos
@@ -431,8 +428,8 @@ fun SearchScreen(
                                 Text(
                                     text = stringResource(Res.string.song),
                                     style = typo().titleSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier =
                                         Modifier
                                             .fillMaxWidth()
@@ -511,8 +508,8 @@ fun SearchScreen(
                                 Text(
                                     text = stringResource(Res.string.suggest),
                                     style = typo().titleSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier =
                                         Modifier
                                             .fillMaxWidth()
@@ -571,8 +568,8 @@ fun SearchScreen(
                                 Text(
                                     text = stringResource(Res.string.popular),
                                     style = typo().titleSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier =
                                         Modifier
                                             .fillMaxWidth()
@@ -678,7 +675,7 @@ fun SearchScreen(
                     ) {
                         LazyColumn(
                             state = historyState,
-                            contentPadding = PaddingValues(top = searchBarHeight, bottom = 10.dp),
+                            contentPadding = PaddingValues(top = searchBarHeight + 8.dp, bottom = 120.dp),
                         ) {
                             stickyHeader {
                                 Crossfade(
@@ -777,7 +774,7 @@ fun SearchScreen(
                                         .fillMaxHeight()
                                         .widthIn(max = 1100.dp)
                                         .padding(horizontal = 16.dp),
-                                contentPadding = PaddingValues(top = searchBarHeight + 36.dp, bottom = 120.dp),
+                                contentPadding = PaddingValues(top = searchBarHeight + 16.dp, bottom = 120.dp),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 verticalArrangement = Arrangement.spacedBy(12.dp),
                                 userScrollEnabled = false,
@@ -795,87 +792,60 @@ fun SearchScreen(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.TopCenter,
                         ) {
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(moodGridColumns),
-                            modifier =
-                                Modifier
-                                    .fillMaxHeight()
-                                    .widthIn(max = 1100.dp)
-                                    .padding(horizontal = 16.dp),
-                            state = moodGridState,
-                            contentPadding = PaddingValues(top = searchBarHeight),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            item(span = { GridItemSpan(maxLineSpan) }) {
-                                Column(
-                                    modifier =
-                                        Modifier
-                                            .fillMaxWidth()
-                                            // Breathing room on both sides of this block: above it
-                                            // sits the floating search bar, below it the tile grid.
-                                            .padding(top = 36.dp, bottom = 20.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                ) {
-                                    Text(
-                                        text = stringResource(Res.string.everything_you_need),
-                                        style = typo().titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        textAlign = TextAlign.Center,
-                                        modifier = Modifier.fillMaxWidth(),
-                                    )
-                                    Spacer(modifier = Modifier.height(10.dp))
-                                    Text(
-                                        text = stringResource(Res.string.search_for_songs_artists_albums_playlists_and_more),
-                                        style = typo().bodyMedium,
-                                        textAlign = TextAlign.Center,
-                                        modifier = Modifier.fillMaxWidth(),
-                                    )
-                                    SimpMusicChartButton(
-                                        modifier = Modifier.padding(top = 10.dp),
-                                    ) {
-                                        uriHandler.openUri("https://chart.simpmusic.org")
-                                    }
-                                }
-                            }
-                            mood.sections.forEachIndexed { index, section ->
-                                // First section runs straight on from the header block above it,
-                                // so its own heading would just be a second title in a row.
-                                if (index > 0) {
-                                    item(span = { GridItemSpan(maxLineSpan) }) {
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(moodGridColumns),
+                                modifier =
+                                    Modifier
+                                        .fillMaxHeight()
+                                        .widthIn(max = 1100.dp)
+                                        .padding(horizontal = 16.dp),
+                                state = moodGridState,
+                                contentPadding = PaddingValues(top = searchBarHeight + 16.dp, bottom = 120.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                mood.sections.forEachIndexed { index, section ->
+                                    item(span = { GridItemSpan(maxLineSpan) }, key = "header_${section.title}") {
                                         Text(
-                                            // Section titles come from YouTube already localised,
-                                            // so there is no string resource to pick here.
                                             text = section.title,
-                                            style = typo().titleMedium,
-                                            fontWeight = FontWeight.Bold,
+                                            style =
+                                                typo().titleLarge.copy(
+                                                    fontWeight = FontWeight.Bold,
+                                                    letterSpacing = (-0.4).sp,
+                                                ),
                                             color = MaterialTheme.colorScheme.onBackground,
-                                            modifier = Modifier.padding(top = 8.dp),
+                                            modifier =
+                                                Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(
+                                                        start = 4.dp,
+                                                        top = if (index == 0) 8.dp else 24.dp,
+                                                        bottom = 12.dp,
+                                                    ),
                                         )
                                     }
+                                    // Key must include the section: every section lives in this ONE
+                                    // grid, and "For you" repeats categories that also appear under
+                                    // Moods or Genres, so params alone collides.
+                                    items(section.items, key = { "${section.title}/${it.params}" }) { item ->
+                                        // LazyVerticalGrid only composes tiles inside the viewport, so
+                                        // putting the request here IS the laziness — a category the
+                                        // user never scrolls to never costs a browse.
+                                        LaunchedEffect(item.params) {
+                                            searchViewModel.loadMoodArtwork(item.params)
+                                        }
+                                        MoodCategoryCard(
+                                            title = item.title,
+                                            artworkUrl = moodArtwork[item.params],
+                                        ) {
+                                            navController.navigate(MoodDestination(item.params))
+                                        }
+                                    }
                                 }
-                                // Key must include the section: every section lives in this ONE
-                                // grid, and "For you" repeats categories that also appear under
-                                // Moods or Genres, so params alone collides.
-                                items(section.items, key = { "${section.title}/${it.params}" }) { item ->
-                                    // LazyVerticalGrid only composes tiles inside the viewport, so
-                                    // putting the request here IS the laziness — a category the
-                                    // user never scrolls to never costs a browse.
-                                    LaunchedEffect(item.params) {
-                                        searchViewModel.loadMoodArtwork(item.params)
-                                    }
-                                    MoodCategoryCard(
-                                        title = item.title,
-                                        artworkUrl = moodArtwork[item.params],
-                                    ) {
-                                        navController.navigate(MoodDestination(item.params))
-                                    }
+                                item(span = { GridItemSpan(maxLineSpan) }) {
+                                    EndOfPage()
                                 }
                             }
-                            item(span = { GridItemSpan(maxLineSpan) }) {
-                                EndOfPage()
-                            }
-                        }
                         }
                     }
                 }
