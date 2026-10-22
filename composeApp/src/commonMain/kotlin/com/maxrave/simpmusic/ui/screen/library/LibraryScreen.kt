@@ -588,7 +588,7 @@ fun LibraryScreen(
                             .padding(horizontal = 16.dp, vertical = 6.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        // Material 3 Expressive Header: Title + Count Badge
+                        // Header: Title + Clean secondary count
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -606,17 +606,14 @@ fun LibraryScreen(
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
 
-                            Surface(
-                                shape = RoundedCornerShape(50),
-                                color = MaterialTheme.colorScheme.primaryContainer,
-                            ) {
-                                Text(
-                                    text = "${localList.size + ytList.size} playlists",
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                )
-                            }
+                            Text(
+                                text = "${localList.size + ytList.size} playlists",
+                                style = TextStyle(
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                ),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
 
                         // Create Playlist Hero Card
