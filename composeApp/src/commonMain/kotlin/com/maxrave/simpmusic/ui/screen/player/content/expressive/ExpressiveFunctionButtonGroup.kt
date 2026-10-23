@@ -33,8 +33,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.maxrave.domain.mediaservice.handler.RepeatState
 import com.maxrave.simpmusic.expect.ui.isPlatformCastAvailable
@@ -138,8 +138,7 @@ fun ExpressiveFunctionButtonGroup(
             weight = infoWeight,
             isPressed = isInfoPressed,
             isActive = false,
-            restingStartCorner = 24.dp,
-            restingEndCorner = 8.dp,
+            defaultShape = RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp, topEnd = 8.dp, bottomEnd = 8.dp),
             interactionSource = infoInteraction,
             onClick = { actions.onShowInfo() },
         ) {
@@ -155,67 +154,45 @@ fun ExpressiveFunctionButtonGroup(
         if (isCastAvailable) {
             val castCorner by animateDpAsState(
                 targetValue = if (isCastPressed || state.castState.isRemote) 24.dp else 8.dp,
-                animationSpec = spring(dampingRatio = 0.62f, stiffness = Spring.StiffnessMediumLow),
+                animationSpec = spring(dampingRatio = 0.58f, stiffness = Spring.StiffnessMediumLow),
                 label = "castCorner",
             )
-            val castContainerColor by animateColorAsState(
-                targetValue = if (state.castState.isRemote) colorScheme.primaryContainer else colorScheme.surfaceContainerHigh,
-                animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                label = "castContainerColor",
-            )
-            val castTint by animateColorAsState(
-                targetValue = if (state.castState.isRemote) colorScheme.primary else colorScheme.onSurfaceVariant,
-                animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                label = "castTint",
-            )
             CastSlot(
-                tint = castTint,
+                tint = if (state.castState.isRemote) colorScheme.primary else colorScheme.onSurfaceVariant,
                 shape = RoundedCornerShape(castCorner),
-                color = castContainerColor,
+                color = if (state.castState.isRemote) colorScheme.primaryContainer else colorScheme.surfaceContainerHigh,
                 iconSize = 22.dp,
                 modifier = Modifier.weight(castWeight).fillMaxHeight(),
             )
         }
 
         // 3. Shuffle Button (with M3 animated icon & state indicator)
-        val shuffleIconColor by animateColorAsState(
-            targetValue = if (isShuffleActive) colorScheme.onPrimaryContainer else colorScheme.onSurfaceVariant,
-            animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-            label = "shuffleIconColor",
-        )
         ExpressiveReactiveSlot(
             weight = shuffleWeight,
             isPressed = isShufflePressed,
             isActive = isShuffleActive,
-            restingStartCorner = 8.dp,
-            restingEndCorner = 8.dp,
+            defaultShape = RoundedCornerShape(8.dp),
             interactionSource = shuffleInteraction,
             onClick = { actions.onUIEvent(UIEvent.Shuffle) },
         ) {
             ExpressiveShuffleIcon(
                 active = isShuffleActive,
-                color = shuffleIconColor,
+                color = if (isShuffleActive) colorScheme.onPrimaryContainer else colorScheme.onSurfaceVariant,
             )
         }
 
         // 4. Repeat / Loop Button (with M3 animated icon & single/all indicator)
-        val repeatIconColor by animateColorAsState(
-            targetValue = if (isRepeatActive) colorScheme.onPrimaryContainer else colorScheme.onSurfaceVariant,
-            animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-            label = "repeatIconColor",
-        )
         ExpressiveReactiveSlot(
             weight = repeatWeight,
             isPressed = isRepeatPressed,
             isActive = isRepeatActive,
-            restingStartCorner = 8.dp,
-            restingEndCorner = 8.dp,
+            defaultShape = RoundedCornerShape(8.dp),
             interactionSource = repeatInteraction,
             onClick = { actions.onUIEvent(UIEvent.Repeat) },
         ) {
             ExpressiveRepeatIcon(
                 repeatState = state.controllerState.repeatState,
-                color = repeatIconColor,
+                color = if (isRepeatActive) colorScheme.onPrimaryContainer else colorScheme.onSurfaceVariant,
             )
         }
 
@@ -224,8 +201,7 @@ fun ExpressiveFunctionButtonGroup(
             weight = playlistWeight,
             isPressed = isPlaylistPressed,
             isActive = false,
-            restingStartCorner = 8.dp,
-            restingEndCorner = 8.dp,
+            defaultShape = RoundedCornerShape(8.dp),
             interactionSource = playlistInteraction,
             onClick = { actions.onShowAddToPlaylist() },
         ) {
@@ -240,8 +216,7 @@ fun ExpressiveFunctionButtonGroup(
             weight = queueWeight,
             isPressed = isQueuePressed,
             isActive = false,
-            restingStartCorner = 8.dp,
-            restingEndCorner = 24.dp,
+            defaultShape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp, topEnd = 24.dp, bottomEnd = 24.dp),
             interactionSource = queueInteraction,
             onClick = { actions.onShowQueue() },
         ) {
@@ -264,36 +239,20 @@ private fun RowScope.ExpressiveReactiveSlot(
     weight: Float,
     isPressed: Boolean,
     isActive: Boolean,
-    restingStartCorner: Dp = 8.dp,
-    restingEndCorner: Dp = 8.dp,
+    defaultShape: Shape,
     interactionSource: MutableInteractionSource,
     onClick: () -> Unit,
     content: @Composable () -> Unit,
 ) {
     val colorScheme = MaterialTheme.colorScheme
 
-    // Morph corner radius to full pill (24dp) on press or when active,
-    // and spring smoothly back to resting corners without snapping on release or deactivation
-    val cornerSpring = spring<Dp>(
-        dampingRatio = 0.62f,
-        stiffness = Spring.StiffnessMediumLow,
+    // Morph corner radius to full pill (24dp) on press or when active
+    val cornerRadius by animateDpAsState(
+        targetValue = if (isPressed || isActive) 24.dp else 8.dp,
+        animationSpec = spring(dampingRatio = 0.58f, stiffness = Spring.StiffnessMediumLow),
+        label = "slotCorner",
     )
-    val startCorner by animateDpAsState(
-        targetValue = if (isPressed || isActive) 24.dp else restingStartCorner,
-        animationSpec = cornerSpring,
-        label = "slotStartCorner",
-    )
-    val endCorner by animateDpAsState(
-        targetValue = if (isPressed || isActive) 24.dp else restingEndCorner,
-        animationSpec = cornerSpring,
-        label = "slotEndCorner",
-    )
-    val slotShape = RoundedCornerShape(
-        topStart = startCorner,
-        bottomStart = startCorner,
-        topEnd = endCorner,
-        bottomEnd = endCorner,
-    )
+    val slotShape = if (isPressed || isActive) RoundedCornerShape(cornerRadius) else defaultShape
 
     // Dynamic M3 tonal container colors
     val containerColor by animateColorAsState(
@@ -387,9 +346,9 @@ private fun ExpressiveRepeatIcon(
             isFirstComposition = false
             return@LaunchedEffect
         }
-        // Smooth tilt on state change without abrupt snapping
+        // Spin on state change
         launch {
-            rotation.animateTo(if (repeatState !is RepeatState.None) -40f else 40f, tween(90, easing = FastOutSlowInEasing))
+            rotation.snapTo(-60f)
             rotation.animateTo(0f, spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMediumLow))
         }
         launch {
