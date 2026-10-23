@@ -602,7 +602,7 @@ fun HomeScreen(
                             }
                             item {
                                 Surface(
-                                    shape = RoundedCornerShape(24.dp),
+                                    shape = MaterialTheme.shapes.large,
                                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                                     modifier =
                                         Modifier
@@ -813,7 +813,7 @@ fun AccountLayout(
     url: String,
 ) {
     Surface(
-        shape = RoundedCornerShape(20.dp),
+        shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
     ) {
@@ -892,7 +892,7 @@ fun QuickPicks(
     }
 
     Surface(
-        shape = RoundedCornerShape(24.dp),
+        shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         modifier =
             Modifier

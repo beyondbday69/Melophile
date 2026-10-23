@@ -126,6 +126,7 @@ import com.maxrave.simpmusic.ui.component.LoadingDialog
 import com.maxrave.simpmusic.ui.component.RippleIconButton
 import com.maxrave.simpmusic.ui.component.SettingItem
 import com.maxrave.simpmusic.ui.component.rememberNowPlayingGlowTint
+import com.maxrave.simpmusic.ui.debug.UIDebuggerManager
 import com.maxrave.simpmusic.ui.icon.ArrowBackIosNew
 import com.maxrave.simpmusic.ui.icon.Close
 import com.maxrave.simpmusic.ui.icon.Error
@@ -708,6 +709,14 @@ fun SettingScreen(
                                 dismiss = runBlocking { getString(Res.string.cancel) },
                             ),
                         )
+                    },
+                )
+                SettingItem(
+                    title = "🛠️ UI Debugger & Live Inspector",
+                    subtitle = "Live-edit colors, shapes, typography & components in real time",
+                    onClick = {
+                        UIDebuggerManager.setEnabled(true)
+                        UIDebuggerManager.openPanel()
                     },
                 )
                 // The Apple Music treatments ARE the blur — the frosted page behind the player, and
