@@ -54,9 +54,9 @@ import kotlinx.coroutines.launch
 // Base weight for inactive slots
 private const val BASE_SLOT_WEIGHT = 1.0f
 // Active toggles (Shuffle / Repeat ON) gain prominent resting width
-private const val ACTIVE_SLOT_WEIGHT = 1.25f
+private const val ACTIVE_SLOT_WEIGHT = 1.20f
 // Pressed slot expands dynamically, causing adjacent buttons to squish with spring overshoot
-private const val PRESSED_SLOT_WEIGHT = 1.60f
+private const val PRESSED_SLOT_WEIGHT = 1.40f
 
 /**
  * Material 3 Expressive Standard Button Group:
@@ -113,7 +113,7 @@ fun ExpressiveFunctionButtonGroup(
 
     // Material 3 Expressive spring physics with overshoot for fluid adjacent reaction
     val weightSpring = spring<Float>(
-        dampingRatio = 0.55f,
+        dampingRatio = 0.65f,
         stiffness = Spring.StiffnessMediumLow,
     )
 
@@ -154,7 +154,7 @@ fun ExpressiveFunctionButtonGroup(
         if (isCastAvailable) {
             val castCorner by animateDpAsState(
                 targetValue = if (isCastPressed || state.castState.isRemote) 24.dp else 8.dp,
-                animationSpec = spring(dampingRatio = 0.58f, stiffness = Spring.StiffnessMediumLow),
+                animationSpec = spring(dampingRatio = 0.65f, stiffness = Spring.StiffnessMediumLow),
                 label = "castCorner",
             )
             CastSlot(
@@ -249,7 +249,7 @@ private fun RowScope.ExpressiveReactiveSlot(
     // Morph corner radius to full pill (24dp) on press or when active
     val cornerRadius by animateDpAsState(
         targetValue = if (isPressed || isActive) 24.dp else 8.dp,
-        animationSpec = spring(dampingRatio = 0.58f, stiffness = Spring.StiffnessMediumLow),
+        animationSpec = spring(dampingRatio = 0.65f, stiffness = Spring.StiffnessMediumLow),
         label = "slotCorner",
     )
     val slotShape = if (isPressed || isActive) RoundedCornerShape(cornerRadius) else defaultShape
@@ -305,11 +305,11 @@ private fun ExpressiveShuffleIcon(
         // Playful shuffle crossing twist animation on toggle
         launch {
             rotation.animateTo(if (active) -18f else 18f, tween(90, easing = FastOutSlowInEasing))
-            rotation.animateTo(0f, spring(dampingRatio = 0.52f, stiffness = Spring.StiffnessMediumLow))
+            rotation.animateTo(0f, spring(dampingRatio = 0.65f, stiffness = Spring.StiffnessMediumLow))
         }
         launch {
             scale.animateTo(1.22f, tween(90, easing = FastOutSlowInEasing))
-            scale.animateTo(1f, spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMediumLow))
+            scale.animateTo(1f, spring(dampingRatio = 0.65f, stiffness = Spring.StiffnessMediumLow))
         }
     }
 
@@ -349,11 +349,11 @@ private fun ExpressiveRepeatIcon(
         // Spin on state change
         launch {
             rotation.snapTo(-60f)
-            rotation.animateTo(0f, spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMediumLow))
+            rotation.animateTo(0f, spring(dampingRatio = 0.65f, stiffness = Spring.StiffnessMediumLow))
         }
         launch {
             scale.animateTo(1.20f, tween(90, easing = FastOutSlowInEasing))
-            scale.animateTo(1f, spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMediumLow))
+            scale.animateTo(1f, spring(dampingRatio = 0.65f, stiffness = Spring.StiffnessMediumLow))
         }
     }
 
@@ -383,8 +383,8 @@ private fun ExpressivePlaylistAddIcon(
     color: Color,
 ) {
     val iconScale by animateFloatAsState(
-        targetValue = if (isPressed) 1.25f else 1.0f,
-        animationSpec = spring(dampingRatio = 0.52f, stiffness = Spring.StiffnessMediumLow),
+        targetValue = if (isPressed) 1.15f else 1.0f,
+        animationSpec = spring(dampingRatio = 0.65f, stiffness = Spring.StiffnessMediumLow),
         label = "playlistIconScale",
     )
 
