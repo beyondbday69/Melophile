@@ -397,7 +397,7 @@ fun HomeItemContentPlaylist(
         Modifier
             .wrapContentSize()
             .focusable(true)
-            .clip(MaterialTheme.shapes.medium)
+            .clip(RoundedCornerShape(16.dp))
             .clickable {
                 onClick()
             },
@@ -517,7 +517,7 @@ fun HomeItemContentPlaylist(
                     (if (fillMaxWidth) Modifier.fillMaxWidth() else Modifier.size(thumbSize))
                         .aspectRatio(1f)
                         .clip(
-                            MaterialTheme.shapes.medium,
+                            RoundedCornerShape(16.dp),
                         ),
             )
             Text(
@@ -807,7 +807,7 @@ fun HomeItemSong(
                         .align(Alignment.CenterHorizontally)
                         .then(if (fillMaxWidth) Modifier.fillMaxWidth().aspectRatio(1f) else Modifier.size(160.dp))
                         .clip(
-                            MaterialTheme.shapes.medium,
+                            RoundedCornerShape(16.dp),
                         ),
             )
             Text(
@@ -907,7 +907,7 @@ fun HomeItemVideo(
                         .then(if (fillMaxWidth) Modifier.fillMaxWidth() else Modifier.height(160.dp))
                         .aspectRatio(16f / 9f)
                         .clip(
-                            MaterialTheme.shapes.medium,
+                            RoundedCornerShape(16.dp),
                         ),
             )
             Text(
@@ -1042,7 +1042,7 @@ fun MoodMomentAndGenreHomeItem(
                 defaultElevation = 0.dp,
             ),
         onClick = onClick,
-        shape = MaterialTheme.shapes.medium,
+        shape = RoundedCornerShape(16.dp),
         colors =
             CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -1089,7 +1089,7 @@ fun ItemVideoChart(
         Modifier
             .wrapContentSize()
             .focusable(true)
-            .clip(MaterialTheme.shapes.medium)
+            .clip(RoundedCornerShape(16.dp))
             .clickable {
                 onClick()
             },
@@ -1187,7 +1187,7 @@ fun ItemArtistChart(
         Modifier
             .wrapContentSize()
             .focusable(true)
-            .clip(MaterialTheme.shapes.medium)
+            .clip(RoundedCornerShape(16.dp))
             .clickable {
                 onClick()
             },

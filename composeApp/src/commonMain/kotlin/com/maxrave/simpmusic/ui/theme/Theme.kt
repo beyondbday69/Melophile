@@ -15,9 +15,7 @@ import androidx.compose.material3.RippleConfiguration
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import com.materialkolor.PaletteStyle
@@ -25,9 +23,6 @@ import com.materialkolor.rememberDynamicColorScheme
 import com.maxrave.domain.manager.DataStoreManager
 import com.maxrave.simpmusic.expect.ui.SystemBarAppearanceEffect
 import com.maxrave.simpmusic.expect.ui.platformDynamicColorScheme
-import com.maxrave.simpmusic.ui.debug.LocalUIDebuggerConfig
-import com.maxrave.simpmusic.ui.debug.LocalUIDebuggerShapes
-import com.maxrave.simpmusic.ui.debug.UIDebuggerManager
 
 /**
  * Semantic colors that sit outside the Material 3 ColorScheme.
@@ -179,38 +174,21 @@ fun AppTheme(
                 style = paletteStyle,
             )
         }
-    val uiConfig by UIDebuggerManager.config.collectAsState()
-    val effectiveColorScheme =
-        remember(colorScheme, uiConfig.colorOverrides) {
-            uiConfig.applyToColorScheme(colorScheme)
-        }
-    val effectiveForcedDarkScheme =
-        remember(forcedDarkScheme, uiConfig.colorOverrides) {
-            uiConfig.applyToColorScheme(forcedDarkScheme)
-        }
-    val effectiveShapes =
-        remember(uiConfig.shapes) {
-            uiConfig.shapes.toMaterialShapes()
-        }
-
     SystemBarAppearanceEffect(isDark)
     MaterialExpressiveTheme(
-        colorScheme = effectiveColorScheme,
-        shapes = effectiveShapes,
+        colorScheme = colorScheme,
         content = {
             CompositionLocalProvider(
                 LocalRippleConfiguration provides SoftRippleConfiguration,
-                LocalContentColor provides effectiveColorScheme.onSurfaceVariant,
+                LocalContentColor provides colorScheme.onSurfaceVariant,
                 LocalAppColors provides if (isDark) DarkAppColors else LightAppColors,
                 LocalIsDarkTheme provides isDark,
-                LocalForcedDarkColorScheme provides effectiveForcedDarkScheme,
+                LocalForcedDarkColorScheme provides forcedDarkScheme,
                 LocalLiquidGlassEnabled provides liquidGlassEnabled,
-                LocalUIDebuggerConfig provides uiConfig,
-                LocalUIDebuggerShapes provides uiConfig.shapes,
                 content = content,
             )
         },
-        typography = typo(effectiveColorScheme),
+        typography = typo(colorScheme),
     )
 }
 
@@ -265,10 +243,8 @@ private val SoftRippleConfiguration =
 @Composable
 fun ForceDarkContent(content: @Composable () -> Unit) {
     val darkScheme = LocalForcedDarkColorScheme.current ?: MaterialTheme.colorScheme
-    val uiShapes = LocalUIDebuggerShapes.current
     MaterialExpressiveTheme(
         colorScheme = darkScheme,
-        shapes = uiShapes.toMaterialShapes(),
         content = {
             CompositionLocalProvider(
                 LocalForceDarkText provides true,
