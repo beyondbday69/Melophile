@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -54,8 +55,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalIconButton
@@ -128,6 +127,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -407,6 +407,15 @@ fun LocalPlaylistScreen(
     val onPlaylistMoreClick: () -> Unit = {
         playlistBottomSheetShow = true
     }
+    val onDownloadClick: () -> Unit = {
+        if (downloadState == DownloadState.STATE_DOWNLOADED) {
+            viewModel.makeToast(runBlocking { getString(Res.string.downloaded) })
+        } else if (downloadState == DownloadState.STATE_DOWNLOADING) {
+            viewModel.makeToast(runBlocking { getString(Res.string.downloading) })
+        } else {
+            viewModel.downloadFullPlaylist()
+        }
+    }
 
     LaunchedEffect(key1 = shouldShowSuggestions) {
         // Only fetch suggestions when the panel is actually expanded/visible.
@@ -592,11 +601,19 @@ fun LocalPlaylistScreen(
                             }
                         }
 
+                        // Download in playlist
+                        ExpressiveTopBarDownloadButton(
+                            downloadState = downloadState,
+                            onClick = onDownloadClick,
+                            isFirst = !shouldShowSuggestButton,
+                            isLast = false,
+                        )
+
                         // Search in playlist
                         ExpressiveTopBarGroupButton(
                             contentDescription = "Search in playlist",
                             onClick = { showSearchBar = true },
-                            isFirst = !shouldShowSuggestButton,
+                            isFirst = false,
                             isLast = false,
                         ) {
                             Icon(
@@ -731,115 +748,20 @@ fun LocalPlaylistScreen(
 
                         Spacer(modifier = Modifier.height(20.dp))
 
-                        // Expressive Action Row: [Play Button Pill] [Shuffle] [Download] [Customize]
+                        // Expressive Action Row: [Play Button Pill | Shuffle] + [Customize Cover]
                         val isThisPlaying = isPlaying && playingPlaylistId == LOCAL_PLAYLIST_ID + uiState.id
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            // Primary Play Pill Button
-                            Button(
-                                onClick = {
-                                    if (isThisPlaying) {
-                                        sharedViewModel.onUIEvent(UIEvent.PlayPause)
-                                    } else {
-                                        viewModel.onUIEvent(LocalPlaylistUIEvent.PlayClick)
-                                    }
-                                },
-                                shape = RoundedCornerShape(28.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.primary,
-                                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                                ),
-                                contentPadding = PaddingValues(horizontal = 26.dp, vertical = 14.dp),
-                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp, pressedElevation = 0.dp),
-                            ) {
-                                Icon(
-                                    imageVector = if (isThisPlaying) SimpIcons.Pause else SimpIcons.PlayArrow,
-                                    contentDescription = if (isThisPlaying) "Pause" else "Play",
-                                    modifier = Modifier.size(24.dp),
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = if (isThisPlaying) "Pause" else "Play",
-                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                )
-                            }
-
-                            // Shuffle Button
-                            FilledTonalIconButton(
-                                onClick = { viewModel.onUIEvent(LocalPlaylistUIEvent.ShuffleClick) },
-                                modifier = Modifier.size(50.dp),
-                                shape = CircleShape,
-                                colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    contentColor = MaterialTheme.colorScheme.onSurface,
-                                ),
-                            ) {
-                                Icon(
-                                    imageVector = SimpIcons.Shuffle,
-                                    contentDescription = "Shuffle",
-                                    modifier = Modifier.size(22.dp),
-                                )
-                            }
-
-                            // Download Button
-                            FilledTonalIconButton(
-                                onClick = {
-                                    if (downloadState == DownloadState.STATE_DOWNLOADED) {
-                                        viewModel.makeToast(runBlocking { getString(Res.string.downloaded) })
-                                    } else if (downloadState == DownloadState.STATE_DOWNLOADING) {
-                                        viewModel.makeToast(runBlocking { getString(Res.string.downloading) })
-                                    } else {
-                                        viewModel.downloadFullPlaylist()
-                                    }
-                                },
-                                modifier = Modifier.size(50.dp),
-                                shape = CircleShape,
-                                colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    contentColor = MaterialTheme.colorScheme.onSurface,
-                                ),
-                            ) {
-                                when (downloadState) {
-                                    DownloadState.STATE_DOWNLOADED -> {
-                                        Icon(
-                                            painter = painterResource(Res.drawable.baseline_downloaded),
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            contentDescription = "Downloaded",
-                                            modifier = Modifier.size(22.dp),
-                                        )
-                                    }
-                                    DownloadState.STATE_DOWNLOADING -> {
-                                        DownloadingIndicator(modifier = Modifier.size(28.dp))
-                                    }
-                                    else -> {
-                                        Icon(
-                                            imageVector = SimpIcons.DownloadForOffline,
-                                            contentDescription = "Download",
-                                            modifier = Modifier.size(22.dp),
-                                        )
-                                    }
+                        LocalPlaylistHeaderActions(
+                            isThisPlaying = isThisPlaying,
+                            onPlay = {
+                                if (isThisPlaying) {
+                                    sharedViewModel.onUIEvent(UIEvent.PlayPause)
+                                } else {
+                                    viewModel.onUIEvent(LocalPlaylistUIEvent.PlayClick)
                                 }
-                            }
-
-                            // Customize Shape Button
-                            FilledTonalIconButton(
-                                onClick = { showCoverCustomizer = true },
-                                modifier = Modifier.size(50.dp),
-                                shape = CircleShape,
-                                colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    contentColor = MaterialTheme.colorScheme.primary,
-                                ),
-                            ) {
-                                Icon(
-                                    imageVector = SimpIcons.Tune,
-                                    contentDescription = "Customize Cover",
-                                    modifier = Modifier.size(22.dp),
-                                )
-                            }
-                        }
+                            },
+                            onShuffle = { viewModel.onUIEvent(LocalPlaylistUIEvent.ShuffleClick) },
+                            onCustomize = { showCoverCustomizer = true },
+                        )
                     }
                 } else {
                     // Landscape / Desktop wide header
@@ -944,109 +866,18 @@ fun LocalPlaylistScreen(
                             Spacer(modifier = Modifier.height(4.dp))
 
                             val isThisPlaying = isPlaying && playingPlaylistId == LOCAL_PLAYLIST_ID + uiState.id
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Button(
-                                    onClick = {
-                                        if (isThisPlaying) {
-                                            sharedViewModel.onUIEvent(UIEvent.PlayPause)
-                                        } else {
-                                            viewModel.onUIEvent(LocalPlaylistUIEvent.PlayClick)
-                                        }
-                                    },
-                                    shape = RoundedCornerShape(28.dp),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = MaterialTheme.colorScheme.primary,
-                                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                                    ),
-                                    contentPadding = PaddingValues(horizontal = 26.dp, vertical = 14.dp),
-                                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp, pressedElevation = 0.dp),
-                                ) {
-                                    Icon(
-                                        imageVector = if (isThisPlaying) SimpIcons.Pause else SimpIcons.PlayArrow,
-                                        contentDescription = if (isThisPlaying) "Pause" else "Play",
-                                        modifier = Modifier.size(24.dp),
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = if (isThisPlaying) "Pause" else "Play",
-                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                    )
-                                }
-
-                                FilledTonalIconButton(
-                                    onClick = { viewModel.onUIEvent(LocalPlaylistUIEvent.ShuffleClick) },
-                                    modifier = Modifier.size(50.dp),
-                                    shape = CircleShape,
-                                    colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                        contentColor = MaterialTheme.colorScheme.onSurface,
-                                    ),
-                                ) {
-                                    Icon(
-                                        imageVector = SimpIcons.Shuffle,
-                                        contentDescription = "Shuffle",
-                                        modifier = Modifier.size(22.dp),
-                                    )
-                                }
-
-                                FilledTonalIconButton(
-                                    onClick = {
-                                        if (downloadState == DownloadState.STATE_DOWNLOADED) {
-                                            viewModel.makeToast(runBlocking { getString(Res.string.downloaded) })
-                                        } else if (downloadState == DownloadState.STATE_DOWNLOADING) {
-                                            viewModel.makeToast(runBlocking { getString(Res.string.downloading) })
-                                        } else {
-                                            viewModel.downloadFullPlaylist()
-                                        }
-                                    },
-                                    modifier = Modifier.size(50.dp),
-                                    shape = CircleShape,
-                                    colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                        contentColor = MaterialTheme.colorScheme.onSurface,
-                                    ),
-                                ) {
-                                    when (downloadState) {
-                                        DownloadState.STATE_DOWNLOADED -> {
-                                            Icon(
-                                                painter = painterResource(Res.drawable.baseline_downloaded),
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                contentDescription = "Downloaded",
-                                                modifier = Modifier.size(22.dp),
-                                            )
-                                        }
-                                        DownloadState.STATE_DOWNLOADING -> {
-                                            DownloadingIndicator(modifier = Modifier.size(28.dp))
-                                        }
-                                        else -> {
-                                            Icon(
-                                                imageVector = SimpIcons.DownloadForOffline,
-                                                contentDescription = "Download",
-                                                modifier = Modifier.size(22.dp),
-                                            )
-                                        }
+                            LocalPlaylistHeaderActions(
+                                isThisPlaying = isThisPlaying,
+                                onPlay = {
+                                    if (isThisPlaying) {
+                                        sharedViewModel.onUIEvent(UIEvent.PlayPause)
+                                    } else {
+                                        viewModel.onUIEvent(LocalPlaylistUIEvent.PlayClick)
                                     }
-                                }
-
-                                FilledTonalIconButton(
-                                    onClick = { showCoverCustomizer = true },
-                                    modifier = Modifier.size(50.dp),
-                                    shape = CircleShape,
-                                    colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                        contentColor = MaterialTheme.colorScheme.primary,
-                                    ),
-                                ) {
-                                    Icon(
-                                        imageVector = SimpIcons.Tune,
-                                        contentDescription = "Customize Cover",
-                                        modifier = Modifier.size(22.dp),
-                                    )
-                                }
-                            }
+                                },
+                                onShuffle = { viewModel.onUIEvent(LocalPlaylistUIEvent.ShuffleClick) },
+                                onCustomize = { showCoverCustomizer = true },
+                            )
                         }
                     }
                 }
@@ -1940,6 +1771,264 @@ private fun PlaylistSearchMessage(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.widthIn(max = 280.dp),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Tonal connected action button for the local playlist top bar header download action.
+ */
+@Composable
+private fun ExpressiveTopBarDownloadButton(
+    downloadState: Int,
+    onClick: () -> Unit,
+    isFirst: Boolean,
+    isLast: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    ExpressiveTopBarGroupButton(
+        contentDescription =
+            when (downloadState) {
+                DownloadState.STATE_DOWNLOADED -> "Downloaded"
+                DownloadState.STATE_DOWNLOADING -> "Downloading"
+                else -> "Download"
+            },
+        onClick = onClick,
+        isFirst = isFirst,
+        isLast = isLast,
+        modifier = modifier,
+    ) {
+        Crossfade(targetState = downloadState, label = "localPlaylistTopBarDownload") { state ->
+            when (state) {
+                DownloadState.STATE_DOWNLOADED ->
+                    Icon(
+                        painter = painterResource(Res.drawable.baseline_downloaded),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp),
+                    )
+
+                DownloadState.STATE_DOWNLOADING ->
+                    DownloadingIndicator(modifier = Modifier.size(24.dp))
+
+                else ->
+                    Icon(
+                        imageVector = SimpIcons.DownloadForOffline,
+                        contentDescription = null,
+                        modifier = Modifier.size(22.dp),
+                    )
+            }
+        }
+    }
+}
+
+/**
+ * Expressive connected split action segment for local playlist hero:
+ * outer caps at 25.dp, inner seam at 8.dp, morphing to 25.dp pill when pressed.
+ */
+@Composable
+private fun LocalPlaylistActionSegment(
+    onClick: () -> Unit,
+    containerColor: Color,
+    contentColor: Color,
+    startCorner: Dp,
+    endCorner: Dp,
+    contentDescription: String,
+    modifier: Modifier = Modifier,
+    fixedWidth: Dp? = null,
+    contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp),
+    content: @Composable RowScope.() -> Unit,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val restingStart = startCorner
+    val restingEnd = endCorner
+    val start by animateDpAsState(
+        targetValue = if (isPressed) 25.dp else restingStart,
+        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+        label = "localPlaylistActionStartCorner",
+    )
+    val end by animateDpAsState(
+        targetValue = if (isPressed) 25.dp else restingEnd,
+        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+        label = "localPlaylistActionEndCorner",
+    )
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.96f else 1f,
+        animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing),
+        label = "localPlaylistActionScale",
+    )
+    Surface(
+        onClick = onClick,
+        interactionSource = interactionSource,
+        shape =
+            RoundedCornerShape(
+                topStart = start,
+                bottomStart = start,
+                topEnd = end,
+                bottomEnd = end,
+            ),
+        color = containerColor,
+        contentColor = contentColor,
+        modifier =
+            modifier
+                .then(if (fixedWidth != null) Modifier.size(fixedWidth, 50.dp) else Modifier.height(50.dp))
+                .semantics { this.contentDescription = contentDescription }
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                },
+    ) {
+        Row(
+            modifier = Modifier.padding(contentPadding),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+            content = content,
+        )
+    }
+}
+
+/**
+ * Tonal circular button for customizing playlist cover / shape.
+ */
+@Composable
+private fun LocalPlaylistCustomizeButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.96f else 1f,
+        animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing),
+        label = "localPlaylistCustomizeScale",
+    )
+    val containerColor by animateColorAsState(
+        targetValue =
+            if (isPressed) {
+                MaterialTheme.colorScheme.surfaceContainerHighest
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerHigh
+            },
+        animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing),
+        label = "localPlaylistCustomizeColor",
+    )
+    Surface(
+        onClick = onClick,
+        interactionSource = interactionSource,
+        shape = CircleShape,
+        color = containerColor,
+        contentColor = MaterialTheme.colorScheme.primary,
+        modifier =
+            modifier
+                .size(50.dp)
+                .semantics { contentDescription = "Customize Cover" }
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                },
+    ) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = SimpIcons.Tune,
+                contentDescription = null,
+                modifier = Modifier.size(22.dp),
+            )
+        }
+    }
+}
+
+/**
+ * Material 3 Expressive action row for the Local Playlist header:
+ * Connected Split Button: [ Play Pill ] + [ Shuffle ] paired with Customize Cover button.
+ */
+@Composable
+private fun LocalPlaylistHeaderActions(
+    isThisPlaying: Boolean,
+    onPlay: () -> Unit,
+    onShuffle: () -> Unit,
+    onCustomize: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // Connected Split Button: [ Play Pill ] + [ Shuffle ]
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            val playLabel = if (isThisPlaying) "Pause" else "Play"
+            LocalPlaylistActionSegment(
+                onClick = onPlay,
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                startCorner = 25.dp,
+                endCorner = 8.dp,
+                contentDescription = playLabel,
+                contentPadding = PaddingValues(horizontal = 22.dp),
+            ) {
+                Icon(
+                    imageVector = if (isThisPlaying) SimpIcons.Pause else SimpIcons.PlayArrow,
+                    contentDescription = null,
+                    modifier = Modifier.size(22.dp),
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = playLabel,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    maxLines = 1,
+                )
+            }
+
+            LocalPlaylistActionSegment(
+                onClick = onShuffle,
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                startCorner = 8.dp,
+                endCorner = 25.dp,
+                contentDescription = "Shuffle",
+                fixedWidth = 52.dp,
+                contentPadding = PaddingValues(0.dp),
+            ) {
+                Icon(
+                    imageVector = SimpIcons.Shuffle,
+                    contentDescription = null,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+        }
+
+        LocalPlaylistCustomizeButton(
+            onClick = onCustomize,
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun LocalPlaylistHeaderActionsPreview() {
+    MaterialTheme {
+        Surface(
+            color = MaterialTheme.colorScheme.background,
+            modifier = Modifier.padding(16.dp),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                LocalPlaylistHeaderActions(
+                    isThisPlaying = false,
+                    onPlay = {},
+                    onShuffle = {},
+                    onCustomize = {},
+                )
+                LocalPlaylistHeaderActions(
+                    isThisPlaying = true,
+                    onPlay = {},
+                    onShuffle = {},
+                    onCustomize = {},
                 )
             }
         }

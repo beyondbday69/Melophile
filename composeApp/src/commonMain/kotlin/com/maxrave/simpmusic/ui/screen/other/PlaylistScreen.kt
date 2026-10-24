@@ -297,6 +297,25 @@ fun PlaylistScreen(
     val onPlaylistMoreClick: () -> Unit = {
         playlistBottomSheetShow = true
     }
+    val onDownloadClick: () -> Unit = {
+        when (downloadState) {
+            DownloadState.STATE_DOWNLOADED ->
+                viewModel.makeToast(
+                    getStringBlocking(Res.string.downloaded),
+                )
+            DownloadState.STATE_DOWNLOADING ->
+                viewModel.makeToast(
+                    getStringBlocking(Res.string.downloading),
+                )
+            else -> {
+                Logger.w(
+                    "PlaylistScreen",
+                    "downloadState: $downloadState",
+                )
+                viewModel.onUIEvent(PlaylistUIEvent.Download)
+            }
+        }
+    }
 
     LaunchedEffect(key1 = id) {
         if (id != uiState.data?.id) {
@@ -523,6 +542,12 @@ fun PlaylistScreen(
                                                                 isFirst = true,
                                                                 isLast = false,
                                                             )
+                                                            PlaylistHeaderDownloadButton(
+                                                                downloadState = downloadState,
+                                                                onClick = onDownloadClick,
+                                                                isFirst = false,
+                                                                isLast = false,
+                                                            )
                                                         }
                                                         PlaylistHeaderGroupButton(
                                                             contentDescription = "Search in playlist",
@@ -638,32 +663,12 @@ fun PlaylistScreen(
                                                             PlaylistHeaderActions(
                                                                 isRadio = data.isRadio,
                                                                 isThisPlaying = isThisPlaying,
-                                                                downloadState = downloadState,
                                                                 onShuffle = { viewModel.onUIEvent(PlaylistUIEvent.Shuffle) },
                                                                 onPlay = {
                                                                     if (isThisPlaying) {
                                                                         sharedViewModel.onUIEvent(UIEvent.PlayPause)
                                                                     } else {
                                                                         viewModel.onUIEvent(PlaylistUIEvent.PlayAll)
-                                                                    }
-                                                                },
-                                                                onDownload = {
-                                                                    when (downloadState) {
-                                                                        DownloadState.STATE_DOWNLOADED ->
-                                                                            viewModel.makeToast(
-                                                                                getStringBlocking(Res.string.downloaded),
-                                                                            )
-                                                                        DownloadState.STATE_DOWNLOADING ->
-                                                                            viewModel.makeToast(
-                                                                                getStringBlocking(Res.string.downloading),
-                                                                            )
-                                                                        else -> {
-                                                                            Logger.w(
-                                                                                "PlaylistScreen",
-                                                                                "downloadState: $downloadState",
-                                                                            )
-                                                                            viewModel.onUIEvent(PlaylistUIEvent.Download)
-                                                                        }
                                                                     }
                                                                 },
                                                                 modifier =
@@ -702,6 +707,12 @@ fun PlaylistScreen(
                                                                 viewModel.onUIEvent(PlaylistUIEvent.Favorite)
                                                             },
                                                             isFirst = true,
+                                                            isLast = false,
+                                                        )
+                                                        PlaylistHeaderDownloadButton(
+                                                            downloadState = downloadState,
+                                                            onClick = onDownloadClick,
+                                                            isFirst = false,
                                                             isLast = false,
                                                         )
                                                     }
@@ -744,32 +755,12 @@ fun PlaylistScreen(
                                                     PlaylistHeaderActions(
                                                         isRadio = data.isRadio,
                                                         isThisPlaying = isThisPlaying,
-                                                        downloadState = downloadState,
                                                         onShuffle = { viewModel.onUIEvent(PlaylistUIEvent.Shuffle) },
                                                         onPlay = {
                                                             if (isThisPlaying) {
                                                                 sharedViewModel.onUIEvent(UIEvent.PlayPause)
                                                             } else {
                                                                 viewModel.onUIEvent(PlaylistUIEvent.PlayAll)
-                                                            }
-                                                        },
-                                                        onDownload = {
-                                                            when (downloadState) {
-                                                                DownloadState.STATE_DOWNLOADED ->
-                                                                    viewModel.makeToast(
-                                                                        getStringBlocking(Res.string.downloaded),
-                                                                    )
-                                                                DownloadState.STATE_DOWNLOADING ->
-                                                                    viewModel.makeToast(
-                                                                        getStringBlocking(Res.string.downloading),
-                                                                    )
-                                                                else -> {
-                                                                    Logger.w(
-                                                                        "PlaylistScreen",
-                                                                        "downloadState: $downloadState",
-                                                                    )
-                                                                    viewModel.onUIEvent(PlaylistUIEvent.Download)
-                                                                }
                                                             }
                                                         },
                                                         modifier =
@@ -1412,74 +1403,47 @@ private fun PlaylistActionSegment(
 }
 
 /**
- * Tonal circular action button for the playlist header download action.
+ * Tonal connected action button for the playlist top bar header download action.
  */
 @Composable
-private fun PlaylistDownloadActionButton(
-    onClick: () -> Unit,
+private fun PlaylistHeaderDownloadButton(
     downloadState: Int,
+    onClick: () -> Unit,
+    isFirst: Boolean,
+    isLast: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.96f else 1f,
-        animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing),
-        label = "playlistDownloadScale",
-    )
-    val containerColor by animateColorAsState(
-        targetValue =
-            if (isPressed) {
-                MaterialTheme.colorScheme.surfaceContainerHighest
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerHigh
+    PlaylistHeaderGroupButton(
+        contentDescription =
+            when (downloadState) {
+                DownloadState.STATE_DOWNLOADED -> "Downloaded"
+                DownloadState.STATE_DOWNLOADING -> "Downloading"
+                else -> "Download"
             },
-        animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing),
-        label = "playlistDownloadColor",
-    )
-    Surface(
         onClick = onClick,
-        interactionSource = interactionSource,
-        shape = CircleShape,
-        color = containerColor,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        modifier =
-            modifier
-                .size(50.dp)
-                .semantics {
-                    contentDescription =
-                        when (downloadState) {
-                            DownloadState.STATE_DOWNLOADED -> "Downloaded"
-                            DownloadState.STATE_DOWNLOADING -> "Downloading"
-                            else -> "Download"
-                        }
-                }
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                },
+        isFirst = isFirst,
+        isLast = isLast,
+        modifier = modifier,
     ) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Crossfade(targetState = downloadState, label = "playlistHeaderDownload") { state ->
-                when (state) {
-                    DownloadState.STATE_DOWNLOADED ->
-                        Icon(
-                            painter = painterResource(Res.drawable.baseline_downloaded),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(22.dp),
-                        )
+        Crossfade(targetState = downloadState, label = "playlistHeaderDownload") { state ->
+            when (state) {
+                DownloadState.STATE_DOWNLOADED ->
+                    Icon(
+                        painter = painterResource(Res.drawable.baseline_downloaded),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp),
+                    )
 
-                    DownloadState.STATE_DOWNLOADING ->
-                        DownloadingIndicator(modifier = Modifier.size(28.dp))
+                DownloadState.STATE_DOWNLOADING ->
+                    DownloadingIndicator(modifier = Modifier.size(24.dp))
 
-                    else ->
-                        Icon(
-                            imageVector = SimpIcons.DownloadForOffline,
-                            contentDescription = null,
-                            modifier = Modifier.size(22.dp),
-                        )
-                }
+                else ->
+                    Icon(
+                        imageVector = SimpIcons.DownloadForOffline,
+                        contentDescription = null,
+                        modifier = Modifier.size(22.dp),
+                    )
             }
         }
     }
@@ -1488,77 +1452,63 @@ private fun PlaylistDownloadActionButton(
 /**
  * Material 3 Expressive connected split action group for the YouTube playlist header:
  * A connected Play + Shuffle split button (outer caps at 25dp, inner seam at 8dp,
- * morphing to standalone pill when pressed) paired with a tonal download action.
+ * morphing to standalone pill when pressed).
  */
 @Composable
 private fun PlaylistHeaderActions(
     isRadio: Boolean,
     isThisPlaying: Boolean,
-    downloadState: Int,
     onShuffle: () -> Unit,
     onPlay: () -> Unit,
-    onDownload: () -> Unit,
     modifier: Modifier = Modifier,
     horizontalArrangement: Arrangement.Horizontal = Arrangement.spacedBy(10.dp),
 ) {
+    // Connected Split Button: [ Play Pill ] + [ Shuffle ]
     Row(
         modifier = modifier,
-        horizontalArrangement = horizontalArrangement,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Connected Split Button: [ Play Pill ] + [ Shuffle ]
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        val playLabel = if (isThisPlaying) "Pause" else "Play"
+        PlaylistActionSegment(
+            onClick = onPlay,
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            startCorner = 25.dp,
+            endCorner = if (isRadio) 25.dp else 8.dp,
+            contentDescription = playLabel,
+            contentPadding = PaddingValues(horizontal = 22.dp),
         ) {
-            val playLabel = if (isThisPlaying) "Pause" else "Play"
-            PlaylistActionSegment(
-                onClick = onPlay,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                startCorner = 25.dp,
-                endCorner = if (isRadio) 25.dp else 8.dp,
-                contentDescription = playLabel,
-                contentPadding = PaddingValues(horizontal = 22.dp),
-            ) {
-                Icon(
-                    imageVector = if (isThisPlaying) SimpIcons.Pause else SimpIcons.PlayArrow,
-                    contentDescription = null,
-                    modifier = Modifier.size(22.dp),
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = playLabel,
-                    style = typo().titleSmall.copy(fontWeight = FontWeight.Bold),
-                    maxLines = 1,
-                )
-            }
-
-            if (!isRadio) {
-                PlaylistActionSegment(
-                    onClick = onShuffle,
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    contentColor = MaterialTheme.colorScheme.onSurface,
-                    startCorner = 8.dp,
-                    endCorner = 25.dp,
-                    contentDescription = "Shuffle",
-                    fixedWidth = 52.dp,
-                    contentPadding = PaddingValues(0.dp),
-                ) {
-                    Icon(
-                        imageVector = SimpIcons.Shuffle,
-                        contentDescription = null,
-                        modifier = Modifier.size(22.dp),
-                    )
-                }
-            }
+            Icon(
+                imageVector = if (isThisPlaying) SimpIcons.Pause else SimpIcons.PlayArrow,
+                contentDescription = null,
+                modifier = Modifier.size(22.dp),
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = playLabel,
+                style = typo().titleSmall.copy(fontWeight = FontWeight.Bold),
+                maxLines = 1,
+            )
         }
 
         if (!isRadio) {
-            PlaylistDownloadActionButton(
-                onClick = onDownload,
-                downloadState = downloadState,
-            )
+            PlaylistActionSegment(
+                onClick = onShuffle,
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                startCorner = 8.dp,
+                endCorner = 25.dp,
+                contentDescription = "Shuffle",
+                fixedWidth = 52.dp,
+                contentPadding = PaddingValues(0.dp),
+            ) {
+                Icon(
+                    imageVector = SimpIcons.Shuffle,
+                    contentDescription = null,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
         }
     }
 }
@@ -1572,34 +1522,28 @@ private fun PlaylistHeaderActionsPreview() {
             modifier = Modifier.padding(16.dp),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                // Default resting state (Not Playing, Not Downloaded)
+                // Default resting state (Not Playing)
                 PlaylistHeaderActions(
                     isRadio = false,
                     isThisPlaying = false,
-                    downloadState = DownloadState.STATE_NOT_DOWNLOADED,
                     onShuffle = {},
                     onPlay = {},
-                    onDownload = {},
                 )
 
-                // Playing state with Downloaded indicator
+                // Playing state
                 PlaylistHeaderActions(
                     isRadio = false,
                     isThisPlaying = true,
-                    downloadState = DownloadState.STATE_DOWNLOADED,
                     onShuffle = {},
                     onPlay = {},
-                    onDownload = {},
                 )
 
                 // Radio Mode (Single full pill Play button)
                 PlaylistHeaderActions(
                     isRadio = true,
                     isThisPlaying = false,
-                    downloadState = DownloadState.STATE_NOT_DOWNLOADED,
                     onShuffle = {},
                     onPlay = {},
-                    onDownload = {},
                 )
             }
         }
