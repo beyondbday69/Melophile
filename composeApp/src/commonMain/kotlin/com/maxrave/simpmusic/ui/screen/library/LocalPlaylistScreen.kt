@@ -18,6 +18,23 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.unit.IntOffset
+import com.maxrave.domain.repository.SongRepository
+import com.maxrave.domain.utils.connectArtists
+import com.maxrave.simpmusic.ui.component.AudioPlayingIndicator
+import com.maxrave.simpmusic.ui.component.ExplicitBadge
+import com.maxrave.simpmusic.ui.component.rememberHolderPainter
+import com.maxrave.simpmusic.ui.icon.QueueMusic
+import kotlin.math.roundToInt
+import kotlinx.coroutines.flow.mapNotNull
+import simpmusic.composeapp.generated.resources.add_to_queue
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -650,7 +667,7 @@ fun LocalPlaylistScreen(
                     ) {
                         // Material 3 Shaped Cover (tappable to customize!)
                         Box(
-                            contentAlignment = Alignment.BottomCenter,
+                            contentAlignment = Alignment.Center,
                             modifier = Modifier.clickable { showCoverCustomizer = true },
                         ) {
                             ExpressivePlaylistCover(
@@ -660,32 +677,6 @@ fun LocalPlaylistScreen(
                                 containerColor = currentCoverColor,
                                 size = 196.dp,
                             )
-                            // Elegant Expressive Edit Style Chip Badge
-                            Surface(
-                                shape = RoundedCornerShape(50),
-                                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.94f),
-                                tonalElevation = 6.dp,
-                                shadowElevation = 4.dp,
-                                modifier = Modifier.padding(bottom = 6.dp),
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                ) {
-                                    Icon(
-                                        imageVector = SimpIcons.Tune,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(13.dp),
-                                    )
-                                    Text(
-                                        text = "Edit style",
-                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                    )
-                                }
-                            }
                         }
 
                         Spacer(modifier = Modifier.height(18.dp))
@@ -749,7 +740,7 @@ fun LocalPlaylistScreen(
 
                         Spacer(modifier = Modifier.height(20.dp))
 
-                        // Expressive Action Row: [Play Button Pill | Shuffle] + [Customize Cover]
+                        // Expressive Action Row: [Play Button Pill | Shuffle]
                         val isThisPlaying = isPlaying && playingPlaylistId == LOCAL_PLAYLIST_ID + uiState.id
                         LocalPlaylistHeaderActions(
                             isThisPlaying = isThisPlaying,
@@ -761,7 +752,6 @@ fun LocalPlaylistScreen(
                                 }
                             },
                             onShuffle = { viewModel.onUIEvent(LocalPlaylistUIEvent.ShuffleClick) },
-                            onCustomize = { showCoverCustomizer = true },
                         )
                     }
                 } else {
@@ -772,7 +762,7 @@ fun LocalPlaylistScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Box(
-                            contentAlignment = Alignment.BottomCenter,
+                            contentAlignment = Alignment.Center,
                             modifier = Modifier.clickable { showCoverCustomizer = true },
                         ) {
                             ExpressivePlaylistCover(
@@ -782,31 +772,6 @@ fun LocalPlaylistScreen(
                                 containerColor = currentCoverColor,
                                 size = 196.dp,
                             )
-                            Surface(
-                                shape = RoundedCornerShape(50),
-                                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.94f),
-                                tonalElevation = 6.dp,
-                                shadowElevation = 4.dp,
-                                modifier = Modifier.padding(bottom = 6.dp),
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                ) {
-                                    Icon(
-                                        imageVector = SimpIcons.Tune,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(13.dp),
-                                    )
-                                    Text(
-                                        text = "Edit style",
-                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                    )
-                                }
-                            }
                         }
 
                         Column(
@@ -877,7 +842,6 @@ fun LocalPlaylistScreen(
                                     }
                                 },
                                 onShuffle = { viewModel.onUIEvent(LocalPlaylistUIEvent.ShuffleClick) },
-                                onCustomize = { showCoverCustomizer = true },
                             )
                         }
                     }
@@ -943,62 +907,67 @@ fun LocalPlaylistScreen(
                     }
                 }
 
-                // 4. Sort and Order Controls Row
+                // 4. Material 3 Expressive Sort and Order Toolbar
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    FilterChip(
-                        selected = false,
+                    // Sort Pill with tonal elevation
+                    Surface(
                         onClick = { sortBottomSheetShow = true },
-                        label = {
-                            Text(
-                                text = stringResource(Res.string.sort_by) + ": " + stringResource(uiState.filterState.displayNameRes()),
-                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                            )
-                        },
-                        leadingIcon = {
+                        shape = RoundedCornerShape(50),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        tonalElevation = 2.dp,
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
                             Icon(
                                 imageVector = SimpIcons.Sort,
                                 contentDescription = "Sort",
                                 modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.primary,
                             )
-                        },
-                        shape = RoundedCornerShape(16.dp),
-                        colors = FilterChipDefaults.filterChipColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            labelColor = MaterialTheme.colorScheme.onSurface,
-                            iconColor = MaterialTheme.colorScheme.primary,
-                        ),
-                        border = null,
-                    )
+                            Text(
+                                text = stringResource(Res.string.sort_by) + ": " + stringResource(uiState.filterState.displayNameRes()),
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                    }
 
+                    // Right-side actions: Reorder button (when CustomOrder active)
                     AnimatedVisibility(
                         visible = uiState.filterState == FilterState.CustomOrder,
-                        enter = fadeIn(),
-                        exit = fadeOut(),
+                        enter = fadeIn() + expandHorizontally(),
+                        exit = fadeOut() + shrinkHorizontally(),
                     ) {
                         Surface(
                             onClick = { changingOrder = !changingOrder },
-                            shape = RoundedCornerShape(16.dp),
+                            shape = RoundedCornerShape(50),
                             color = if (changingOrder) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                            tonalElevation = if (changingOrder) 4.dp else 2.dp,
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
                             ) {
                                 Icon(
                                     imageVector = if (changingOrder) SimpIcons.Check else SimpIcons.DragHandle,
                                     contentDescription = null,
                                     modifier = Modifier.size(16.dp),
-                                    tint = if (changingOrder) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    tint = if (changingOrder) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary,
                                 )
                                 Text(
                                     text = if (changingOrder) "Done" else "Reorder",
                                     style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = if (changingOrder) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = if (changingOrder) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
                                 )
                             }
                         }
@@ -1017,38 +986,27 @@ fun LocalPlaylistScreen(
             if (item != null) {
                 val isThisSongPlaying = playingTrack?.videoId == item.videoId && isPlaying
                 val content = @Composable { mod: Modifier ->
-                    Surface(
-                        modifier = mod.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        color = if (isThisSongPlaying) {
-                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
-                        } else {
-                            Color.Transparent
+                    LocalPlaylistTrackItem(
+                        song = item,
+                        index = index,
+                        isPlaying = isThisSongPlaying,
+                        isReordering = changingOrder,
+                        selectionMode = selectionState.isActive,
+                        isSelected = selectionState.isSelected(item.videoId),
+                        onItemClick = {
+                            Logger.w("PlaylistScreen", "index: $index")
+                            onPlaylistItemClick(it)
                         },
-                    ) {
-                        SongFullWidthItems(
-                            modifier = Modifier,
-                            forceDark = false,
-                            isPlaying = isThisSongPlaying,
-                            shouldShowDragHandle = changingOrder,
-                            songEntity = item,
-                            onMoreClickListener = { onItemMoreClick(it) },
-                            onClickListener = {
-                                Logger.w("PlaylistScreen", "index: $index")
-                                onPlaylistItemClick(it)
-                            },
-                            onAddToQueue = {
-                                sharedViewModel.addListToQueue(
-                                    arrayListOf(item.toTrack()),
-                                )
-                            },
-                            selectionMode = selectionState.isActive,
-                            isSelected = selectionState.isSelected(item.videoId),
-                            // No long press while reordering: that gesture already belongs to drag.
-                            onLongClick = if (changingOrder) null else ({ selectionState.start(it) }),
-                            onSelectToggle = { selectionState.toggle(it) },
-                        )
-                    }
+                        onMoreClick = { onItemMoreClick(it) },
+                        onAddToQueue = {
+                            sharedViewModel.addListToQueue(
+                                arrayListOf(item.toTrack()),
+                            )
+                        },
+                        onLongClick = if (changingOrder) null else ({ selectionState.start(it) }),
+                        onSelectToggle = { selectionState.toggle(it) },
+                        modifier = mod,
+                    )
                 }
                 if (changingOrder) {
                     DraggableItem(
@@ -1059,15 +1017,8 @@ fun LocalPlaylistScreen(
                         content(Modifier)
                     }
                 } else {
-                    Column(modifier = Modifier.animateItem()) {
+                    Box(modifier = Modifier.animateItem()) {
                         content(Modifier)
-                        if (index < trackPagingItems.itemCount - 1) {
-                            HorizontalDivider(
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f),
-                                modifier = Modifier.padding(start = 72.dp, end = 20.dp),
-                                thickness = 0.5.dp,
-                            )
-                        }
                     }
                 }
             }
@@ -1450,51 +1401,29 @@ fun LocalPlaylistScreen(
                             contentType = { _, _ -> "search-song" },
                         ) { index, (song, _) ->
                             val isThisSongPlaying = playingTrack?.videoId == song.videoId && isPlaying
-                            // Match the playlist list: tonal rounded row, with the
-                            // same now-playing tint and the same inset divider.
-                            Column {
-                                Surface(
-                                    modifier =
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 8.dp, vertical = 2.dp),
-                                    shape = RoundedCornerShape(16.dp),
-                                    color =
-                                        if (isThisSongPlaying) {
-                                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
-                                        } else {
-                                            Color.Transparent
-                                        },
-                                ) {
-                                    SongFullWidthItems(
-                                        forceDark = false,
-                                        isPlaying = isThisSongPlaying,
-                                        songEntity = song,
-                                        onMoreClickListener = {
-                                            keyboardController?.hide()
-                                            onItemMoreClick(it)
-                                        },
-                                        onClickListener = {
-                                            keyboardController?.hide()
-                                            onPlaylistItemClick(it)
-                                        },
-                                        onAddToQueue = { sharedViewModel.addListToQueue(arrayListOf(song.toTrack())) },
-                                        selectionMode = selectionState.isActive,
-                                        isSelected = selectionState.isSelected(song.videoId),
-                                        onLongClick = { selectionState.start(it) },
-                                        onSelectToggle = { selectionState.toggle(it) },
-                                        // Required, no default — the paged list passes it down through `mod`.
-                                        modifier = Modifier,
+                            LocalPlaylistTrackItem(
+                                song = song,
+                                index = index,
+                                isPlaying = isThisSongPlaying,
+                                isReordering = false,
+                                selectionMode = selectionState.isActive,
+                                isSelected = selectionState.isSelected(song.videoId),
+                                onItemClick = {
+                                    keyboardController?.hide()
+                                    onPlaylistItemClick(it)
+                                },
+                                onMoreClick = {
+                                    keyboardController?.hide()
+                                    onItemMoreClick(it)
+                                },
+                                onAddToQueue = {
+                                    sharedViewModel.addListToQueue(
+                                        arrayListOf(song.toTrack()),
                                     )
-                                }
-                                if (index < searchResults.lastIndex) {
-                                    HorizontalDivider(
-                                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f),
-                                        modifier = Modifier.padding(start = 72.dp, end = 20.dp),
-                                        thickness = 0.5.dp,
-                                    )
-                                }
-                            }
+                                },
+                                onLongClick = { selectionState.start(it) },
+                                onSelectToggle = { selectionState.toggle(it) },
+                            )
                         }
                     }
 
@@ -1892,121 +1821,346 @@ private fun LocalPlaylistActionSegment(
 }
 
 /**
- * Tonal circular button for customizing playlist cover / shape.
+ * Material 3 Expressive track item for Local Playlist:
+ * Featuring squircle cover (12.dp), playing soundwave overlay, tonal playing background,
+ * marquee typography, download & explicit badges, swipe-to-queue, and reorder handle.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun LocalPlaylistCustomizeButton(
-    onClick: () -> Unit,
+private fun LocalPlaylistTrackItem(
+    song: SongEntity,
+    index: Int,
+    isPlaying: Boolean,
+    isReordering: Boolean,
+    selectionMode: Boolean,
+    isSelected: Boolean,
+    onItemClick: (videoId: String) -> Unit,
+    onMoreClick: (videoId: String) -> Unit,
+    onAddToQueue: (videoId: String) -> Unit,
+    onLongClick: ((videoId: String) -> Unit)?,
+    onSelectToggle: (videoId: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.96f else 1f,
-        animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing),
-        label = "localPlaylistCustomizeScale",
-    )
+    val songRepository: SongRepository = koinInject()
+    val downloadState by songRepository
+        .getSongAsFlow(song.videoId)
+        .mapNotNull { it?.downloadState }
+        .collectAsStateWithLifecycle(initialValue = DownloadState.STATE_NOT_DOWNLOADED)
+
+    val maxOffset = 320f
+    val coroutineScope = rememberCoroutineScope()
+    val offsetX = remember { Animatable(0f) }
+
     val containerColor by animateColorAsState(
-        targetValue =
-            if (isPressed) {
-                MaterialTheme.colorScheme.surfaceContainerHighest
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerHigh
-            },
-        animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing),
-        label = "localPlaylistCustomizeColor",
+        targetValue = when {
+            isSelected -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+            isPlaying -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+            else -> Color.Transparent
+        },
+        label = "localPlaylistTrackBg",
     )
-    Surface(
-        onClick = onClick,
-        interactionSource = interactionSource,
-        shape = CircleShape,
-        color = containerColor,
-        contentColor = MaterialTheme.colorScheme.primary,
-        modifier =
-            modifier
-                .size(50.dp)
-                .semantics { contentDescription = "Customize Cover" }
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                },
+
+    val borderColor = if (isPlaying && !isSelected) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+    } else {
+        Color.Transparent
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 2.5.dp),
     ) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Icon(
-                imageVector = SimpIcons.Tune,
-                contentDescription = null,
-                modifier = Modifier.size(22.dp),
-            )
+        // Swipe to Queue Background Action
+        Crossfade(
+            targetState = offsetX.value >= maxOffset / 2,
+            label = "queueSwipeIcon",
+        ) { shouldShow ->
+            if (shouldShow) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f))
+                        .padding(start = 20.dp),
+                    contentAlignment = Alignment.CenterStart,
+                ) {
+                    Icon(
+                        imageVector = SimpIcons.QueueMusic,
+                        contentDescription = stringResource(Res.string.add_to_queue),
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
+            }
+        }
+
+        // Card Surface
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .offset { IntOffset(offsetX.value.roundToInt(), 0) }
+                .pointerInput(selectionMode, isPlaying) {
+                    if (!isPlaying && !selectionMode) {
+                        detectHorizontalDragGestures(
+                            onHorizontalDrag = { change, dragAmount ->
+                                if (offsetX.value + dragAmount > 0) {
+                                    change.consume()
+                                    coroutineScope.launch {
+                                        offsetX.snapTo(
+                                            (offsetX.value + dragAmount).coerceAtMost(maxOffset),
+                                        )
+                                    }
+                                }
+                            },
+                            onDragEnd = {
+                                if (offsetX.value >= maxOffset * 0.8f) {
+                                    onAddToQueue(song.videoId)
+                                }
+                                coroutineScope.launch {
+                                    offsetX.animateTo(0f, tween(200))
+                                }
+                            },
+                        )
+                    }
+                },
+            shape = RoundedCornerShape(16.dp),
+            color = containerColor,
+            border = if (borderColor != Color.Transparent) BorderStroke(1.dp, borderColor) else null,
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .combinedClickable(
+                        onClick = {
+                            if (selectionMode) {
+                                onSelectToggle(song.videoId)
+                            } else {
+                                onItemClick(song.videoId)
+                            }
+                        },
+                        onLongClick = if (onLongClick != null && !selectionMode) {
+                            { onLongClick(song.videoId) }
+                        } else null,
+                    )
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                // Multi-selection Checkbox
+                AnimatedVisibility(
+                    visible = selectionMode,
+                    enter = fadeIn() + expandHorizontally(),
+                    exit = fadeOut() + shrinkHorizontally(),
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(22.dp)
+                                .clip(CircleShape)
+                                .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
+                                .border(
+                                    width = 1.5.dp,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                                    shape = CircleShape,
+                                ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = SimpIcons.Check,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.size(14.dp),
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                    }
+                }
+
+                // Squircle 12.dp Thumbnail with Playing Indicator
+                Box(
+                    modifier = Modifier
+                        .size(52.dp)
+                        .clip(RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalPlatformContext.current)
+                            .data(song.thumbnails)
+                            .diskCachePolicy(CachePolicy.ENABLED)
+                            .diskCacheKey(song.thumbnails)
+                            .build(),
+                        placeholder = rememberHolderPainter(),
+                        error = rememberHolderPainter(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+
+                    if (isPlaying) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.5f)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            AudioPlayingIndicator(
+                                modifier = Modifier.size(24.dp),
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                // Title + Artist + Duration Metadata
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(3.dp),
+                ) {
+                    Text(
+                        text = song.title,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = if (isPlaying) FontWeight.Bold else FontWeight.SemiBold,
+                            fontSize = 15.sp,
+                        ),
+                        color = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE),
+                    )
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        if (downloadState == DownloadState.STATE_DOWNLOADED) {
+                            Icon(
+                                imageVector = SimpIcons.DownloadForOffline,
+                                contentDescription = "Downloaded",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(14.dp),
+                            )
+                        }
+
+                        if (song.isExplicit) {
+                            ExplicitBadge(modifier = Modifier.size(16.dp))
+                        }
+
+                        val artistText = song.artistName?.connectArtists().orEmpty()
+                        val durationText = song.duration.takeIf { it.isNotBlank() }
+
+                        val meta = buildString {
+                            if (artistText.isNotBlank()) append(artistText)
+                            if (durationText != null) {
+                                if (isNotEmpty()) append(" • ")
+                                append(durationText)
+                            }
+                        }
+
+                        if (meta.isNotBlank()) {
+                            Text(
+                                text = meta,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE),
+                            )
+                        }
+                    }
+                }
+
+                // Trailing Action: Reorder drag handle OR More options
+                if (isReordering) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = SimpIcons.DragHandle,
+                            contentDescription = "Reorder",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                } else if (!selectionMode) {
+                    IconButton(
+                        onClick = { onMoreClick(song.videoId) },
+                        modifier = Modifier.size(36.dp),
+                    ) {
+                        Icon(
+                            imageVector = SimpIcons.MoreVert,
+                            contentDescription = "More",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                }
+            }
         }
     }
 }
 
 /**
  * Material 3 Expressive action row for the Local Playlist header:
- * Connected Split Button: [ Play Pill ] + [ Shuffle ] paired with Customize Cover button.
+ * Connected Split Button: [ Play Pill ] + [ Shuffle ]
  */
 @Composable
 private fun LocalPlaylistHeaderActions(
     isThisPlaying: Boolean,
     onPlay: () -> Unit,
     onShuffle: () -> Unit,
-    onCustomize: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Connected Split Button: [ Play Pill ] + [ Shuffle ]
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        val playLabel = if (isThisPlaying) "Pause" else "Play"
+        LocalPlaylistActionSegment(
+            onClick = onPlay,
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary,
+            startCorner = 25.dp,
+            endCorner = 8.dp,
+            contentDescription = playLabel,
+            contentPadding = PaddingValues(horizontal = 24.dp),
         ) {
-            val playLabel = if (isThisPlaying) "Pause" else "Play"
-            LocalPlaylistActionSegment(
-                onClick = onPlay,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                startCorner = 25.dp,
-                endCorner = 8.dp,
-                contentDescription = playLabel,
-                contentPadding = PaddingValues(horizontal = 22.dp),
-            ) {
-                Icon(
-                    imageVector = if (isThisPlaying) SimpIcons.Pause else SimpIcons.PlayArrow,
-                    contentDescription = null,
-                    modifier = Modifier.size(22.dp),
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = playLabel,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    maxLines = 1,
-                )
-            }
-
-            LocalPlaylistActionSegment(
-                onClick = onShuffle,
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-                startCorner = 8.dp,
-                endCorner = 25.dp,
-                contentDescription = "Shuffle",
-                fixedWidth = 52.dp,
-                contentPadding = PaddingValues(0.dp),
-            ) {
-                Icon(
-                    imageVector = SimpIcons.Shuffle,
-                    contentDescription = null,
-                    modifier = Modifier.size(22.dp),
-                )
-            }
+            Icon(
+                imageVector = if (isThisPlaying) SimpIcons.Pause else SimpIcons.PlayArrow,
+                contentDescription = null,
+                modifier = Modifier.size(22.dp),
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = playLabel,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                maxLines = 1,
+            )
         }
 
-        LocalPlaylistCustomizeButton(
-            onClick = onCustomize,
-        )
+        LocalPlaylistActionSegment(
+            onClick = onShuffle,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            startCorner = 8.dp,
+            endCorner = 25.dp,
+            contentDescription = "Shuffle",
+            fixedWidth = 56.dp,
+            contentPadding = PaddingValues(0.dp),
+        ) {
+            Icon(
+                imageVector = SimpIcons.Shuffle,
+                contentDescription = null,
+                modifier = Modifier.size(22.dp),
+            )
+        }
     }
 }
 
@@ -2023,13 +2177,11 @@ private fun LocalPlaylistHeaderActionsPreview() {
                     isThisPlaying = false,
                     onPlay = {},
                     onShuffle = {},
-                    onCustomize = {},
                 )
                 LocalPlaylistHeaderActions(
                     isThisPlaying = true,
                     onPlay = {},
                     onShuffle = {},
-                    onCustomize = {},
                 )
             }
         }
