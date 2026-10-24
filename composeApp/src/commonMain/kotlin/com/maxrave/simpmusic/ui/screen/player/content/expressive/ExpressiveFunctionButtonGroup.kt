@@ -50,7 +50,6 @@ import com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentActions
 import com.maxrave.simpmusic.ui.screen.player.content.NowPlayingContentState
 import com.maxrave.simpmusic.viewModel.UIEvent
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 // Base weight for inactive slots
 private const val BASE_SLOT_WEIGHT = 1.0f
@@ -401,27 +400,4 @@ private fun ExpressivePlaylistAddIcon(
                     scaleY = iconScale
                 },
     )
-}
-
-@Preview
-@Composable
-private fun ExpressiveFunctionButtonGroupPreview() {
-    MaterialTheme {
-        // Mock state for preview
-        val mockState = NowPlayingContentState()
-        val mockActions = object : NowPlayingContentActions {
-            override fun onUIEvent(event: UIEvent) {}
-            override fun onShowInfo() {}
-            override fun onShowAddToPlaylist() {}
-            override fun onShowQueue() {}
-        }
-        
-        Surface(color = MaterialTheme.colorScheme.background) {
-            ExpressiveFunctionButtonGroup(
-                state = mockState,
-                actions = mockActions,
-                modifier = Modifier.padding(16.dp)
-            )
-        }
-    }
 }
