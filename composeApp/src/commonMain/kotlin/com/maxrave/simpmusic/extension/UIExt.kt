@@ -28,7 +28,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
@@ -60,8 +59,6 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.kmpalette.palette.graphics.Palette
 import com.maxrave.domain.data.model.ui.ScreenSizeInfo
-import com.maxrave.logger.Logger
-import com.maxrave.simpmusic.getPlatform
 import com.maxrave.simpmusic.ui.theme.LocalAppColors
 import dev.chrisbanes.haze.blur.HazeBlurStyle
 import dev.chrisbanes.haze.blur.HazeColorEffect
@@ -421,28 +418,20 @@ fun LazyListState.isScrollingUp(): State<Boolean> {
     var previousIndex by remember(this) { mutableIntStateOf(firstVisibleItemIndex) }
     var previousScrollOffset by remember(this) { mutableIntStateOf(firstVisibleItemScrollOffset) }
 
-    LaunchedEffect(Unit) {
-        snapshotFlow { layoutInfo.totalItemsCount }.collect {
-            Logger.w("isScrollingUp", "firstVisibleItemIndex: $firstVisibleItemIndex")
-            previousIndex = firstVisibleItemIndex
-            previousScrollOffset = firstVisibleItemScrollOffset
-        }
-    }
-
     return remember(this) {
         derivedStateOf {
-            if (firstVisibleItemIndex > 0) {
+            val scrollingUp = if (firstVisibleItemIndex > 0) {
                 if (previousIndex != firstVisibleItemIndex) {
                     previousIndex > firstVisibleItemIndex
                 } else {
                     previousScrollOffset >= firstVisibleItemScrollOffset
-                }.also {
-                    previousIndex = firstVisibleItemIndex
-                    previousScrollOffset = firstVisibleItemScrollOffset
                 }
             } else {
                 true
             }
+            previousIndex = firstVisibleItemIndex
+            previousScrollOffset = firstVisibleItemScrollOffset
+            scrollingUp
         }
     }
 }
@@ -452,28 +441,20 @@ fun LazyGridState.isScrollingUp(): State<Boolean> {
     var previousIndex by remember(this) { mutableIntStateOf(firstVisibleItemIndex) }
     var previousScrollOffset by remember(this) { mutableIntStateOf(firstVisibleItemScrollOffset) }
 
-    LaunchedEffect(Unit) {
-        snapshotFlow { layoutInfo.totalItemsCount }.collect {
-            Logger.w("isScrollingUp", "firstVisibleItemIndex: $firstVisibleItemIndex")
-            previousIndex = firstVisibleItemIndex
-            previousScrollOffset = firstVisibleItemScrollOffset
-        }
-    }
-
     return remember(this) {
         derivedStateOf {
-            if (firstVisibleItemIndex > 0) {
+            val scrollingUp = if (firstVisibleItemIndex > 0) {
                 if (previousIndex != firstVisibleItemIndex) {
                     previousIndex > firstVisibleItemIndex
                 } else {
                     previousScrollOffset >= firstVisibleItemScrollOffset
-                }.also {
-                    previousIndex = firstVisibleItemIndex
-                    previousScrollOffset = firstVisibleItemScrollOffset
                 }
             } else {
                 true
             }
+            previousIndex = firstVisibleItemIndex
+            previousScrollOffset = firstVisibleItemScrollOffset
+            scrollingUp
         }
     }
 }
@@ -787,14 +768,15 @@ fun artworkScrimBrush(
 
 fun Modifier.isElementVisible(onVisibilityChanged: (Boolean) -> Unit) =
     composed {
-        val isVisible by remember { derivedStateOf { mutableStateOf(false) } }
-        LaunchedEffect(isVisible.value) { onVisibilityChanged.invoke(isVisible.value) }
+        var isVisible by remember { mutableStateOf(false) }
+        LaunchedEffect(isVisible) { onVisibilityChanged(isVisible) }
         this.onGloballyPositioned { layoutCoordinates ->
-            isVisible.value = layoutCoordinates.parentLayoutCoordinates?.let {
+            val visible = layoutCoordinates.parentLayoutCoordinates?.let {
                 val parentBounds = it.boundsInWindow()
                 val childBounds = layoutCoordinates.boundsInWindow()
                 parentBounds.overlaps(childBounds)
             } == true
+            if (visible != isVisible) isVisible = visible
         }
     }
 
