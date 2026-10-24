@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -45,12 +46,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.LocalTextStyle
@@ -89,6 +86,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -1347,9 +1345,150 @@ private fun PlaylistHeaderHeartButton(
 }
 
 /**
- * Material 3 Expressive action row for the YouTube playlist header: a filled play pill
- * flanked by tonal shuffle/download circles. The actions keep their existing behaviour;
- * only the presentation changes.
+ * Expressive connected split action segment: outer caps at 25.dp, inner seam at 8.dp,
+ * morphing to a full 25.dp pill while pressed. Matches the segmented button groups
+ * used in top bars and tabs.
+ */
+@Composable
+private fun PlaylistActionSegment(
+    onClick: () -> Unit,
+    containerColor: Color,
+    contentColor: Color,
+    startCorner: Dp,
+    endCorner: Dp,
+    contentDescription: String,
+    modifier: Modifier = Modifier,
+    fixedWidth: Dp? = null,
+    contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp),
+    content: @Composable RowScope.() -> Unit,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val restingStart = startCorner
+    val restingEnd = endCorner
+    val start by animateDpAsState(
+        targetValue = if (isPressed) 25.dp else restingStart,
+        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+        label = "playlistActionStartCorner",
+    )
+    val end by animateDpAsState(
+        targetValue = if (isPressed) 25.dp else restingEnd,
+        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+        label = "playlistActionEndCorner",
+    )
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.96f else 1f,
+        animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing),
+        label = "playlistActionScale",
+    )
+    Surface(
+        onClick = onClick,
+        interactionSource = interactionSource,
+        shape =
+            RoundedCornerShape(
+                topStart = start,
+                bottomStart = start,
+                topEnd = end,
+                bottomEnd = end,
+            ),
+        color = containerColor,
+        contentColor = contentColor,
+        modifier =
+            modifier
+                .then(if (fixedWidth != null) Modifier.size(fixedWidth, 50.dp) else Modifier.height(50.dp))
+                .semantics { this.contentDescription = contentDescription }
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                },
+    ) {
+        Row(
+            modifier = Modifier.padding(contentPadding),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+            content = content,
+        )
+    }
+}
+
+/**
+ * Tonal circular action button for the playlist header download action.
+ */
+@Composable
+private fun PlaylistDownloadActionButton(
+    onClick: () -> Unit,
+    downloadState: Int,
+    modifier: Modifier = Modifier,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.96f else 1f,
+        animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing),
+        label = "playlistDownloadScale",
+    )
+    val containerColor by animateColorAsState(
+        targetValue =
+            if (isPressed) {
+                MaterialTheme.colorScheme.surfaceContainerHighest
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerHigh
+            },
+        animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing),
+        label = "playlistDownloadColor",
+    )
+    Surface(
+        onClick = onClick,
+        interactionSource = interactionSource,
+        shape = CircleShape,
+        color = containerColor,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        modifier =
+            modifier
+                .size(50.dp)
+                .semantics {
+                    contentDescription =
+                        when (downloadState) {
+                            DownloadState.STATE_DOWNLOADED -> "Downloaded"
+                            DownloadState.STATE_DOWNLOADING -> "Downloading"
+                            else -> "Download"
+                        }
+                }
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                },
+    ) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Crossfade(targetState = downloadState, label = "playlistHeaderDownload") { state ->
+                when (state) {
+                    DownloadState.STATE_DOWNLOADED ->
+                        Icon(
+                            painter = painterResource(Res.drawable.baseline_downloaded),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp),
+                        )
+
+                    DownloadState.STATE_DOWNLOADING ->
+                        DownloadingIndicator(modifier = Modifier.size(28.dp))
+
+                    else ->
+                        Icon(
+                            imageVector = SimpIcons.DownloadForOffline,
+                            contentDescription = null,
+                            modifier = Modifier.size(22.dp),
+                        )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Material 3 Expressive connected split action group for the YouTube playlist header:
+ * A connected Play + Shuffle split button (outer caps at 25dp, inner seam at 8dp,
+ * morphing to standalone pill when pressed) paired with a tonal download action.
  */
 @Composable
 private fun PlaylistHeaderActions(
@@ -1360,88 +1499,108 @@ private fun PlaylistHeaderActions(
     onPlay: () -> Unit,
     onDownload: () -> Unit,
     modifier: Modifier = Modifier,
-    horizontalArrangement: Arrangement.Horizontal = Arrangement.spacedBy(12.dp),
+    horizontalArrangement: Arrangement.Horizontal = Arrangement.spacedBy(10.dp),
 ) {
     Row(
         modifier = modifier,
         horizontalArrangement = horizontalArrangement,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (!isRadio) {
-            FilledTonalIconButton(
-                onClick = onShuffle,
-                modifier = Modifier.size(50.dp),
-                shape = CircleShape,
-                colors =
-                    IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        contentColor = MaterialTheme.colorScheme.onSurface,
-                    ),
+        // Connected Split Button: [ Play Pill ] + [ Shuffle ]
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            val playLabel = if (isThisPlaying) "Pause" else "Play"
+            PlaylistActionSegment(
+                onClick = onPlay,
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                startCorner = 25.dp,
+                endCorner = if (isRadio) 25.dp else 8.dp,
+                contentDescription = playLabel,
+                contentPadding = PaddingValues(horizontal = 22.dp),
             ) {
                 Icon(
-                    imageVector = SimpIcons.Shuffle,
-                    contentDescription = "Shuffle",
+                    imageVector = if (isThisPlaying) SimpIcons.Pause else SimpIcons.PlayArrow,
+                    contentDescription = null,
                     modifier = Modifier.size(22.dp),
                 )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = playLabel,
+                    style = typo().titleSmall.copy(fontWeight = FontWeight.Bold),
+                    maxLines = 1,
+                )
+            }
+
+            if (!isRadio) {
+                PlaylistActionSegment(
+                    onClick = onShuffle,
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                    startCorner = 8.dp,
+                    endCorner = 25.dp,
+                    contentDescription = "Shuffle",
+                    fixedWidth = 52.dp,
+                    contentPadding = PaddingValues(0.dp),
+                ) {
+                    Icon(
+                        imageVector = SimpIcons.Shuffle,
+                        contentDescription = null,
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
             }
         }
 
-        Button(
-            onClick = onPlay,
-            modifier = Modifier.height(50.dp),
-            shape = RoundedCornerShape(25.dp),
-            colors =
-                ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                ),
-            contentPadding = PaddingValues(horizontal = 24.dp),
-            elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp, pressedElevation = 0.dp),
-        ) {
-            Icon(
-                imageVector = if (isThisPlaying) SimpIcons.Pause else SimpIcons.PlayArrow,
-                contentDescription = null,
-                modifier = Modifier.size(22.dp),
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = if (isThisPlaying) "Pause" else "Play",
-                style = typo().titleSmall.copy(fontWeight = FontWeight.Bold),
+        if (!isRadio) {
+            PlaylistDownloadActionButton(
+                onClick = onDownload,
+                downloadState = downloadState,
             )
         }
+    }
+}
 
-        if (!isRadio) {
-            FilledTonalIconButton(
-                onClick = onDownload,
-                modifier = Modifier.size(50.dp),
-                shape = CircleShape,
-                colors =
-                    IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        contentColor = MaterialTheme.colorScheme.onSurface,
-                    ),
-            ) {
-                Crossfade(targetState = downloadState, label = "playlistHeaderDownload") { state ->
-                    when (state) {
-                        DownloadState.STATE_DOWNLOADED ->
-                            Icon(
-                                painter = painterResource(Res.drawable.baseline_downloaded),
-                                contentDescription = "Downloaded",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(22.dp),
-                            )
+@Preview
+@Composable
+private fun PlaylistHeaderActionsPreview() {
+    MaterialTheme {
+        Surface(
+            color = MaterialTheme.colorScheme.background,
+            modifier = Modifier.padding(16.dp),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                // Default resting state (Not Playing, Not Downloaded)
+                PlaylistHeaderActions(
+                    isRadio = false,
+                    isThisPlaying = false,
+                    downloadState = DownloadState.STATE_NOT_DOWNLOADED,
+                    onShuffle = {},
+                    onPlay = {},
+                    onDownload = {},
+                )
 
-                        DownloadState.STATE_DOWNLOADING ->
-                            DownloadingIndicator(modifier = Modifier.size(28.dp))
+                // Playing state with Downloaded indicator
+                PlaylistHeaderActions(
+                    isRadio = false,
+                    isThisPlaying = true,
+                    downloadState = DownloadState.STATE_DOWNLOADED,
+                    onShuffle = {},
+                    onPlay = {},
+                    onDownload = {},
+                )
 
-                        else ->
-                            Icon(
-                                imageVector = SimpIcons.DownloadForOffline,
-                                contentDescription = "Download",
-                                modifier = Modifier.size(22.dp),
-                            )
-                    }
-                }
+                // Radio Mode (Single full pill Play button)
+                PlaylistHeaderActions(
+                    isRadio = true,
+                    isThisPlaying = false,
+                    downloadState = DownloadState.STATE_NOT_DOWNLOADED,
+                    onShuffle = {},
+                    onPlay = {},
+                    onDownload = {},
+                )
             }
         }
     }
