@@ -932,4 +932,22 @@
     <string name="material_dynamic_color_title" translatable="false">Dynamic Artwork Coloring</string>
     <string name="material_dynamic_color_subtitle" translatable="false">Theme the dock, mini-player, and entire app using the playing song\'s artwork palette</string>
     <string name="material_dynamic_color_disabled_hint" translatable="false">Requires Material 3 Expressive now playing style</string>
+
+    <!-- Local playlist screen -->
+    <string name="playlist_back">Back</string>
+    <string name="playlist_edit_style">Edit style</string>
+    <string name="playlist_local">Local</string>
+    <string name="playlist_syncing">Syncing…</string>
+    <string name="playlist_youtube_synced">YouTube Synced</string>
+    <string name="playlist_customize_cover">Customize cover</string>
+    <string name="playlist_reorder">Reorder</string>
+    <string name="playlist_reorder_done">Done</string>
+    <string name="playlist_empty_title">This playlist is empty</string>
+    <string name="playlist_empty_description">Add songs to start listening</string>
+    <string name="playlist_search_in_playlist">Search in playlist</string>
+    <string name="playlist_ai_suggestions">AI suggestions</string>
+    <string name="playlist_play">Play</string>
+    <string name="playlist_pause">Pause</string>
+    <string name="playlist_close_search">Close search</string>
+    <string name="playlist_clear_search">Clear search</string>
 </resources>

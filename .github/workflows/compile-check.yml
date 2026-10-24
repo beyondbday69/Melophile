@@ -1,0 +1,50 @@
+name: Compile check
+
+# Compile-only counterpart to ui-preview.yml, which builds a release APK and
+# publishes a GitHub prerelease. This one exists so a branch can be proved to
+# compile without shipping a build.
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'feat/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compile-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile:
+    name: Kotlin compile (:composeApp:compileKotlinJvm)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: 21
+          distribution: 'microsoft'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Setup local.properties
+        run: |
+          touch ./local.properties
+          echo 'SENTRY_DSN=""' >> ./local.properties
+          echo "SENTRY_AUTH_TOKEN=" >> ./local.properties
+          echo "LASTFM_API_KEY=" >> ./local.properties
+          echo "LASTFM_SECRET=" >> ./local.properties
+          echo "sdk.dir=$ANDROID_HOME" >> ./local.properties
+
+      # commonMain + jvmMain share one compile. This is the fastest task that
+      # type-checks the shared Compose UI and regenerates the resource accessors.
+      - name: Compile shared Kotlin
+        run: ./gradlew :composeApp:compileKotlinJvm --console=plain --stacktrace
